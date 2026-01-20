@@ -1,10 +1,11 @@
 <script setup>
 useHead({
-  title: '江映澄命相 | 命有定數 運在人為',
+  title: '江映澄命相 | 八字與紫微斗數諮詢，掌握運勢趨吉避凶的現代指引',
   meta: [
-    { name: 'description', content: '結合現代心理學與古老命理學，為您揭開命運的神秘面紗。提供紫微斗數、八字命理諮詢服務。' },
+    { name: 'description', content: '結合現代心理學與傳統命理智慧，江映澄老師提供專業的八字、紫微斗數及流年運勢分析。我們深信命雖說已定，但運可以自己掌控。透過精準的命理諮詢，協助您在人生十字路口看清方向，學會趨吉避凶，找回生活的掌控權。' },
     { property: 'og:title', content: '江映澄命相' },
     { property: 'og:description', content: '入道六載，閱人無數。命有定數，運在人為。' },
+    { property: 'og:image', content: '/logo.png' },
   ],
 })
 
