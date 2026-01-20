@@ -31,7 +31,7 @@ const closeMenu = () => {
             <!-- Desktop Links -->
             <div class="nav-links">
                 <router-link to="/services">服務方案</router-link>
-                <router-link to="/blog">專欄文章</router-link>
+                <router-link to="/blog">命理專欄</router-link>
                 <router-link to="/contact">聯繫我</router-link>
                 <router-link to="/ziwei" class="nav-cta">開始排盤</router-link>
             </div>
@@ -48,7 +48,7 @@ const closeMenu = () => {
         <div class="mobile-menu" :class="{ open: isMenuOpen }">
             <div class="mobile-nav-links">
                 <router-link to="/services" @click="closeMenu">服務方案</router-link>
-                <router-link to="/blog" @click="closeMenu">專欄文章</router-link>
+                <router-link to="/blog" @click="closeMenu">命理專欄</router-link>
                 <router-link to="/contact" @click="closeMenu">聯繫我</router-link>
                 <router-link to="/ziwei" class="nav-cta mobile-cta" @click="closeMenu">開始排盤</router-link>
             </div>
@@ -142,6 +142,7 @@ const closeMenu = () => {
     cursor: pointer;
     z-index: 102;
     padding: 0;
+    position: relative;
 }
 
 .menu-toggle span {
@@ -152,9 +153,17 @@ const closeMenu = () => {
     border-radius: 2px;
 }
 
-.menu-toggle.active span:nth-child(1) { transform: rotate(45deg) translate(8px, 6px); }
+.menu-toggle.active span:nth-child(1) { 
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg); 
+}
 .menu-toggle.active span:nth-child(2) { opacity: 0; }
-.menu-toggle.active span:nth-child(3) { transform: rotate(-45deg) translate(8px, -6px); }
+.menu-toggle.active span:nth-child(3) { 
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%) rotate(-45deg); 
+}
 
 /* Mobile Menu */
 .mobile-menu {
@@ -162,7 +171,7 @@ const closeMenu = () => {
     top: calc(1.5rem + 70px + 10px); 
     left: 50%; 
     width: 95%; max-width: 1100px;
-    background: rgba(255, 255, 255, 0.9);
+    background: #fff;
     backdrop-filter: blur(20px);
     border-radius: 30px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.1);
