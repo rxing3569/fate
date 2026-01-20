@@ -81,7 +81,7 @@ const scrollToAbout = () => {
                 
                 <div class="content-card">
                       <p class="about-text">
-                     <b>【知命，是為了更好的造命】</b><br>
+                     <b class="quote-highlight">【知命，是為了更好的造命】</b><br>
 
 <b>從業六載，閱人數百</b> <br>江某入途六年有餘，曾協助數百位個案釐清生命迷惘，風格獨樹一格，將「現代心理學」融入「傳統命理」之中；不語怪力亂神，而是引導您進行深度的自我覺察。
 <br>
@@ -231,6 +231,7 @@ h2 { font-size: 2.5rem; color: #2c2c2c; margin-bottom: 0.5rem; }
 
 .content-card { background: rgba(255, 255, 255, 0.6); padding: 3rem; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.05); backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.5); }
 .about-text { text-align: center; font-size: 1.1rem; line-height: 2.2; color: #4a3b32; }
+.quote-highlight { font-size: 1.4rem; color: #81C7D4; display: inline-block; margin-bottom: 0.5rem; }
 
 @media (max-width: 768px) {
     .main-title { font-size: 2.2rem; margin-bottom: 1rem; }
