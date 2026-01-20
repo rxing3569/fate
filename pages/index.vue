@@ -70,8 +70,8 @@ const scrollToAbout = () => {
                         <span class="label">年資歷</span>
                     </div>
                     <div class="stat-item">
-                        <span class="num">500+</span>
-                        <span class="label">閱盤人次</span>
+                        <span class="num">300+</span>
+                        <span class="label">閱盤數量</span>
                     </div>
                     <div class="stat-item">
                         <span class="num">100%</span>
@@ -256,7 +256,7 @@ h2 { font-size: 2.5rem; color: #2c2c2c; margin-bottom: 0.5rem; }
     }
 
     .stats-grid { grid-template-columns: 1fr; gap: 1rem; }
-    .about-text { padding: 0 1rem; }
+    .about-text { padding: 0 1rem; font-size: 0.95rem; }
     .hero-desc { border-left: none; padding-left: 0; }
     .stats-grid { flex-direction: column; gap: 2rem; }
     .stat-item::after { display: none; }
