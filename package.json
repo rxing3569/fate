@@ -1,0 +1,22 @@
+{
+  "name": "fate-book",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@vue/shared": "^3.5.27",
+    "@vueuse/core": "^14.1.0",
+    "@vueuse/nuxt": "^14.1.0",
+    "iztro": "^2.5.4",
+    "nuxt": "^4.2.2",
+    "sass": "^1.97.2",
+    "vue": "^3.5.27",
+    "vue-router": "^4.6.4"
+  }
+}

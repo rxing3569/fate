@@ -1,0 +1,139 @@
+/* Font Import */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Premium Dark Theme Palette */
+  --color-bg: #0f172a;
+  --color-surface: #1e293b;
+  --color-surface-transparent: rgba(30, 41, 59, 0.7);
+  --color-primary: #81C7D4;
+  /* Indigo 500 */
+  --color-primary-glow: rgba(99, 102, 241, 0.5);
+  --color-secondary: #ec4899;
+  /* Pink 500 */
+  --color-text-main: #2c3e50;
+  --color-text-muted: #5d4037;
+  --color-border: #e2e8f0;
+
+  /* Spacing & Layout */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-glow: 0 0 20px var(--color-primary-glow);
+
+  /* Font Stack Update */
+  --font-sans: 'Microsoft JhengHei', '微軟正黑體', sans-serif;
+  --font-poem: 'BiauKai', 'DFKai-SB', '標楷體', serif;
+}
+
+.font-poem {
+  font-family: var(--font-poem) !important;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #f4f1ea;
+  /* Rice paper base */
+  background-image: url('/bg_landscape.png');
+  background-size: cover;
+  background-position: center bottom;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  color: var(--color-text-main);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#__nuxt {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Utilities */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  width: 100%;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  box-shadow: var(--shadow-lg);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg), var(--shadow-glow);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  color: white;
+  box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.4);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.title-gradient {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glassmorphism */
+.glass {
+  background: var(--color-surface-transparent);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Page Transitions */
+.page-enter-active,
+.page-leave-active {
+  transition: all 0.4s;
+}
+
+.page-enter-from,
+.page-leave-to {
+  opacity: 0;
+  filter: blur(1rem);
+}
