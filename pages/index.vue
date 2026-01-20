@@ -233,8 +233,8 @@ h2 { font-size: 2.5rem; color: #2c2c2c; margin-bottom: 0.5rem; }
 .about-text { text-align: center; font-size: 1.1rem; line-height: 2.2; color: #4a3b32; }
 
 @media (max-width: 768px) {
-    .main-title { font-size: 2.2rem; }
-    .hero-section { flex-direction: column; text-align: center; padding-top: 9rem; padding-bottom: 6rem; justify-content: flex-start; }
+    .main-title { font-size: 2.2rem; margin-bottom: 1rem; }
+    .hero-section { flex-direction: column; text-align: center; padding-top: 7.5rem; padding-bottom: 6rem; justify-content: flex-start; }
     .hero-content { flex-direction: column; }
     .hero-text { padding: 0; }
     .hero-desc { border-left: none; padding-left: 0; margin-bottom: 1.5rem; }
@@ -247,6 +247,7 @@ h2 { font-size: 2.5rem; color: #2c2c2c; margin-bottom: 0.5rem; }
         gap: 1rem;
         height: fit-content;
         font-size: 1.4rem; /* Scaled down */
+        letter-spacing: 0.2rem;
         margin-top: 0.5rem;
     }
     .hero-poem p {
