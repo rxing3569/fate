@@ -6,6 +6,7 @@ export default defineNuxtConfig({
     '@vueuse/nuxt'
   ],
   app: {
+    baseURL: '/fate/',
     pageTransition: { name: 'page', mode: 'out-in' },
     head: {
       link: [
