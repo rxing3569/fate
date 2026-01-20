@@ -227,7 +227,7 @@ h2 { font-size: 2.5rem; color: #2c2c2c; margin-bottom: 0.5rem; }
     color: #81C7D4;
     text-shadow: 1px 1px 1px rgba(0,0,0,0.3);
 }
-.label { font-size: 1rem; color: #666; font-weight: 500; }
+.label { font-size: 1rem; color: #666; font-weight: bold; }
 
 .content-card { background: rgba(255, 255, 255, 0.6); padding: 3rem; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.05); backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.5); }
 .about-text { text-align: center; font-size: 1.1rem; line-height: 2.2; color: #4a3b32; }
