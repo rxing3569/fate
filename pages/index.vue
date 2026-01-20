@@ -99,7 +99,7 @@ const scrollToAbout = () => {
                             <span class="card-arrow">→</span>
                         </NuxtLink>
                         <NuxtLink to="/blog" class="quick-card">
-                            <h3 class="card-title">專欄文章</h3>
+                            <h3 class="card-title">命理專欄</h3>
                             <p class="card-desc">深入淺出的命理知識分享，帶您探索命運的奧秘。</p>
                             <span class="card-arrow">→</span>
                         </NuxtLink>
@@ -234,7 +234,7 @@ h2 { font-size: 2.5rem; color: #2c2c2c; margin-bottom: 0.5rem; }
 
 @media (max-width: 768px) {
     .main-title { font-size: 2.2rem; }
-    .hero-section { flex-direction: column; text-align: center; padding-top: 6rem; padding-bottom: 6rem; justify-content: flex-start; }
+    .hero-section { flex-direction: column; text-align: center; padding-top: 9rem; padding-bottom: 6rem; justify-content: flex-start; }
     .hero-content { flex-direction: column; }
     .hero-text { padding: 0; }
     .hero-desc { border-left: none; padding-left: 0; margin-bottom: 1.5rem; }
