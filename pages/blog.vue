@@ -19,7 +19,7 @@ const articles = [
         <section class="section-block">
             <div class="container">
                 <div class="section-header">
-                    <h2>專欄文章</h2>
+                    <h2>命理專欄</h2>
                     <span class="eng-title">LATEST ARTICLES</span>
                     <div class="ink-line"></div>
                 </div>
@@ -51,9 +51,9 @@ const articles = [
 .container { max-width: 1000px; margin: 0 auto; padding: 6rem 2rem 2rem; }
 
 .section-header { text-align: center; margin-bottom: 4rem; }
-h2 { font-size: 2.5rem; color: #2c2c2c; margin-bottom: 0.5rem; }
+h2 { font-size: 2.5rem; color: #2c2c2c; margin-bottom: 0.2rem; }
 .eng-title { font-size: 0.9rem; color: #81C7D4; letter-spacing: 4px; font-weight: bold; }
-.ink-line { width: 60px; height: 3px; background: #81C7D4; margin: 1.5rem auto 0; border-radius: 2px; }
+.ink-line { width: 60px; height: 3px; background: #81C7D4; margin: 0.8rem auto 0; border-radius: 2px; }
 
 .blog-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2.5rem; }
 

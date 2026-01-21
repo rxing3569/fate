@@ -4,7 +4,7 @@ useHead({
   meta: [
     { name: 'description', content: '結合現代心理學與傳統命理智慧，江映澄老師提供專業的八字、紫微斗數及流年運勢分析。我們深信命雖說已定，但運可以自己掌控。透過精準的命理諮詢，協助您在人生十字路口看清方向，學會趨吉避凶，找回生活的掌控權。' },
     { property: 'og:title', content: '江映澄命相' },
-    { property: 'og:description', content: '入道六載，閱人無數。命有定數，運在人為。' },
+    { property: 'og:description', content: '結合現代心理學與傳統命理智慧，江映澄老師提供專業的八字、紫微斗數及流年運勢分析。我們深信命雖說已定，但運可以自己掌控。透過精準的命理諮詢，協助您在人生十字路口看清方向，學會趨吉避凶，找回生活的掌控權。' },
     { property: 'og:image', content: '/logo.png' },
   ],
 })
@@ -31,11 +31,12 @@ const scrollToAbout = () => {
         <section class="hero-section">
             <div class="hero-content">
                 <div class="hero-text">
-                    <h1 class="main-title">命有定數 <br>　運在人為</h1>
+                    <h1 class="main-title">江映澄命相</h1>
+                    <div class="sub-title">~ 命有定數．運在人為 ~</div>
 
                     <div class="hero-desc">
-                        <p>結合現代心理學與古老命理學</p>
-                        <p>為您揭開命運的神秘面紗，為自己尋找方向。</p>
+                        <p>透過紫微斗數與八字論命釐清天賦，融合現代心理學</p>
+                        <p>帶您揭開命運的面紗，為迷惘的自己尋找方向</p>
                     </div>
                 </div>
                 <div class="hero-visual">
@@ -111,7 +112,7 @@ const scrollToAbout = () => {
                     </div>
                     
                     <div class="action-wrapper">
-                        <NuxtLink to="/ziwei" class="btn-start-lg">開始排盤</NuxtLink>
+                        <NuxtLink to="/ziwei" class="btn-start-lg">免費線上排盤</NuxtLink>
                     </div>
                 </div>
             </div>
@@ -136,8 +137,8 @@ const scrollToAbout = () => {
 .hero-text { flex: 1; padding-right: 2rem; padding-top: 9rem; }
 .hero-visual { flex: 1; }
 
-.sub-title { font-size: 1.4rem; color: #81C7D4; margin-bottom: 1.5rem; letter-spacing: 4px; font-weight: 600; }
-.main-title { font-size: 4.5rem; color: #2c2c2c; margin-bottom: 2.5rem; line-height: 1.2; text-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+.sub-title { font-size: 1.4rem; color: #81C7D4; margin-bottom: 2rem; letter-spacing: 4px; font-weight: 600; }
+.main-title { font-size: 4.5rem; color: #2c2c2c; margin-bottom: 0.5rem; line-height: 1.2; text-shadow: 0 10px 30px rgba(0,0,0,0.1); }
 .hero-desc { font-size: 1.2rem; line-height: 2; color: #5d4037; margin-bottom: 3.5rem; font-weight: 600; padding-left: 1.5rem; }
 
 .hero-visual { flex: 1; display: flex; justify-content: flex-end; align-items: center; padding-top: 9rem; }
@@ -167,12 +168,6 @@ const scrollToAbout = () => {
     transition: all 0.3s;
 }
 .hero-poem p:last-child { border-right: none; }
-
-/* Staggered Waterfall Effect - One char height approx 3rem w/ spacing */
-.hero-poem p:nth-child(1) { margin-top: -8rem; }
-.hero-poem p:nth-child(2) { margin-top: -4rem; } 
-.hero-poem p:nth-child(3) { margin-top: 0rem; }
-.hero-poem p:nth-child(4) { margin-top: 4rem; }
 
 /* Scroll Indicator */
 .scroll-indicator {

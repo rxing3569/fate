@@ -12,21 +12,51 @@ useHead({
 const formData = ref({
     name: '',
     email: '',
-    message: ''
+    message: '',
+    type: '免費諮詢'
 })
 
-function submitForm() {
-    const { name, email, message } = formData.value
+const isSubmitting = ref(false)
+const statusMessage = ref({ text: '', type: '' }) // type: 'success' | 'error'
+
+async function submitForm() {
+    const { name, email, message, type } = formData.value
     if (!name || !email || !message) {
         alert('請填寫完整資訊')
         return
     }
 
-    const subject = `[江映澄命相 諮詢] ${name}`
-    const body = `姓名/暱稱: ${name}%0D%0AEmail: ${email}%0D%0A%0D%0A問題/訊息:%0D%0A${message}`
+    isSubmitting.value = true
+    statusMessage.value = { text: '', type: '' }
+
+    const WORKER_URL = "https://sendemail.sasuke01260616.workers.dev/"
     
-    // Open mailto link
-    window.location.href = `mailto:life.design.yolo@gmail.com?subject=${encodeURIComponent(subject)}&body=${body}`
+    // Prepare data (worker expects this structure based on user request)
+    const data = { name, email, message, type }
+
+    try {
+        const response = await fetch(WORKER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            statusMessage.value = { text: "發送成功！我們會盡快聯絡您。", type: 'success' }
+            // Reset form
+            formData.value = { name: '', email: '', message: '' }
+        } else {
+            console.error(result);
+            statusMessage.value = { text: "發送失敗，請稍後再試。", type: 'error' }
+        }
+    } catch (error) {
+        console.error(error);
+        statusMessage.value = { text: "發生錯誤，請檢查網路連線。", type: 'error' }
+    } finally {
+        isSubmitting.value = false
+    }
 }
 </script>
 
@@ -57,21 +87,28 @@ function submitForm() {
                     </div>
 
                     <div class="contact-form">
-                        <h3>快速諮詢</h3>
+                        <h3>免費諮詢</h3>
                         <form @submit.prevent="submitForm">
                             <div class="form-group">
                                 <label for="name">名字 / 暱稱</label>
-                                <input type="text" id="name" v-model="formData.name" placeholder="您的稱呼" required>
+                                <input type="text" id="name" v-model="formData.name" placeholder="您的稱呼" required :disabled="isSubmitting">
                             </div>
                             <div class="form-group">
                                 <label for="email">Email</label>
-                                <input type="email" id="email" v-model="formData.email" placeholder="您的電子信箱" required>
+                                <input type="email" id="email" v-model="formData.email" placeholder="您的電子信箱" required :disabled="isSubmitting">
                             </div>
                             <div class="form-group">
                                 <label for="message">問題 / 訊息</label>
-                                <textarea id="message" v-model="formData.message" rows="4" placeholder="請簡述您的需求或疑問..." required></textarea>
+                                <textarea id="message" v-model="formData.message" rows="4" placeholder="請簡述您的需求或疑問..." required :disabled="isSubmitting"></textarea>
                             </div>
-                            <button type="submit" class="submit-btn">發送郵件</button>
+                            
+                            <button type="submit" class="submit-btn" :disabled="isSubmitting">
+                                {{ isSubmitting ? '發送中...' : '送出訊息' }}
+                            </button>
+                            
+                            <p v-if="statusMessage.text" class="status-msg" :class="statusMessage.type">
+                                {{ statusMessage.text }}
+                            </p>
                         </form>
                     </div>
                 </div>
@@ -115,6 +152,11 @@ h2 { font-size: 2.5rem; color: #2c2c2c; margin-bottom: 0.5rem; }
 
 .submit-btn { width: 100%; padding: 1rem; background: #81C7D4; color: white; border: none; border-radius: 6px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: all 0.3s; }
 .submit-btn:hover { background: #60a5fa; box-shadow: 0 4px 12px rgba(96, 165, 250, 0.3); }
+.submit-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+.status-msg { margin-top: 1rem; text-align: center; font-weight: bold; font-size: 0.95rem; }
+.status-msg.success { color: green; }
+.status-msg.error { color: red; }
 
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }

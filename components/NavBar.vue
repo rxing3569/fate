@@ -33,7 +33,7 @@ const closeMenu = () => {
                 <router-link to="/services">服務方案</router-link>
                 <router-link to="/blog">命理專欄</router-link>
                 <router-link to="/contact">聯繫我</router-link>
-                <router-link to="/ziwei" class="nav-cta">開始排盤</router-link>
+                <router-link to="/ziwei" class="nav-cta">免費線上排盤</router-link>
             </div>
 
             <!-- Mobile Toggle -->
@@ -50,7 +50,7 @@ const closeMenu = () => {
                 <router-link to="/services" @click="closeMenu">服務方案</router-link>
                 <router-link to="/blog" @click="closeMenu">命理專欄</router-link>
                 <router-link to="/contact" @click="closeMenu">聯繫我</router-link>
-                <router-link to="/ziwei" class="nav-cta mobile-cta" @click="closeMenu">開始排盤</router-link>
+                <router-link to="/ziwei" class="nav-cta mobile-cta" @click="closeMenu">免費線上排盤</router-link>
             </div>
         </div>
     </nav>
@@ -60,7 +60,7 @@ const closeMenu = () => {
 .navbar {
     position: fixed; top: 1.5rem; left: 50%; transform: translateX(-50%);
     z-index: 1000;
-    width: 100%; max-width: 1100px;
+    width: 100%; max-width: calc(1200px - 4rem);
     background: rgba(255, 255, 255, 0.25); /* More transparent */
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.3);
@@ -170,7 +170,7 @@ const closeMenu = () => {
     position: fixed; 
     top: calc(1.5rem + 70px + 10px); 
     left: 50%; 
-    width: 95%; max-width: 1100px;
+    width: 95%; max-width: 1200px;
     background: #fff;
     backdrop-filter: blur(20px);
     border-radius: 30px;
