@@ -7,7 +7,7 @@ export default defineNuxtConfig({
     '@nuxtjs/sitemap'
   ],
   site: {
-    url: 'https://example.com',
+    url: 'https://www.fatejyc.com',
   },
   app: {
     baseURL: '/',
