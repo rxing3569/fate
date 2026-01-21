@@ -358,6 +358,21 @@ const currentDecadeAges = computed(() => {
     </div>
 
 
+    <!-- Patterns -->
+    <div class="patterns-container" v-if="patterns.length > 0">
+        <h3>格局判斷 (Patterns)</h3>
+        <div class="patterns-grid">
+             <div v-for="(p, idx) in patterns" :key="idx" class="pattern-card" :class="p.type">
+                 <div class="pattern-header">
+                     <span class="pattern-tag" :class="p.type">{{ p.type === 'lucky' ? '吉' : '凶' }}</span>
+                     <span class="pattern-name" :class="p.type">{{ p.name }}</span>
+                 </div>
+                 <p class="pattern-desc">{{ p.description }}</p>
+                 <p class="pattern-desc" v-if="p.note" style="color: #666; font-size: 0.9em; margin-top: 4px;">{{ p.note }}</p>
+             </div>
+        </div>
+    </div>
+
   </div>
 </template>
 
@@ -511,9 +526,34 @@ const currentDecadeAges = computed(() => {
     color: #5d4037; font-size: 1.3rem; margin-bottom: 1rem; 
     font-family: 'Ma Shan Zheng', cursive; border-bottom: 2px solid #f4f1ea; padding-bottom: 0.5rem; 
 }
-.pattern-tag { 
-    background: #fff8e1; color: #f57f17; border: 1px solid #ffe0b2; 
-    padding: 0.4rem 1rem; border-radius: 20px; font-weight: bold; 
+.patterns-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;
+}
+.pattern-card {
+    background: #FFFAF0; border: 1px solid #ffe0b2; padding: 1rem; border-radius: 8px;
+    transition: all 0.2s; position: relative; overflow: hidden;
+}
+.pattern-card.unlucky {
+    background: #f3e5f5; border-color: #e1bee7; /* Purple tint */
+}
+.pattern-card:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+
+.pattern-header {
+    display: flex; align-items: center; margin-bottom: 0.5rem;
+}
+.pattern-tag {
+    font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; color: white; margin-right: 8px; font-weight: bold;
+}
+.pattern-tag.lucky { background: #f57f17; }
+.pattern-tag.unlucky { background: #8e44ad; }
+
+.pattern-name {
+    font-weight: bold; font-size: 1.1rem; color: #e65100;
+}
+.pattern-name.unlucky { color: #8e44ad; }
+
+.pattern-desc {
+    font-size: 0.95rem; color: #5d4037; line-height: 1.5;
 }
 
 /* Badges Inline */
