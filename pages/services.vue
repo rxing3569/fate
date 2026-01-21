@@ -221,12 +221,15 @@ const handleAction = (svc) => {
     font: inherit;
     width: 20px;
     height: 20px;
+    min-width: 20px; /* Ensure fixed size */
+    min-height: 20px;
     border: 1px solid #81C7D4;
-    border-radius: 5px; /* Rounded corners */
+    border-radius: 5px; 
     display: grid;
     place-content: center;
     transition: 0.2s;
     cursor: pointer;
+    flex-shrink: 0; /* Prevent shrinking */
 }
 
 .addon-checkbox-inline::before {

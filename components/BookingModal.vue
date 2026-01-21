@@ -195,6 +195,10 @@ h3 { font-size: 1.8rem; color: #2c2c2c; margin-bottom: 0.5rem; text-align: cente
 
 @media (max-width: 600px) {
     .form-row { flex-direction: column; gap: 0; }
-    .modal-content { padding: 2rem 1.5rem; }
+    .modal-content { 
+        padding: 1.5rem; 
+        max-height: 85vh; 
+        overflow-y: auto; 
+    }
 }
 </style>
