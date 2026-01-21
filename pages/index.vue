@@ -59,11 +59,7 @@ const scrollToAbout = () => {
         <!-- About / Destiny Section -->
         <section id="about" class="section-block about-container">
             <div class="container-narrow">
-                <div class="section-header">
-                    <h2>關於映澄</h2>
-                    <span class="eng-title">ABOUT DESTINY</span>
-                    <div class="ink-line"></div>
-                </div>
+                <SectionHeader title="關於映澄" engTitle="ABOUT DESTINY" />
                 
                 <div class="stats-grid">
                     <div class="stat-item">
@@ -207,10 +203,7 @@ const scrollToAbout = () => {
 
 /* --- Shared Headers --- */
 .container-narrow { max-width: 900px; margin: 0 auto; padding: 0 2rem; }
-.section-header { text-align: center; margin-bottom: 4rem; }
-h2 { font-size: 2.5rem; color: #2c2c2c; margin-bottom: 0.5rem; }
-.eng-title { font-size: 0.9rem; color: #81C7D4; letter-spacing: 4px; font-weight: bold; }
-.ink-line { width: 60px; height: 3px; background: #81C7D4; margin: 1.5rem auto 0; border-radius: 2px; }
+
 
 /* --- About Container --- */
 .stats-grid { display: flex; justify-content: center; gap: 4rem; margin-bottom: 3rem; text-align: center; }

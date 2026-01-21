@@ -8,12 +8,15 @@ useHead({
   ],
 })
 
+const showBookingModal = ref(false)
+const selectedServiceTitle = ref('')
+
 const services = ref([
     { 
         title: '紫微本命大運', 
         price: 2100, 
         desc: '深度解析人格特質、天賦才華與近十年大運，全方位了解人生格局，涵蓋性格、事業、財運、婚姻、健康、人際關係等一生的運勢基調與潛能，它是你人生的「宇宙履歷」。', 
-        action: 'ziwei',
+        action: 'booking',
         addOnSelected: false,
         contents: [
             '本命盤與近十年大運詳細說明',
@@ -27,7 +30,7 @@ const services = ref([
         title: '紫微單一流年', 
         price: 1200, 
         desc: '聚焦當年度流年運勢，精準解析該年吉凶禍福與機遇挑戰。涵蓋事業升遷、財運起伏、感情變化與外出運勢，助您在關鍵時刻預知先機，做出最佳決策。', 
-        action: 'ziwei',
+        action: 'booking',
         addOnSelected: false,
         contents: [
             '當年度注意事項詳細說明 (事業/財運/感情/考試/外出)',
@@ -39,7 +42,7 @@ const services = ref([
         title: '八字本命大運', 
         price: 1800, 
         desc: '透過五行結構剖析核心能量，掌握一生大運起伏與喜忌。全方位解讀性格特質、事業財運與婚姻家庭，助您在人生順逆境中找準定位，掌握關鍵轉折，知命而順勢。', 
-        action: 'bazi',
+        action: 'booking',
         addOnSelected: false,
         contents: [
             '八字命式與五行喜忌能量詳細說明',
@@ -52,7 +55,7 @@ const services = ref([
         title: '八字單一流年', 
         price: 900, 
         desc: '針對特定流年進行五行生剋推演，預測該年運勢走向與潛在變數。深入解析事業機遇、財運得失與健康狀況，提供具體的趨吉避凶策略，助您安穩度過流年挑戰。', 
-        action: 'bazi',
+        action: 'booking',
         addOnSelected: false,
         contents: [
             '當年度注意事項詳細說明 (事業/財運/感情/考試/外出)',
@@ -63,14 +66,11 @@ const services = ref([
 ])
 
 const handleAction = (svc) => {
-    // In a real app, you might pass the selected add-on state
-    // console.log(`Service: ${svc.title}, Voice Add-on: ${svc.addOnSelected}`)
-    
-    if(svc.action === 'ziwei') {
-        window.location.href = '/ziwei'
-    } else {
-        alert('此功能建設中')
+    selectedServiceTitle.value = svc.title
+    if(svc.addOnSelected) {
+        selectedServiceTitle.value += ' (+語音講解)'
     }
+    showBookingModal.value = true
 }
 </script>
 
@@ -78,11 +78,7 @@ const handleAction = (svc) => {
     <div class="page-container">
         <section class="section-block">
             <div class="container">
-                <div class="section-header">
-                    <h2>服務方案</h2>
-                    <span class="eng-title">SERVICES</span>
-                    <div class="ink-line"></div>
-                </div>
+                <SectionHeader title="服務方案" engTitle="SERVICES" />
                 
                 <div class="services-list">
                     <div v-for="(svc, idx) in services" :key="idx" class="service-card">
@@ -102,10 +98,6 @@ const handleAction = (svc) => {
                                     </label>
                                 </div>
                             </div>
-                            
-                            <div class="price-block">
-                                <div class="base-price">NT$ {{ svc.price }}</div>
-                            </div>
                         </div>
                         
                         <div class="total-block">
@@ -118,6 +110,13 @@ const handleAction = (svc) => {
                 </div>
             </div>
         </section>
+        
+        <!-- Booking Modal -->
+        <BookingModal 
+            :visible="showBookingModal" 
+            :serviceTitle="selectedServiceTitle" 
+            @close="showBookingModal = false" 
+        />
     </div>
 </template>
 
@@ -127,12 +126,8 @@ const handleAction = (svc) => {
     min-height: 80vh;
     animation: fadeIn 0.8s ease-out;
 }
-.container { max-width: 900px; margin: 0 auto; padding: 6rem 2rem 2rem; }
+.container { max-width: 900px; margin: 0 auto; padding: 4rem 2rem 2rem; }
 
-.section-header { text-align: center; margin-bottom: 4rem; }
-h2 { font-size: 2.5rem; color: #2c2c2c; margin-bottom: 0.2rem; letter-spacing: 4px; }
-.eng-title { font-size: 0.9rem; color: #81C7D4; letter-spacing: 4px; font-weight: bold; }
-.ink-line { width: 60px; height: 3px; background: #81C7D4; margin: 0.8rem auto 0; border-radius: 2px; }
 
 /* List Layout */
 .services-list {
@@ -249,14 +244,12 @@ h2 { font-size: 2.5rem; color: #2c2c2c; margin-bottom: 0.2rem; letter-spacing: 4
     background-color: #81C7D4;
 }
 
+
 .addon-checkbox-inline:checked::before {
     transform: scale(1);
 }
 .addon-text-inline { font-weight: bold; color: #5d4037; }
 
-
-.price-block { text-align: right; }
-.base-price { font-size: 1.8rem; color: #4a3b32; font-weight: bold; }
 
 /* Remove old addon section styles, keep minimal if needed or delete */
 
@@ -294,6 +287,7 @@ h2 { font-size: 2.5rem; color: #2c2c2c; margin-bottom: 0.2rem; letter-spacing: 4
 
 @media (max-width: 768px) {
     .service-main { flex-direction: column; gap: 1rem; }
+    .service-info { padding-right: 0; }
     .price-block { align-self: flex-start; margin-bottom: 0.5rem; }
     .total-block { flex-direction: column; gap: 1.5rem; align-items: stretch; }
     .total-price { text-align: right; margin-bottom: 0.5rem; }

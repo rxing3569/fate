@@ -64,22 +64,18 @@ async function submitForm() {
     <div class="page-container">
         <section class="section-block contact-section">
             <div class="container-narrow">
-                <div class="section-header">
-                    <h2>聯繫我</h2>
-                    <span class="eng-title">CONTACT ME</span>
-                    <div class="ink-line"></div>
-                </div>
+                <SectionHeader title="聯繫我" engTitle="CONTACT ME" />
 
                 <div class="contact-wrapper glass">
                     <div class="social-links">
                          <h3>追蹤社群</h3>
                          <div class="icons">
                             <a href="https://www.instagram.com/jiang.yin.cheng/" target="_blank" class="social-btn instagram" title="Instagram">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+                                <div class="btn-icon intro-icon"></div>
                                 <span>Instagram</span>
                             </a>
                             <a href="https://www.threads.net/@jiang.yin.cheng" target="_blank" class="social-btn threads" title="Threads">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12a7 7 0 1 1-14 0c0 4.969 2.508 8.423 7 9.5 2.5.6 5.5.6 7-3.5"></path><path d="M9 12a3 3 0 1 1 5.92-.88"></path></svg>
+                                <div class="btn-icon threads-icon"></div>
                                 <span>Threads</span>
                             </a>
                          </div>
@@ -124,11 +120,7 @@ async function submitForm() {
     animation: fadeIn 0.8s ease-out;
 }
 
-.container-narrow { max-width: 900px; margin: 0 auto; padding: 6rem 2rem 2rem; }
-.section-header { text-align: center; margin-bottom: 4rem; }
-h2 { font-size: 2.5rem; color: #2c2c2c; margin-bottom: 0.5rem; }
-.eng-title { font-size: 0.9rem; color: #81C7D4; letter-spacing: 4px; font-weight: bold; }
-.ink-line { width: 60px; height: 3px; background: #81C7D4; margin: 1.5rem auto 0; border-radius: 2px; }
+.container-narrow { max-width: 900px; margin: 0 auto; padding: 4rem 2rem 2rem; }
 
 /* --- Contact Section --- */
 .contact-wrapper { display: flex; gap: 3rem; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); padding: 3rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 10px 40px rgba(0,0,0,0.05); }
@@ -137,12 +129,36 @@ h2 { font-size: 2.5rem; color: #2c2c2c; margin-bottom: 0.5rem; }
 
 .social-links h3, .contact-form h3 { font-size: 1.5rem; color: #2c2c2c; margin-bottom: 1.5rem; }
 .icons { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 2rem; }
+
 .social-btn { display: flex; align-items: center; gap: 1rem; padding: 0.8rem 1.5rem; border-radius: 8px; font-weight: bold; text-decoration: none; transition: all 0.3s; border: 1px solid transparent; }
-.social-btn svg { width: 24px; height: 24px; }
+
+/* Icon Styling using Mask to inherit color */
+.btn-icon {
+    width: 24px; height: 24px;
+    background-color: currentColor;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+}
+
+.intro-icon {
+    -webkit-mask-image: url('/instagram.svg');
+    mask-image: url('/instagram.svg');
+}
+
+.threads-icon {
+    -webkit-mask-image: url('/threads.svg');
+    mask-image: url('/threads.svg');
+}
+
 .social-btn.instagram { background: #fee2e2; color: #e1306c; }
 .social-btn.instagram:hover { background: #e1306c; color: white; }
 .social-btn.threads { background: #f3f4f6; color: #000; }
 .social-btn.threads:hover { background: #000; color: white; }
+
 .contact-note { font-size: 0.9rem; color: #666; line-height: 1.6; margin-top: auto; }
 
 .form-group { margin-bottom: 1.5rem; }
