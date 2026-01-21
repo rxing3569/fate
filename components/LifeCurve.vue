@@ -25,20 +25,20 @@ function calculateScore(horoscope) {
      // Static stars in that palace
       daXianPalace.majorStars.forEach(star => {
           // Brightness is significant
-          if (['Miao', 'Wang'].includes(star.brightness)) score += 5
-          if (['De', 'Li'].includes(star.brightness)) score += 2
-          if (['Ping', 'Xian'].includes(star.brightness)) score -= 2
-          if (star.brightness === 'Bu') score -= 4
+          if (['廟', '旺'].includes(star.brightness)) score += 5
+          if (['得', '利'].includes(star.brightness)) score += 2
+          if (['平', '陷'].includes(star.brightness)) score -= 2
+          if (star.brightness === '不') score -= 4
           
           // Lucky stars
-          if (['Zi Wei', 'Tian Fu', 'Tai Yang', 'Tai Yin', 'Tian Liang', 'Tian Xiang', 'Wu Qu'].includes(star.name)) score += 5
+          if (['紫微', '天府', '太陽', '太陰', '天梁', '天相', '武曲'].includes(star.name)) score += 5
           // Unlucky
-          if (['Po Jun', 'Qi Sha', 'Lian Zhen', 'Tan Lang'].includes(star.name)) score -= 3
+          if (['破軍', '七殺', '廉貞', '貪狼'].includes(star.name)) score -= 3
       })
       
       daXianPalace.minorStars.forEach(star => {
-           if (['Zuo Fu', 'You Bi', 'Tian Kui', 'Tian Xi', 'Wen Chang', 'Wen Qu'].includes(star.name)) score += 4
-           if (['Qing Yang', 'Tuo Luo', 'Huo Xing', 'Ling Xing', 'Di Kong', 'Di Jie'].includes(star.name)) score -= 5
+           if (['左輔', '右弼', '天魁', '天喜', '文昌', '文曲'].includes(star.name)) score += 4
+           if (['擎羊', '陀羅', '火星', '鈴星', '地空', '地劫'].includes(star.name)) score -= 5
       })
   }
 
@@ -59,8 +59,8 @@ function calculateScore(horoscope) {
   const yearlyPalace = props.astrolabe.palaces[yearlyIndex]
   if (yearlyPalace) {
        yearlyPalace.minorStars.forEach(star => {
-           if (['Qing Yang', 'Tuo Luo'].includes(star.name)) score -= 3
-           if (['Tian Xi', 'Hong Luan'].includes(star.name)) score += 2
+           if (['擎羊', '陀羅'].includes(star.name)) score -= 3
+           if (['天喜', '紅鸞'].includes(star.name)) score += 2
        })
   }
 
