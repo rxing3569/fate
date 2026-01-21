@@ -360,7 +360,7 @@ const currentDecadeAges = computed(() => {
 
     <!-- Patterns -->
     <div class="patterns-container" v-if="patterns.length > 0">
-        <h3>格局判斷 (Patterns)</h3>
+        <h3>格局分析</h3>
         <div class="patterns-grid">
              <div v-for="(p, idx) in patterns" :key="idx" class="pattern-card" :class="p.type">
                  <div class="pattern-header">
