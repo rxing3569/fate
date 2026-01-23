@@ -45,3 +45,11 @@ export function getStarClass(name) {
     if (PEACH_STARS.includes(name)) return 'type-peach'
     return 'type-misc'
 }
+
+export function getStarPriority(name: string): number {
+    if (MAJOR_STARS.includes(name)) return 100
+    if (LUCKY_STARS.includes(name)) return 80
+    if (SHA_STARS.includes(name)) return 60
+    if (PEACH_STARS.includes(name)) return 40
+    return 20
+}

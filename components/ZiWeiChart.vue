@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { astro } from 'iztro'
-import { LUCKY_STARS, SHA_STARS, PEACH_STARS, getStarClass } from '../utils/ziwei-stars'
+import { LUCKY_STARS, SHA_STARS, PEACH_STARS, getStarClass, getStarPriority } from '../utils/ziwei-stars'
 import { MUTAGEN_LABELS, getStarMutagens } from '../utils/ziwei-mutagens'
 import { calculatePatterns } from '../utils/ziwei-patterns'
 import { getManualYearlyStars, getRelativePalaceName } from '../utils/ziwei-limits'
@@ -199,24 +199,34 @@ const displayPalaces = computed(() => {
             
             combinedStars: [
                 ...p.majorStars.map(s => ({ ...s, isMajor: true })),
-                ...[
-                    ...p.minorStars,
-                    ...p.adjectiveStars,
-                    ...p.boshi12,
-                    ...p.jiangqian12,
-                    ...p.suiqian12,
-                    ...dynamicStars, 
-                    ...manualStars 
-                ].sort((a, b) => {
-                     const getScore = (name) => {
-                         if (SHA_STARS.includes(name)) return 4
-                         if (LUCKY_STARS.includes(name)) return 3
-                         if (PEACH_STARS.includes(name)) return 2
-                         return 1
-                     }
-                     return getScore(b.name) - getScore(a.name)
-                })
-            ]
+                ...p.minorStars,
+                ...p.adjectiveStars,
+                ...p.boshi12,
+                ...p.jiangqian12,
+                ...p.suiqian12,
+                ...dynamicStars, 
+                ...manualStars,
+                { name: p.changsheng12, isChangsheng: true }
+            ].filter((star, index, self) => 
+                // Defensive check: Ensure star exists and has a name
+                star && star.name && 
+                // Deduplicate by name (keep first occurrence) to prevent "accumulation" or ghost stars
+                index === self.findIndex((s) => s && s.name === star.name)
+            ).sort((a, b) => {
+                 if (!a || !b) return 0
+                 // Sort priority: Major > Lucky > Sha > Peach > Others
+                 const getPrio = (s) => {
+                     if (!s || !s.name) return 0
+                     if (s.isChangsheng) return 10 
+                     return getStarPriority(s.name)
+                 }
+                 const prioA = getPrio(a)
+                 const prioB = getPrio(b)
+                 if (prioA !== prioB) return prioB - prioA
+                 
+                 // Stable sort by name for equal priority
+                 return (a.name || '').localeCompare(b.name || '')
+            })
         }
 
         return item
@@ -333,6 +343,7 @@ const currentDecadeAges = computed(() => {
                               class="star" 
                               :class="[
                                   star.isMajor ? 'major' : getStarClass(star.name),
+                                  star.isChangsheng ? 'changsheng' : '',
                                   {'brightness-top': star.isMajor && star.brightness === 'Top'}
                               ]">
                              {{ star.name }}<span class="brightness" v-if="star.brightness && star.brightness !== '-'">{{ star.brightness }}</span>
@@ -340,8 +351,6 @@ const currentDecadeAges = computed(() => {
                                 {{ badge.label }}
                             </span>
                         </span>
-                        <!-- Changsheng Stage (Flows with stars) -->
-                        <span class="star changsheng">{{ displayPalaces[paramIndex].changsheng12 }}</span>
                     </div>
                  </div>
                  

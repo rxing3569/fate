@@ -19,7 +19,7 @@
                 <a href="https://www.threads.net/@jiang.yin.cheng" target="_blank">Threads</a>
                 <!-- <a href="#">Facebook</a> -->
             </div>
-            <div class="copyright">© 2026 江映澄命相. All Rights Reserved.</div>
+            <div class="copyright">© 2026 喜助數位. All Rights Reserved.</div>
         </div>
     </footer>
   </main>
