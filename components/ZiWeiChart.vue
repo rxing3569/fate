@@ -244,42 +244,33 @@ const currentDecadeAges = computed(() => {
 
 <template>
   <div class="chart-container">
-    <div class="chart-controls">
-        <div class="control-row">
-            <button @click="resetView" class="btn-xs" :class="{active: !activeLimit}">本命盤</button>
-            <div class="date-picker">
-                <input type="number" v-model.number="selectedDate.year" class="input-xs" placeholder="年">
-                <span class="sep">/</span>
-                <input type="number" v-model.number="selectedDate.month" class="input-xs" placeholder="月" min="1" max="12">
-                <span class="sep">/</span>
-                <input type="number" v-model.number="selectedDate.day" class="input-xs" placeholder="日" min="1" max="31">
-                <button @click="updateByDate" class="btn-xs primary">查看流運</button>
-            </div>
-        </div>
 
-        <div v-if="activeLimit && activeLimit.type === 'decadal'" class="age-pills">
-            <span class="pill-label">選擇流年:</span>
-            <button v-for="age in currentDecadeAges" :key="age" @click="selectAge(age)" class="pill">
-                {{ age }} <span class="year-small">({{ birthYear + age - 1 }})</span>
-            </button>
-        </div>
-        <div v-if="activeLimit && activeLimit.type === 'yearly'" class="age-pills">
-             <button @click="selectDecadal(activeHoroscope.decadal.index, activeHoroscope.decadal.range)" class="pill">
-                回到大限
-             </button>
-        </div>
-    </div>
 
     <!-- Main Grid -->
     <div class="chart-grid" v-if="astrolabe">
         <template v-for="(paramIndex, idx) in gridLayout" :key="idx">
             <!-- Center -->
             <div v-if="paramIndex < 0" class="center-placeholder">
-                 <div v-if="idx === 5" class="center-content">
-                    <h3>{{ centerInfo.name }}</h3>
-                    <p class="limit-label" v-if="centerInfo.limitLabel">{{ centerInfo.limitLabel }}</p>
-                    <div class="info-row"><span>西:</span> {{ centerInfo.solarDate }}</div>
-                    <div class="info-row"><span>農:</span> {{ centerInfo.lunarDate }}</div>
+                <div v-if="idx === 5" class="center-content">
+                    <div class="chart-controls">
+                        <div class="control-row">
+                            <div class="date-picker">
+                                <input type="number" v-model.number="selectedDate.year" class="input-xs" placeholder="年">
+                                <span class="label-text">年</span>
+                                <button @click="updateByDate" class="btn-xs primary">查看流運</button>
+                                <button @click="resetView" class="btn-xs" :class="{active: !activeLimit}">查看本命盤</button>
+                            </div>
+                        </div>
+
+                        <div v-if="activeLimit && activeLimit.type === 'yearly'" class="age-pills">
+                             <button @click="selectDecadal(activeHoroscope.decadal.index, activeHoroscope.decadal.range)" class="pill">
+                                回到大限
+                             </button>
+                        </div>
+                    </div>
+                    <div class="info-row"> {{ centerInfo.name }}</div>
+                    <div class="info-row"><span>國曆:</span> {{ centerInfo.solarDate }}</div>
+                    <div class="info-row"><span>農曆:</span> {{ centerInfo.lunarDate }}</div>
                     <div class="info-row"><span>干支:</span> {{ centerInfo.chineseDate }}</div>
                     <div class="info-row"><span>五行:</span> {{ centerInfo.fiveElementClass }}</div>
                 </div>
@@ -301,11 +292,10 @@ const currentDecadeAges = computed(() => {
                  
                  <div class="palace-header">
                     <div class="header-left">
-                         <span class="palace-name">{{ displayPalaces[paramIndex].name }}</span>
+                         <span class="palace-name">{{ displayPalaces[paramIndex].name }}{{ displayPalaces[paramIndex].isBaseBody ? '-身' : '' }}</span>
                          
                          <!-- Labels Inline -->
                          <div class="badges-inline">
-                            <span v-if="displayPalaces[paramIndex].isBaseBody" class="inline-badge body">身宮</span>
                             <span v-if="displayPalaces[paramIndex].decadalLabel" class="inline-badge decadal">{{ displayPalaces[paramIndex].decadalLabel }}</span>
                             <span v-if="displayPalaces[paramIndex].yearlyLabel" class="inline-badge yearly">{{ displayPalaces[paramIndex].yearlyLabel }}</span>
                             <span v-if="displayPalaces[paramIndex].monthlyLabel" class="inline-badge monthly">{{ displayPalaces[paramIndex].monthlyLabel }}</span>
@@ -383,8 +373,9 @@ const currentDecadeAges = computed(() => {
 }
 
 /* Controls */
-.chart-controls { margin-bottom: 2rem; display: flex; flex-direction: column; gap: 1rem; align-items: center; }
-.control-row { display: flex; gap: 1rem; align-items: center; background: #FFFAF0; padding: 1rem; border-radius: 50px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+/* Controls */
+.chart-controls { margin-bottom: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; align-items: center; scale: 0.85; transform-origin: center bottom; }
+.control-row { display: flex; gap: 0.5rem; align-items: center; background: #FFFAF0; padding: 0.5rem; border-radius: 50px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 
 .date-picker { display: flex; align-items: center; gap: 0.5rem; }
 .input-xs { 
@@ -470,10 +461,10 @@ const currentDecadeAges = computed(() => {
 }
 .header-left { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .palace-name { 
-    font-weight: bold; font-size: 1.4rem; color: #5d4037; 
+    font-weight: bold; font-size: 1.1rem; color: #5d4037; 
 }
 .earthly-branch { 
-    font-size: 1.2rem; color: #a1887f; font-weight: bold;
+    font-size: 1rem; color: #a1887f; font-weight: bold;
 }
 
 /* Stars */

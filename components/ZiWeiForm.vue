@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
 const formData = ref({
   name: '',
@@ -9,18 +9,18 @@ const formData = ref({
 })
 
 const timeOptions = [
-  { value: 0, label: '23:00 - 00:59 (子時)' },
-  { value: 1, label: '01:00 - 02:59 (丑時)' },
-  { value: 2, label: '03:00 - 04:59 (寅時)' },
-  { value: 3, label: '05:00 - 06:59 (卯時)' },
-  { value: 4, label: '07:00 - 08:59 (辰時)' },
-  { value: 5, label: '09:00 - 10:59 (巳時)' },
-  { value: 6, label: '11:00 - 12:59 (午時)' },
-  { value: 7, label: '13:00 - 14:59 (未時)' },
-  { value: 8, label: '15:00 - 16:59 (申時)' },
-  { value: 9, label: '17:00 - 18:59 (酉時)' },
-  { value: 10, label: '19:00 - 20:59 (戌時)' },
-  { value: 11, label: '21:00 - 22:59 (亥時)' },
+  { value: 0, label: '子 23:00～00:59' },
+  { value: 1, label: '丑 01:00～02:59' },
+  { value: 2, label: '寅 03:00～04:59' },
+  { value: 3, label: '卯 05:00～06:59' },
+  { value: 4, label: '辰 07:00～08:59' },
+  { value: 5, label: '巳 09:00～10:59' },
+  { value: 6, label: '午 11:00～12:59' },
+  { value: 7, label: '未 13:00～14:59' },
+  { value: 8, label: '申 15:00～16:59' },
+  { value: 9, label: '酉 17:00～18:59' },
+  { value: 10, label: '戌 19:00～20:59' },
+  { value: 11, label: '亥 21:00～22:59' },
 ]
 
 const emit = defineEmits(['submit'])
@@ -29,11 +29,28 @@ function handleSubmit() {
   if (!formData.value.name || !formData.value.date) return
   emit('submit', { ...formData.value })
 }
+
+function saveToCache() {
+  if (!formData.value.name && !formData.value.date) return 
+  localStorage.setItem('ziwei_form_data', JSON.stringify(formData.value))
+  alert('資料已儲存！')
+}
+
+onMounted(() => {
+  const cached = localStorage.getItem('ziwei_form_data')
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached)
+      formData.value = { ...formData.value, ...parsed }
+    } catch (e) {
+      console.error('Failed to load cached data', e)
+    }
+  }
+})
 </script>
 
 <template>
   <div class="form-card glass">
-    <h2>輸入生辰資料</h2>
     <form @submit.prevent="handleSubmit" class="form-grid">
       <div class="form-group">
         <label>姓名</label>
@@ -69,6 +86,7 @@ function handleSubmit() {
       </div>
 
       <div class="form-actions">
+        <button type="button" @click="saveToCache" class="btn btn-secondary">儲存資料</button>
         <button type="submit" class="btn btn-primary">排盤</button>
       </div>
     </form>
@@ -154,18 +172,26 @@ input[type="radio"] {
 .form-actions {
   margin-top: 2rem;
   text-align: center;
+  display: flex; /* Added flex for side-by-side buttons */
+  justify-content: center;
+  gap: 1rem;
+}
+
+.btn {
+    display: inline-flex; justify-content: center; align-items: center;
+    padding: 1rem 2rem;
+    font-size: 1.2rem; letter-spacing: 2px; /* Adjusted letter spacing */
+    border: none;
+    border-radius: 50px;
+    cursor: pointer; transition: all 0.3s;
+    font-weight: bold;
 }
 
 .btn-primary {
     display: inline-flex; justify-content: center; align-items: center;
     width: 100%;
     background: #5d4037; color: white;
-    padding: 1rem 2rem;
-    font-size: 1.2rem; letter-spacing: 4px;
-    border: none;
-    border-radius: 50px;
-    cursor: pointer; transition: all 0.3s;
-    font-weight: bold;
+
     box-shadow: 0 4px 10px rgba(93, 64, 55, 0.3);
 }
 
@@ -173,6 +199,16 @@ input[type="radio"] {
     background: #4a3b32;
     transform: translateY(-2px);
     box-shadow: 0 6px 15px rgba(93, 64, 55, 0.4);
+}
+
+.btn-secondary {
+    background: #e0e0e0; color: #5d4037;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+.btn-secondary:hover {
+    background: #d5d5d5;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.15);
 }
 
 @media (max-width: 600px) {

@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 const isMenuOpen = ref(false)
 
@@ -16,10 +16,31 @@ const closeMenu = () => {
     isMenuOpen.value = false
     document.body.style.overflow = ''
 }
+
+const isHidden = ref(false)
+let lastScrollY = 0
+
+onMounted(() => {
+    window.addEventListener('scroll', handleScroll)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('scroll', handleScroll)
+})
+
+function handleScroll() {
+    const currentScrollY = window.scrollY
+    if (currentScrollY > 24) {
+        isHidden.value = true
+    } else {
+        isHidden.value = false
+    }
+    lastScrollY = currentScrollY
+}
 </script>
 
 <template>
-    <nav class="navbar">
+    <nav class="navbar" :class="{ hidden: isHidden }">
         <div class="nav-content">
             <div class="logo">
                 <router-link to="/" class="logo-link" @click="closeMenu">
@@ -70,6 +91,10 @@ const closeMenu = () => {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
     padding: 0 1.5rem;
     transition: all 0.3s ease;
+}
+
+.navbar.hidden {
+    transform: translateX(-50%) translateY(-150%);
 }
 
 .nav-content {
