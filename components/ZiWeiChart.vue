@@ -286,12 +286,6 @@ const currentDecadeAges = computed(() => {
                                 <button @click="resetView" class="btn-xs" :class="{active: !activeLimit}">查看本命盤</button>
                             </div>
                         </div>
-
-                        <div v-if="activeLimit && activeLimit.type === 'yearly'" class="age-pills">
-                             <button @click="selectDecadal(activeHoroscope.decadal.index, activeHoroscope.decadal.range)" class="pill">
-                                回到大限
-                             </button>
-                        </div>
                     </div>
                     <div class="info-row"> {{ centerInfo.name }}</div>
                     <div class="info-row"><span>國曆:</span> {{ centerInfo.solarDate }}</div>
@@ -317,7 +311,12 @@ const currentDecadeAges = computed(() => {
                  
                  <div class="palace-header">
                     <div class="header-left">
-                         <span class="palace-name">{{ displayPalaces[paramIndex].name }}{{ displayPalaces[paramIndex].isBaseBody ? '-身' : '' }}</span>
+                         <span class="palace-name">
+                             {{ displayPalaces[paramIndex].name }}{{ displayPalaces[paramIndex].isBaseBody ? '-身' : '' }}
+                             <span v-if="displayPalaces[paramIndex].overlayLabel" class="limit-suffix" :class="displayPalaces[paramIndex].overlayClass">
+                                 {{ displayPalaces[paramIndex].overlayLabel }}
+                             </span>
+                         </span>
                          
 
                     </div>
@@ -347,9 +346,9 @@ const currentDecadeAges = computed(() => {
                  </div>
                  
                  <div class="palace-footer">
-                       <div class="limit-row pointer" @click.stop="selectDecadal(paramIndex, displayPalaces[paramIndex].decadalRange)">
+                       <div class="limit-row">
                            <span class="limit-label">大限</span>
-                           <span class="limit-val">{{ displayPalaces[paramIndex].decadalRange.join('-') }}</span>
+                           <span class="limit-val pointer" @click.stop="selectDecadal(paramIndex, displayPalaces[paramIndex].decadalRange)">{{ displayPalaces[paramIndex].decadalRange.join('-') }}</span>
                        </div>
                        <div class="limit-row">
                            <span class="limit-label">小限</span>
@@ -364,10 +363,7 @@ const currentDecadeAges = computed(() => {
                        </div>
                  </div>
                  
-                 <div v-if="displayPalaces[paramIndex].overlayLabel" class="overlay-label" :class="displayPalaces[paramIndex].overlayClass">
-                     {{ displayPalaces[paramIndex].overlayLabel }}
-                 </div>
-            </div>
+             </div>
         </template>
     </div>
 
@@ -451,7 +447,7 @@ const currentDecadeAges = computed(() => {
   box-shadow: 0 2px 5px rgba(0,0,0,0.02);
 }
 
-.palace-cell:hover { box-shadow: 0 5px 15px rgba(0,0,0,0.08); transform: translateY(-2px); z-index: 10; }
+.palace-cell:hover { box-shadow: 0 5px 15px rgba(0,0,0,0.08); z-index: 10; }
 
 /* Center Content */
 .center-placeholder { visibility: hidden; position: relative; }
@@ -472,8 +468,8 @@ const currentDecadeAges = computed(() => {
     text-shadow: 0 2px 4px rgba(255,255,255,0.8);
 }
 .limit-label { 
-    background: #81C7D4; color: white; padding: 4px 12px; 
-    border-radius: 20px; font-weight: bold; letter-spacing: 1px; 
+    background: #81C7D4; color: white; padding: 2px 4px; 
+    border-radius: 4px; font-weight: bold; letter-spacing: 1px; 
 }
 .info-row { font-size: 18px; color: #5d4037; margin-bottom: 0.4rem; }
 .info-row span { color: #8d6e63; margin-right: 0.5rem; }
@@ -512,12 +508,14 @@ const currentDecadeAges = computed(() => {
 .mutagen-yearly { background: #f39c12; } 
 
 /* Footer (Limit Btn) */
-.palace-footer { margin-top: auto; display: flex; flex-direction: column; align-items: flex-start; gap: 0; width: 100%; }
-.limit-row { display: flex; align-items: flex-start; gap: 4px; font-size: 13px; color: #bbb; line-height: 1.4; width: 100%; }
+.palace-footer { margin-top: auto; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; }
+.limit-row { display: flex; align-items: center; gap: 4px; font-size: 13px; color: #7f8c8d; line-height: 1.4; width: 100%; }
 .limit-row.pointer { cursor: pointer; transition: color 0.2s; }
 .limit-row.pointer:hover { color: #81C7D4; font-weight: bold; }
 .limit-label { flex-shrink: 0; }
 .limit-val { font-family: monospace; } /* Optional align */
+.limit-val.pointer { cursor: pointer; transition: color 0.2s; }
+.limit-val.pointer:hover { color: #81C7D4; font-weight: bold; }
 
 .age-list { display: flex; flex-wrap: wrap; gap: 3px; }
 .age-item { cursor: pointer; transition: color 0.2s; padding: 0 1px; }
@@ -529,12 +527,14 @@ const currentDecadeAges = computed(() => {
 .yearly-life { border: 2px dashed #f39c12 !important; }
 .highlight-group { background: #f0fdfa; border-color: #81C7D4; }
 
-/* Overlay Labels */
-.overlay-label { position: absolute; top: -1px; left: -1px; font-size: 12px; padding: 2px 6px; border-bottom-right-radius: 6px; color: white; font-weight: bold; z-index: 2; }
+/* Limit Suffix (Inline) */
+.limit-suffix { 
+    font-size: 13px; margin-left: 2px; padding: 2px; border-radius: 4px; color: white; display: inline-block; 
+}
 .daxian { background: #2980b9; }
 .xiaoxian { background: #f39c12; }
-.xiaoxian.ages { background: #8e44ad; } /* Small Limit (Purple) */
-.liuyue { background: #27ae60; top: 20px; left: -1px; border-bottom-right-radius: 6px; }
+.xiaoxian.ages { background: #8e44ad; }
+.liuyue { background: #27ae60; }
 
 /* Patterns */
 .patterns-container {
