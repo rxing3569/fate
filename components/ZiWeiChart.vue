@@ -5,6 +5,7 @@ import { LUCKY_STARS, SHA_STARS, PEACH_STARS, getStarClass, getStarPriority } fr
 import { MUTAGEN_LABELS, getStarMutagens } from '../utils/ziwei-mutagens'
 import { calculatePatterns } from '../utils/ziwei-patterns'
 import { getManualYearlyStars, getRelativePalaceName } from '../utils/ziwei-limits'
+import NumberInput from './NumberInput.vue'
 
 const props = defineProps({
   inputData: {
@@ -136,6 +137,7 @@ const displayPalaces = computed(() => {
         
         let decadalLabel = ''
         let yearlyLabel = ''
+        let labels = [] // Local array to collect multiple limit labels
 
         if (activeHoroscope.value) {
              if (activeHoroscope.value.decadal) {
@@ -165,33 +167,59 @@ const displayPalaces = computed(() => {
                 const decadalLifeIdx = activeHoroscope.value.decadal.index
                 const relName = getRelativePalaceName(idx, decadalLifeIdx, '大限')
                 if (relName) {
-                    overlayLabel = relName
+                    overlayLabel = relName // Prioritize Decadal in Decadal View
                     overlayClass = 'daxian'
                 }
             } 
-            // Small Limit (Yearly/Age) Focus
-            else if (activeLimit.value?.type === 'yearly') {
-                // Prioritize Small Limit (Age)
+            // Yearly Focus (Date or Age)
+            else if (activeLimit.value?.type === 'yearly' || activeLimit.value?.type === 'date') {
+                // Use outer `labels` array directly
+
+                // 1. Small Limit (Age) - 小限
                 if (activeHoroscope.value.age) {
                     const smallLimitLifeIdx = activeHoroscope.value.age.index
                     const relName = getRelativePalaceName(idx, smallLimitLifeIdx, '小限')
                     if (relName) {
-                        overlayLabel = relName
-                        overlayClass = 'xiaoxian ages'
+                        labels.push({ text: relName, class: 'xiaoxian ages' })
                     }
                 }
+
+                // 2. Yearly (Liu Nian) - 流年
+                if (activeHoroscope.value.yearly) {
+                     const yearlyLifeIdx = activeHoroscope.value.yearly.index
+                     const relName = getRelativePalaceName(idx, yearlyLifeIdx, '流年')
+                     if (relName) {
+                         labels.push({ text: relName, class: 'liuyue' })
+                     }
+                }
+                
+                // Assign to item for template
+                // We will modify the template to handle an array or join them
+                // For now, let's join them in the existing overlayLabel string if simple, 
+                // but we need distinct classes. So let's update the item structure to hold an array `extraLabels`
+                // and keep overlayLabel for backwards compat or primary label.
+                
+                // Let's use `extraLabels` approach
+                // BUT current template uses `overlayLabel` string. 
+                // To minimize template change, let's try to adapt. 
+                // Actually, the user wants "Reference Big Limit". 
+                // Let's expose `limitLabels` array on the item.
+                // labels are already populated
             }
         }
         
         const item = {
             ...p,
             isBaseLife: p.isLifePalace || p.name === '命宮',
-            isBaseBody: p.isBodyPalace || p.name === '身宮', // Although name usually isn't '身宮' for Body
+            isBaseBody: p.isBodyPalace || p.name === '身宮',
             decadalRange: p.decadal.range,
             agesFiltered: p.ages.filter(a => a <= 84),
             
-            overlayLabel,
-            overlayClass,
+            overlayLabel, // Legacy/Decadal
+            overlayClass, // Legacy/Decadal
+            limitLabels: labels.length > 0 ? labels : (overlayLabel ? [{text: overlayLabel, class: overlayClass}] : []), 
+
+            // ... (rest unchanged)
 
             // Legacy labels kept for inline badges if needed, but overlay takes precedence
             decadalLabel,
@@ -290,7 +318,7 @@ const currentDecadeAges = computed(() => {
                     <div class="chart-controls">
                         <div class="control-row">
                             <div class="date-picker">
-                                <input type="number" v-model.number="selectedDate.year" class="input-xs" placeholder="年">
+                                <NumberInput v-model.number="selectedDate.year" :min="1900" :max="2100" />
                                 <span class="label-text">年</span>
                                 <button @click="updateByDate" class="btn-xs primary">查看流運</button>
                                 <button @click="resetView" class="btn-xs" :class="{active: !activeLimit}">查看本命盤</button>
@@ -323,8 +351,8 @@ const currentDecadeAges = computed(() => {
                     <div class="header-left">
                          <span class="palace-name">
                              {{ displayPalaces[paramIndex].name }}{{ displayPalaces[paramIndex].isBaseBody ? '-身' : '' }}
-                             <span v-if="displayPalaces[paramIndex].overlayLabel" class="limit-suffix" :class="displayPalaces[paramIndex].overlayClass">
-                                 {{ displayPalaces[paramIndex].overlayLabel }}
+                             <span v-for="(lbl, lIdx) in displayPalaces[paramIndex].limitLabels" :key="lIdx" class="limit-suffix" :class="lbl.class">
+                                 - {{ lbl.text }}
                              </span>
                          </span>
                          
@@ -402,8 +430,17 @@ const currentDecadeAges = computed(() => {
 }
 
 /* Controls */
-.chart-controls { margin-bottom: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; align-items: center; scale: 0.85; transform-origin: center bottom; }
-.control-row { display: flex; gap: 0.5rem; align-items: center; background: #FFFAF0; padding: 0.5rem; border-radius: 50px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+.chart-controls { 
+    margin-bottom: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; align-items: center; 
+    scale: 0.85; transform-origin: center bottom;
+    pointer-events: auto; /* Re-enable clicks blocked by center-content */
+}
+.control-row { 
+    display: flex; gap: 0.5rem; align-items: center; 
+    background: #FFFAF0; padding: 0.5rem; border-radius: 50px; 
+    box-shadow: 0 4px 15px rgba(93, 64, 55, 0.15); /* Stronger shadow */
+    border: 1px solid rgba(255,255,255,0.8);
+}
 
 .date-picker { display: flex; align-items: center; gap: 0.5rem; }
 .input-xs { 
