@@ -156,44 +156,69 @@ const displayPalaces = computed(() => {
             }
         }
         
+        let overlayLabel = ''
+        let overlayClass = ''
+
+        if (activeHoroscope.value) {
+            // Decadal Focus
+            if (activeLimit.value?.type === 'decadal') {
+                const decadalLifeIdx = activeHoroscope.value.decadal.index
+                const relName = getRelativePalaceName(idx, decadalLifeIdx, '大限')
+                if (relName) {
+                    overlayLabel = relName
+                    overlayClass = 'daxian'
+                }
+            } 
+            // Small Limit (Yearly/Age) Focus
+            else if (activeLimit.value?.type === 'yearly') {
+                // Prioritize Small Limit (Age)
+                if (activeHoroscope.value.age) {
+                    const smallLimitLifeIdx = activeHoroscope.value.age.index
+                    const relName = getRelativePalaceName(idx, smallLimitLifeIdx, '小限')
+                    if (relName) {
+                        overlayLabel = relName
+                        overlayClass = 'xiaoxian ages'
+                    }
+                }
+            }
+        }
+        
         const item = {
             ...p,
             isBaseLife: p.isLifePalace || p.name === '命宮',
             isBaseBody: p.isBodyPalace || p.name === '身宮', // Although name usually isn't '身宮' for Body
             decadalRange: p.decadal.range,
-            agesFiltered: p.ages.filter(a => a <= 90),
+            agesFiltered: p.ages.filter(a => a <= 84),
             
+            overlayLabel,
+            overlayClass,
+
+            // Legacy labels kept for inline badges if needed, but overlay takes precedence
             decadalLabel,
             yearlyLabel,
-
-            allMinorStars: [
-                ...p.minorStars,
-                ...p.adjectiveStars,
-                ...p.boshi12,
-                ...p.jiangqian12,
-                ...p.suiqian12,
-                ...dynamicStars, 
-                ...manualStars 
-            ].sort((a, b) => {
-                 const getScore = (name) => {
-                     if (SHA_STARS.includes(name)) return 4
-                     if (LUCKY_STARS.includes(name)) return 3
-                     if (PEACH_STARS.includes(name)) return 2
-                     return 1
-                 }
-                 return getScore(b.name) - getScore(a.name)
-            })
+            
+            combinedStars: [
+                ...p.majorStars.map(s => ({ ...s, isMajor: true })),
+                ...[
+                    ...p.minorStars,
+                    ...p.adjectiveStars,
+                    ...p.boshi12,
+                    ...p.jiangqian12,
+                    ...p.suiqian12,
+                    ...dynamicStars, 
+                    ...manualStars 
+                ].sort((a, b) => {
+                     const getScore = (name) => {
+                         if (SHA_STARS.includes(name)) return 4
+                         if (LUCKY_STARS.includes(name)) return 3
+                         if (PEACH_STARS.includes(name)) return 2
+                         return 1
+                     }
+                     return getScore(b.name) - getScore(a.name)
+                })
+            ]
         }
 
-        if (activeHoroscope.value) {
-            if (activeLimit.value?.type === 'decadal') {
-                item.isDecadalLife = (activeHoroscope.value.decadal.index === idx)
-            } else if (activeLimit.value?.type === 'yearly') {
-                item.isDecadalLife = (activeHoroscope.value.decadal.index === idx) 
-                item.isYearlyLife = (activeHoroscope.value.yearly.index === idx)
-            }
-        }
-        
         return item
     })
 })
@@ -294,13 +319,7 @@ const currentDecadeAges = computed(() => {
                     <div class="header-left">
                          <span class="palace-name">{{ displayPalaces[paramIndex].name }}{{ displayPalaces[paramIndex].isBaseBody ? '-身' : '' }}</span>
                          
-                         <!-- Labels Inline -->
-                         <div class="badges-inline">
-                            <span v-if="displayPalaces[paramIndex].decadalLabel" class="inline-badge decadal">{{ displayPalaces[paramIndex].decadalLabel }}</span>
-                            <span v-if="displayPalaces[paramIndex].yearlyLabel" class="inline-badge yearly">{{ displayPalaces[paramIndex].yearlyLabel }}</span>
-                            <span v-if="displayPalaces[paramIndex].monthlyLabel" class="inline-badge monthly">{{ displayPalaces[paramIndex].monthlyLabel }}</span>
-                            <span v-if="displayPalaces[paramIndex].dailyLabel" class="inline-badge daily">{{ displayPalaces[paramIndex].dailyLabel }}</span>
-                         </div>
+
                     </div>
                     
                     <div class="header-right">
@@ -309,40 +328,45 @@ const currentDecadeAges = computed(() => {
                  </div>
                  
                  <div class="stars-container">
-                    <!-- Major Stars: Horizontal Wrap -->
-                    <div class="stars-row-major">
-                        <div v-for="star in displayPalaces[paramIndex].majorStars" :key="star.name" class="star major" :class="{'brightness-top': star.brightness === 'Top'}">
-                            {{ star.name }} <span class="brightness" v-if="star.brightness && star.brightness !== '-'">{{ star.brightness }}</span>
-                            <span v-for="(badge, bIdx) in getStarMutagens(star)" :key="bIdx" :class="['mutagen-badge', badge.class]">
-                                {{ badge.label }}
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- All Other Stars (Sorted) -->
-                    <div class="stars-row-minor">
-                        <span v-for="star in displayPalaces[paramIndex].allMinorStars" :key="star.name" class="star" :class="getStarClass(star.name)">
-                             {{ star.name }}
+                    <div class="stars-unified">
+                        <span v-for="(star, sIdx) in displayPalaces[paramIndex].combinedStars" 
+                              :key="star.name + sIdx" 
+                              class="star" 
+                              :class="[
+                                  star.isMajor ? 'major' : getStarClass(star.name),
+                                  {'brightness-top': star.isMajor && star.brightness === 'Top'}
+                              ]">
+                             {{ star.name }}<span class="brightness" v-if="star.brightness && star.brightness !== '-'">{{ star.brightness }}</span>
                              <span v-for="(badge, bIdx) in getStarMutagens(star)" :key="bIdx" :class="['mutagen-badge', badge.class]">
                                 {{ badge.label }}
                             </span>
-                         </span>
-                         <!-- Changsheng Stage (Flows with stars) -->
-                         <span class="star changsheng">{{ displayPalaces[paramIndex].changsheng12 }}</span>
+                        </span>
+                        <!-- Changsheng Stage (Flows with stars) -->
+                        <span class="star changsheng">{{ displayPalaces[paramIndex].changsheng12 }}</span>
                     </div>
                  </div>
                  
                  <div class="palace-footer">
-                      <button class="limit-btn" @click.stop="selectDecadal(paramIndex, displayPalaces[paramIndex].decadalRange)">
-                          大限 {{ displayPalaces[paramIndex].decadalRange.join('-') }}
-                      </button>
-                      <span class="activity">{{ displayPalaces[paramIndex].agesFiltered.join(' ') }}</span>
+                       <div class="limit-row pointer" @click.stop="selectDecadal(paramIndex, displayPalaces[paramIndex].decadalRange)">
+                           <span class="limit-label">大限</span>
+                           <span class="limit-val">{{ displayPalaces[paramIndex].decadalRange.join('-') }}</span>
+                       </div>
+                       <div class="limit-row">
+                           <span class="limit-label">小限</span>
+                           <div class="age-list">
+                               <span v-for="age in displayPalaces[paramIndex].agesFiltered" 
+                                     :key="age" 
+                                     class="age-item"
+                                     @click.stop="selectAge(age)">
+                                   {{ age }}
+                               </span>
+                           </div>
+                       </div>
                  </div>
                  
-                 <div v-if="displayPalaces[paramIndex].isDecadalLife" class="overlay-label daxian">大限命</div>
-                 <div v-if="displayPalaces[paramIndex].isYearlyLife" class="overlay-label xiaoxian">流年命</div>
-                 <div v-if="displayPalaces[paramIndex].isMonthlyLife" class="overlay-label liuyue">流月命</div>
-                 <div v-if="displayPalaces[paramIndex].isDailyLife" class="overlay-label liuri">流日命</div>
+                 <div v-if="displayPalaces[paramIndex].overlayLabel" class="overlay-label" :class="displayPalaces[paramIndex].overlayClass">
+                     {{ displayPalaces[paramIndex].overlayLabel }}
+                 </div>
             </div>
         </template>
     </div>
@@ -373,30 +397,30 @@ const currentDecadeAges = computed(() => {
 }
 
 /* Controls */
-/* Controls */
 .chart-controls { margin-bottom: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; align-items: center; scale: 0.85; transform-origin: center bottom; }
 .control-row { display: flex; gap: 0.5rem; align-items: center; background: #FFFAF0; padding: 0.5rem; border-radius: 50px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 
 .date-picker { display: flex; align-items: center; gap: 0.5rem; }
 .input-xs { 
     width: 60px; padding: 0.4rem; border: 1px solid #d7ccc8; border-radius: 4px; 
-    text-align: center; color: #5d4037;
+    text-align: center; color: #5d4037; font-size: 14px;
 }
+.label-text { font-size: 14px; color: #5d4037; }
 .sep { color: #aaa; }
 
 .btn-xs { 
     background: #8d6e63; color: white; border: none; padding: 0.5rem 1rem; 
-    border-radius: 20px; font-size: 0.9rem; cursor: pointer; transition: all 0.3s;
+    border-radius: 20px; font-size: 14px; cursor: pointer; transition: all 0.3s;
 }
 .btn-xs:hover, .btn-xs.active { background: #5d4037; transform: translateY(-1px); }
 .btn-xs.primary { background: #81C7D4; }
 .btn-xs.primary:hover { background: #4dd0e1; }
 
 .age-pills { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; align-items: center; margin-top: 0.5rem; }
-.pill-label { margin-right: 0.5rem; font-size: 0.9rem; color: #5d4037; font-weight: bold; }
+.pill-label { margin-right: 0.5rem; font-size: 14px; color: #5d4037; font-weight: bold; }
 .pill { 
     background: #fff; border: 1px solid #d7ccc8; color: #5d4037; 
-    padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.9rem; cursor: pointer; 
+    padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 14px; cursor: pointer; 
     transition: all 0.2s;
 }
 .pill:hover { border-color: #81C7D4; color: #81C7D4; background: #f0fdfa; }
@@ -421,7 +445,7 @@ const currentDecadeAges = computed(() => {
   display: flex;
   flex-direction: column;
   position: relative;
-  font-size: 1rem;
+  font-size: 16px;
   min-height: 200px;
   transition: all 0.2s ease;
   box-shadow: 0 2px 5px rgba(0,0,0,0.02);
@@ -443,15 +467,15 @@ const currentDecadeAges = computed(() => {
     box-shadow: 0 4px 15px rgba(0,0,0,0.05);
 }
 .center-content h3 { 
-    font-size: 2.5rem; color: #5d4037; margin-bottom: 0.5rem; 
+    font-size: 40px; color: #5d4037; margin-bottom: 0.5rem; 
     letter-spacing: 4px; 
     text-shadow: 0 2px 4px rgba(255,255,255,0.8);
 }
 .limit-label { 
     background: #81C7D4; color: white; padding: 4px 12px; 
-    border-radius: 20px; margin-bottom: 1rem; font-weight: bold; letter-spacing: 1px; 
+    border-radius: 20px; font-weight: bold; letter-spacing: 1px; 
 }
-.info-row { font-size: 1.1rem; color: #5d4037; margin-bottom: 0.4rem; }
+.info-row { font-size: 18px; color: #5d4037; margin-bottom: 0.4rem; }
 .info-row span { color: #8d6e63; margin-right: 0.5rem; }
 
 /* Header */
@@ -461,41 +485,43 @@ const currentDecadeAges = computed(() => {
 }
 .header-left { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .palace-name { 
-    font-weight: bold; font-size: 1.1rem; color: #5d4037; 
+    font-weight: bold; font-size: 14px; color: #5d4037; 
 }
 .earthly-branch { 
-    font-size: 1rem; color: #a1887f; font-weight: bold;
+    font-size: 13px; color: #a1887f; font-weight: bold;
 }
 
 /* Stars */
-.stars-container { display: flex; flex-direction: column; gap: 6px; flex: 1; }
-.stars-row-major { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
-.stars-row-minor { display: flex; flex-wrap: wrap; gap: 4px; font-size: 0.85rem; }
+.stars-container { display: flex; flex-direction: column; flex: 1; }
+.stars-unified { display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; }
 
-.star { line-height: 1.4; }
-.star.major { font-size: 1.1rem; font-weight: bold; color: #c0392b; /* Deep Red */ }
+.star { line-height: 1.4; white-space: nowrap; font-size: 13px; }
+.star.major { font-size: 15px; font-weight: bold; color: #c0392b; /* Deep Red */ }
 .star.major.brightness-top { color: #e74c3c; text-shadow: 0 0 1px rgba(231, 76, 60, 0.5); }
 
 .star.type-lucky { color: #27ae60; font-weight: 600; } /* Green */
 .star.type-sha { color: #8e44ad; font-weight: 600; } /* Purple */
 .star.type-peach { color: #d81b60; } /* Deep Pink */
 .star.type-misc { color: #7f8c8d; } /* Grey */
-.star.changsheng { color: #95a5a6; font-size: 0.85rem; }
+.star.changsheng { color: #95a5a6; font-size: 13px; }
 
 /* Mutagen Badges */
-.mutagen-badge { font-size: 0.7rem; padding: 1px 4px; border-radius: 4px; color: white; margin-left: 2px; vertical-align: text-bottom; }
+.mutagen-badge { font-size: 11px; padding: 1px 4px; border-radius: 4px; color: white; margin-left: 2px; vertical-align: text-bottom; }
 .mutagen-natal { background: #c0392b; } 
 .mutagen-decadal { background: #2980b9; } 
 .mutagen-yearly { background: #f39c12; } 
 
 /* Footer (Limit Btn) */
-.palace-footer { margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; }
-.limit-btn { 
-    background: #efebe9; color: #5d4037; border: none; font-size: 0.85rem; 
-    padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold;
-}
-.limit-btn:hover { background: #81C7D4; color: white; }
-.activity { font-size: 0.8rem; color: #bbb; }
+.palace-footer { margin-top: auto; display: flex; flex-direction: column; align-items: flex-start; gap: 0; width: 100%; }
+.limit-row { display: flex; align-items: flex-start; gap: 4px; font-size: 13px; color: #bbb; line-height: 1.4; width: 100%; }
+.limit-row.pointer { cursor: pointer; transition: color 0.2s; }
+.limit-row.pointer:hover { color: #81C7D4; font-weight: bold; }
+.limit-label { flex-shrink: 0; }
+.limit-val { font-family: monospace; } /* Optional align */
+
+.age-list { display: flex; flex-wrap: wrap; gap: 3px; }
+.age-item { cursor: pointer; transition: color 0.2s; padding: 0 1px; }
+.age-item:hover { color: #81C7D4; font-weight: bold; }
 
 /* Highlights */
 .life-palace { border: 2px solid #d81b60 !important; background: #fff0f5; }
@@ -504,9 +530,11 @@ const currentDecadeAges = computed(() => {
 .highlight-group { background: #f0fdfa; border-color: #81C7D4; }
 
 /* Overlay Labels */
-.overlay-label { position: absolute; top: -1px; right: -1px; font-size: 0.75rem; padding: 2px 6px; border-bottom-left-radius: 6px; color: white; font-weight: bold; z-index: 2; }
+.overlay-label { position: absolute; top: -1px; left: -1px; font-size: 12px; padding: 2px 6px; border-bottom-right-radius: 6px; color: white; font-weight: bold; z-index: 2; }
 .daxian { background: #2980b9; }
-.xiaoxian { background: #f39c12; top: 20px; right: -1px; }
+.xiaoxian { background: #f39c12; }
+.xiaoxian.ages { background: #8e44ad; } /* Small Limit (Purple) */
+.liuyue { background: #27ae60; top: 20px; left: -1px; border-bottom-right-radius: 6px; }
 
 /* Patterns */
 .patterns-container {
@@ -514,7 +542,7 @@ const currentDecadeAges = computed(() => {
     box-shadow: 0 4px 12px rgba(0,0,0,0.03);
 }
 .patterns-container h3 { 
-    color: #5d4037; font-size: 1.3rem; margin-bottom: 1rem; 
+    color: #5d4037; font-size: 21px; margin-bottom: 1rem; 
     font-family: 'Ma Shan Zheng', cursive; border-bottom: 2px solid #f4f1ea; padding-bottom: 0.5rem; 
 }
 .patterns-grid {
@@ -533,26 +561,20 @@ const currentDecadeAges = computed(() => {
     display: flex; align-items: center; margin-bottom: 0.5rem;
 }
 .pattern-tag {
-    font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; color: white; margin-right: 8px; font-weight: bold;
+    font-size: 12px; padding: 2px 6px; border-radius: 4px; color: white; margin-right: 8px; font-weight: bold;
 }
 .pattern-tag.lucky { background: #f57f17; }
 .pattern-tag.unlucky { background: #8e44ad; }
 
 .pattern-name {
-    font-weight: bold; font-size: 1.1rem; color: #e65100;
+    font-weight: bold; font-size: 18px; color: #e65100;
 }
 .pattern-name.unlucky { color: #8e44ad; }
 
 .pattern-desc {
-    font-size: 0.95rem; color: #5d4037; line-height: 1.5;
+    font-size: 15px; color: #5d4037; line-height: 1.5;
 }
 
-/* Badges Inline */
-.badges-inline { display: flex; gap: 3px; margin-top: 2px; }
-.inline-badge { font-size: 0.7rem; padding: 1px 4px; border-radius: 4px; font-weight: bold; color: white; }
-.inline-badge.body { background: #9e9e9e; }
-.inline-badge.decadal { background: #64b5f6; }
-.inline-badge.yearly { background: #fbc02d; }
 
 @media (max-width: 900px) {
     .chart-grid { grid-template-columns: 1fr; grid-template-rows: auto; display: flex; flex-direction: column; }
