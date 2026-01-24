@@ -139,12 +139,14 @@ const displayPalaces = computed(() => {
         let yearlyLabel = ''
         let labels = [] // Local array to collect multiple limit labels
 
+        const isYearlyFlow = activeLimit.value && ['yearly', 'date', 'age'].includes(activeLimit.value.type)
+
         if (activeHoroscope.value) {
              if (activeHoroscope.value.decadal) {
                  decadalLabel = getRelativePalaceName(idx, activeHoroscope.value.decadal.index, '大')
              }
 
-            if (activeLimit.value) {
+                if (isYearlyFlow) {
                  if (activeHoroscope.value.yearly && Array.isArray(activeHoroscope.value.yearly.stars)) {
                     if (activeHoroscope.value.yearly.stars[idx]) {
                         dynamicStars = activeHoroscope.value.yearly.stars[idx]
@@ -172,7 +174,7 @@ const displayPalaces = computed(() => {
                 }
             } 
             // Yearly Focus (Date or Age)
-            else if (activeLimit.value?.type === 'yearly' || activeLimit.value?.type === 'date') {
+            else if (isYearlyFlow) {
                 // Use outer `labels` array directly
 
                 // 1. Small Limit (Age) - 小限
@@ -192,19 +194,6 @@ const displayPalaces = computed(() => {
                          labels.push({ text: relName, class: 'liuyue' })
                      }
                 }
-                
-                // Assign to item for template
-                // We will modify the template to handle an array or join them
-                // For now, let's join them in the existing overlayLabel string if simple, 
-                // but we need distinct classes. So let's update the item structure to hold an array `extraLabels`
-                // and keep overlayLabel for backwards compat or primary label.
-                
-                // Let's use `extraLabels` approach
-                // BUT current template uses `overlayLabel` string. 
-                // To minimize template change, let's try to adapt. 
-                // Actually, the user wants "Reference Big Limit". 
-                // Let's expose `limitLabels` array on the item.
-                // labels are already populated
             }
         }
         
@@ -219,22 +208,24 @@ const displayPalaces = computed(() => {
             overlayClass, // Legacy/Decadal
             limitLabels: labels.length > 0 ? labels : (overlayLabel ? [{text: overlayLabel, class: overlayClass}] : []), 
 
-            // ... (rest unchanged)
-
             // Legacy labels kept for inline badges if needed, but overlay takes precedence
             decadalLabel,
             yearlyLabel,
-            
             combinedStars: [
                 ...p.majorStars.map(s => ({ ...s, isMajor: true })),
                 ...p.minorStars,
                 ...p.adjectiveStars,
-                ...p.boshi12,
-                ...p.jiangqian12,
-                ...p.suiqian12,
+                // Natal Stars
+                { name: p.boshi12, type: 'boshi' },
+                { name: p.changsheng12, isChangsheng: true },
+                
+                // Natal Sui/Jiang (Show if NOT in Yearly flow - i.e. Natal or Decadal)
+                ...(!isYearlyFlow ? [
+                    { name: p.jiangqian12, type: 'jiangqian' },
+                    { name: p.suiqian12, type: 'suiqian' },
+                ] : []),
                 ...dynamicStars, 
                 ...manualStars,
-                { name: p.changsheng12, isChangsheng: true }
             ].filter((star, index, self) => 
                 // Defensive check: Ensure star exists and has a name
                 star && star.name && 
@@ -352,7 +343,7 @@ const currentDecadeAges = computed(() => {
                          <span class="palace-name">
                              {{ displayPalaces[paramIndex].name }}{{ displayPalaces[paramIndex].isBaseBody ? '-身' : '' }}
                              <span v-for="(lbl, lIdx) in displayPalaces[paramIndex].limitLabels" :key="lIdx" class="limit-suffix" :class="lbl.class">
-                                 - {{ lbl.text }}
+                                 {{ lbl.text }}
                              </span>
                          </span>
                          

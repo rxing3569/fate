@@ -47,6 +47,7 @@ export function getStarClass(name) {
 }
 
 export function getStarPriority(name: string): number {
+    if (name.startsWith('流')) return 1
     if (MAJOR_STARS.includes(name)) return 100
     if (LUCKY_STARS.includes(name)) return 80
     if (SHA_STARS.includes(name)) return 60

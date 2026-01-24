@@ -14,7 +14,6 @@ export default defineNuxtConfig({
     pageTransition: { name: 'page', mode: 'out-in' },
     head: {
       link: [
-        { rel: 'icon', type: 'image/png', href: '/logo.png' },
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&family=Times+New+Roman&display=swap' }
       ],
       script: [
