@@ -5,6 +5,7 @@ import { LUCKY_STARS, SHA_STARS, PEACH_STARS, getStarClass, getStarPriority } fr
 import { MUTAGEN_LABELS, getStarMutagens } from '../utils/ziwei-mutagens'
 import { calculatePatterns } from '../utils/ziwei-patterns'
 import { getManualYearlyStars, getRelativePalaceName } from '../utils/ziwei-limits'
+import { getStarInterpretation } from '../utils/ziwei-interpretations'
 import NumberInput from './NumberInput.vue'
 
 const props = defineProps({
@@ -35,6 +36,7 @@ const astrolabe = computed(() => {
 const activeHoroscope = ref(null) 
 const activeLimit = ref(null) 
 const hoveredIndex = ref(null)
+const selectedPalaceIndex = ref(null)
 
 // Date Selection State
 const selectedDate = ref({
@@ -47,6 +49,7 @@ watch(() => props.inputData, () => {
     activeHoroscope.value = null
     activeLimit.value = null
     hoveredIndex.value = null
+    selectedPalaceIndex.value = null // Reset selection
     // Reset date picker to today
     const now = new Date()
     selectedDate.value = {
@@ -56,7 +59,7 @@ watch(() => props.inputData, () => {
     }
 })
 
-// === Helpers ===
+// ... (Helpers - selectDecadal, selectAge, updateByDate, resetView, isSanFang unchanged) ...
 function selectDecadal(palaceIndex, range) {
     if (!astrolabe.value) return
     const startAge = range[0]
@@ -211,6 +214,7 @@ const displayPalaces = computed(() => {
             // Legacy labels kept for inline badges if needed, but overlay takes precedence
             decadalLabel,
             yearlyLabel,
+            
             combinedStars: [
                 ...p.majorStars.map(s => ({ ...s, isMajor: true })),
                 ...p.minorStars,
@@ -268,6 +272,8 @@ const centerInfo = computed(() => {
         lunarDate: astrolabe.value.lunarDate,
         chineseDate: astrolabe.value.chineseDate,
         fiveElementClass: astrolabe.value.fiveElementsClass,
+        mingZhu: astrolabe.value.soul, // Ming Zhu (Life Master)
+        shenZhu: astrolabe.value.body, // Shen Zhu (Body Master)
     }
     if (activeLimit.value) {
         return { ...base, limitLabel: activeLimit.value.label }
@@ -279,6 +285,66 @@ const centerInfo = computed(() => {
 const patterns = computed(() => {
     return calculatePatterns(astrolabe.value)
 })
+
+// ...
+
+
+
+// === Interpretations ===
+const selectedPalaceInterpretations = computed(() => {
+    if (selectedPalaceIndex.value === null || !astrolabe.value) return []
+    const palace = astrolabe.value.palaces[selectedPalaceIndex.value]
+    if (!palace) return []
+
+    // Major Stars (Handle Empty Palace)
+    let majorStars = palace.majorStars || []
+    let isBorrowed = false
+    let borrowSource = ''
+
+    if (majorStars.length === 0) {
+        // Empty Palace: Borrow from Opposite
+        const oppositeIndex = (selectedPalaceIndex.value + 6) % 12
+        const oppositePalace = astrolabe.value.palaces[oppositeIndex]
+        if (oppositePalace && oppositePalace.majorStars.length > 0) {
+            majorStars = oppositePalace.majorStars
+            isBorrowed = true
+            borrowSource = oppositePalace.name // e.g. 遷移
+        }
+    }
+
+    const majorInterps = majorStars.map(star => ({
+        starName: star.name,
+        isMajor: true,
+        isBorrowed,
+        borrowSource,
+        content: getStarInterpretation(star.name, palace.name) // Use ORIGINAL palace name context, but interpretations might need to reflect borrowing?
+        // Standard practice: Interpret star AS IF it is in the current palace (mapping), or note it.
+        // Usually "Borrowed Sun in Life" -> Read as Sun in Life (weakened).
+        // For simplicity, we fetch standard interpretation but mark as borrowed.
+    }))
+
+    // Minor Stars (Local only)
+    // Filter out stars that don't have interpretations or we don't want to spam?
+    // User asked for "Others too".
+    // Let's include everything in `minorStars` and `adjectiveStars` if present in `combinedStars` logic? 
+    // `palace.minorStars` + `palace.adjectiveStars` + 12 gods?
+    // Let's stick to key minor ones usually found in minorStars array.
+    const otherStars = [
+        ...palace.minorStars, 
+        ...palace.adjectiveStars
+    ].map(star => ({
+        starName: star.name,
+        isMajor: false,
+        content: getStarInterpretation(star.name, palace.name)
+    })).filter(i => i.content) // Only show if we have text
+
+    return [...majorInterps, ...otherStars]
+})
+
+// Add helper to handle palace click
+function handlePalaceClick(index) {
+    selectedPalaceIndex.value = index
+}
 
 const birthYear = computed(() => {
     return astrolabe.value ? new Date(astrolabe.value.solarDate).getFullYear() : 0
@@ -321,6 +387,8 @@ const currentDecadeAges = computed(() => {
                     <div class="info-row"><span>農曆:</span> {{ centerInfo.lunarDate }}</div>
                     <div class="info-row"><span>干支:</span> {{ centerInfo.chineseDate }}</div>
                     <div class="info-row"><span>五行:</span> {{ centerInfo.fiveElementClass }}</div>
+                    <div class="info-row"><span>命主:</span> {{ centerInfo.mingZhu }}</div>
+                    <div class="info-row"><span>身主:</span> {{ centerInfo.shenZhu }}</div>
                 </div>
             </div>
 
@@ -328,6 +396,7 @@ const currentDecadeAges = computed(() => {
             <div v-else class="palace-cell glass" 
                 @mouseenter="hoveredIndex = paramIndex"
                 @mouseleave="hoveredIndex = null"
+                @click="handlePalaceClick(paramIndex)"
                 :class="{ 
                     'life-palace': displayPalaces[paramIndex].isBaseLife, 
                     'body-palace': displayPalaces[paramIndex].isBaseBody,
@@ -335,7 +404,8 @@ const currentDecadeAges = computed(() => {
                     'yearly-life': displayPalaces[paramIndex].isYearlyLife,
                     'monthly-life': displayPalaces[paramIndex].isMonthlyLife,
                     'daily-life': displayPalaces[paramIndex].isDailyLife,
-                    'highlight-group': isSanFang(paramIndex)
+                    'highlight-group': isSanFang(paramIndex),
+                    'selected-palace': selectedPalaceIndex === paramIndex
                 }">
                  
                  <div class="palace-header">
@@ -343,7 +413,7 @@ const currentDecadeAges = computed(() => {
                          <span class="palace-name">
                              {{ displayPalaces[paramIndex].name }}{{ displayPalaces[paramIndex].isBaseBody ? '-身' : '' }}
                              <span v-for="(lbl, lIdx) in displayPalaces[paramIndex].limitLabels" :key="lIdx" class="limit-suffix" :class="lbl.class">
-                                 {{ lbl.text }}
+                                 - {{ lbl.text }}
                              </span>
                          </span>
                          
@@ -393,6 +463,26 @@ const currentDecadeAges = computed(() => {
                  
              </div>
         </template>
+    </div>
+
+    <!-- Interpretations -->
+    <div class="interpretations-container" v-if="selectedPalaceIndex !== null && selectedPalaceInterpretations.length > 0">
+        <h3 class="interp-title">
+            {{ displayPalaces[selectedPalaceIndex].name }}星曜解說
+        </h3>
+        <div class="interp-list">
+            <div v-for="(interp, idx) in selectedPalaceInterpretations" :key="idx" class="interp-item">
+                <h4 class="interp-star-name">
+                    {{ interp.starName }}
+                    <span v-if="interp.isBorrowed" class="borrow-note">(借對宮{{ interp.borrowSource }})</span>
+                </h4>
+                <div class="interp-content">{{ interp.content }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="interpretations-container" v-else-if="selectedPalaceIndex !== null">
+        <h3 class="interp-title">{{ displayPalaces[selectedPalaceIndex].name }}</h3>
+        <p style="color: #666;">此宮位無主星或暫無解說資料。</p>
     </div>
 
 
@@ -482,9 +572,11 @@ const currentDecadeAges = computed(() => {
   min-height: 200px;
   transition: all 0.2s ease;
   box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+  cursor: pointer; /* Clickable */
 }
 
-.palace-cell:hover { box-shadow: 0 5px 15px rgba(0,0,0,0.08); z-index: 10; }
+.palace-cell:hover { box-shadow: 0 5px 15px rgba(0,0,0,0.08); z-index: 10; transform: translateY(-2px); }
+.palace-cell.selected-palace { border: 2px solid #e65100; box-shadow: 0 0 10px rgba(230, 81, 0, 0.2); }
 
 /* Center Content */
 .center-placeholder { visibility: hidden; position: relative; }
@@ -528,8 +620,8 @@ const currentDecadeAges = computed(() => {
 .stars-container { display: flex; flex-direction: column; flex: 1; }
 .stars-unified { display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; }
 
-.star { line-height: 1.4; white-space: nowrap; font-size: 13px; }
-.star.major { font-size: 15px; font-weight: bold; color: #c0392b; /* Deep Red */ }
+.star { line-height: 1.4; white-space: nowrap; font-size: 14px; }
+.star.major { font-size: 16px; font-weight: bold; color: #c0392b; /* Deep Red */ }
 .star.major.brightness-top { color: #e74c3c; text-shadow: 0 0 1px rgba(231, 76, 60, 0.5); }
 
 .star.type-lucky { color: #27ae60; font-weight: 600; } /* Green */
@@ -572,6 +664,20 @@ const currentDecadeAges = computed(() => {
 .xiaoxian { background: #f39c12; }
 .xiaoxian.ages { background: #8e44ad; }
 .liuyue { background: #27ae60; }
+
+/* Interpretations */
+.interpretations-container {
+    background: #fff; border: 1px solid #ebd5b3; padding: 1.5rem; border-radius: 12px; margin: 2rem 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+.interp-title {
+    color: #5d4037; font-size: 21px; margin-bottom: 1rem; 
+    font-family: 'Ma Shan Zheng', cursive; border-bottom: 2px solid #f4f1ea; padding-bottom: 0.5rem;
+}
+.interp-item { margin-bottom: 1.5rem; }
+.interp-star-name { color: #e65100; font-size: 18px; margin-bottom: 0.5rem; }
+.borrow-note { font-size: 0.8em; color: #7f8c8d; font-weight: normal; margin-left: 0.5rem; }
+.interp-content { font-size: 16px; color: #5d4037; line-height: 1.6; white-space: pre-line; }
 
 /* Patterns */
 .patterns-container {
