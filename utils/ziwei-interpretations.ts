@@ -1,5 +1,14 @@
 // Map of "StarName_PalaceName" to Interpretation Text
 // Palace Names match the standard: 命宮, 兄弟, 夫妻, 子女, 財帛, 疾厄, 遷移, 交友, 官祿, 田宅, 福德, 父母
+import { MAJOR_STARS_DATA } from './ziwei-major-data';
+import { LUCKY_STARS_DATA } from './ziwei-lucky-data';
+import { SHA_STARS_DATA } from './ziwei-sha-data';
+import { MINOR_STARS_DATA } from './ziwei-minor-data';
+import { CHANG_SHENG_DATA } from './ziwei-changsheng-data';
+import { BO_SHI_DATA } from './ziwei-boshi-data';
+import { SUI_JIAN_DATA } from './ziwei-suijian-data';
+import { JIANG_QIAN_DATA } from './ziwei-jiangqian-data';
+
 
 const INTERPRETATIONS: Record<string, string> = {
     // === 武曲 Wu Qu ===
@@ -101,19 +110,125 @@ function getGenericInterpretation(star: string, palace: string): string {
     return '';
 }
 
+function normalizePalaceName(name: string): string {
+    if (name.includes('僕役')) return '交友宮';
+    if (name.includes('交友')) return '交友宮';
+    if (!name.endsWith('宮')) return name + '宮';
+    return name;
+}
+
+function normalizeStarName(starName: string): string {
+    if (['天德', '月德'].includes(starName)) return '天月德';
+    if (['截路', '空亡', '旬空', '天空'].includes(starName)) return '空亡系';
+    return starName;
+}
+
 export function getStarInterpretation(starName: string, palaceName: string): string {
-    // Normalize palace name (e.g. 官祿宮 -> 官祿) if needed, but assuming full match first
-    // Our keys use '命宮' but others might be '兄弟'.
-    // Let's normalize key construction.
+    // Normalize palace name for lookup (Data uses '交友宮', iztro uses '僕役')
+    const lookupPalace = normalizePalaceName(palaceName);
 
-    // Ensure palace name matches our key convention (usually 2 chars except 命宮)
-    // Actually ZiWeiChart uses full names usually (命宮, 兄弟, etc from ziwei-limits.ts PALACE_ORDER)
-    // PALACE_ORDER = ['命宮', '兄弟', '夫妻', '子女', '財帛', '疾厄', '遷移', '交友', '官祿', '田宅', '福德', '父母']
+    // 1. Check normalized Major Star Data (from major.json)
+    if (MAJOR_STARS_DATA[starName]) {
+        // Try exact match with normalized name
+        let content = MAJOR_STARS_DATA[starName][lookupPalace];
 
-    const key = `${starName}_${palaceName}`;
+        // Fallback: try removing '宮' if data keys are short (though based on file they are '交友宮')
+        if (!content) {
+            const shortName = lookupPalace.replace('宮', '');
+            content = MAJOR_STARS_DATA[starName][shortName];
+        }
+
+        if (content) return content;
+    }
+
+    // 2. Check normalized Lucky Star Data (from lucky.json)
+    if (LUCKY_STARS_DATA[starName]) {
+        let content = LUCKY_STARS_DATA[starName][lookupPalace];
+
+        if (!content) {
+            const shortName = lookupPalace.replace('宮', '');
+            content = LUCKY_STARS_DATA[starName][shortName];
+        }
+
+        if (content) return content;
+    }
+
+    // 3. Check normalized Sha Star Data (from sha.json)
+    if (SHA_STARS_DATA[starName]) {
+        let content = SHA_STARS_DATA[starName][lookupPalace];
+
+        if (!content) {
+            const shortName = lookupPalace.replace('宮', '');
+            content = SHA_STARS_DATA[starName][shortName];
+        }
+
+        if (content) return content;
+    }
+
+    // 4. Check normalized Minor Star Data (from minor.json / minor2.json)
+    const minorStarKey = normalizeStarName(starName);
+    if (MINOR_STARS_DATA[minorStarKey]) {
+        let content = MINOR_STARS_DATA[minorStarKey][lookupPalace];
+
+        if (!content) {
+            const shortName = lookupPalace.replace('宮', '');
+            content = MINOR_STARS_DATA[minorStarKey][shortName];
+        }
+
+        if (content) return content;
+    }
+
+    // 5. Check Chang Sheng 12 Data
+    if (CHANG_SHENG_DATA[starName]) {
+        let content = CHANG_SHENG_DATA[starName][lookupPalace];
+        if (!content) {
+            const shortName = lookupPalace.replace('宮', '');
+            content = CHANG_SHENG_DATA[starName][shortName];
+        }
+        if (content) return content;
+    }
+
+    // 6. Check Bo Shi 12 Data
+    if (BO_SHI_DATA[starName]) {
+        let content = BO_SHI_DATA[starName][lookupPalace];
+        if (!content) {
+            const shortName = lookupPalace.replace('宮', '');
+            content = BO_SHI_DATA[starName][shortName];
+        }
+        if (content) return content;
+    }
+
+    // 7. Check Sui Jian 12 Data
+    if (SUI_JIAN_DATA[starName]) {
+        let content = SUI_JIAN_DATA[starName][lookupPalace];
+        if (!content) {
+            const shortName = lookupPalace.replace('宮', '');
+            content = SUI_JIAN_DATA[starName][shortName];
+        }
+        if (content) return content;
+    }
+
+    // 8. Check Jiang Qian 12 Data
+    if (JIANG_QIAN_DATA[starName]) {
+        let content = JIANG_QIAN_DATA[starName][lookupPalace];
+        if (!content) {
+            const shortName = lookupPalace.replace('宮', '');
+            content = JIANG_QIAN_DATA[starName][shortName];
+        }
+        if (content) return content;
+    }
+
+    // 9. Fallback to existing logic
+    const key = `${starName}_${lookupPalace}`;
     if (INTERPRETATIONS[key]) {
         return INTERPRETATIONS[key];
     }
 
-    return getGenericInterpretation(starName, palaceName);
+    // Check old keys just in case
+    const keyOld = `${starName}_${palaceName}`;
+    if (INTERPRETATIONS[keyOld]) {
+        return INTERPRETATIONS[keyOld];
+    }
+
+    return getGenericInterpretation(starName, lookupPalace);
 }

@@ -329,16 +329,25 @@ const selectedPalaceInterpretations = computed(() => {
     // Let's include everything in `minorStars` and `adjectiveStars` if present in `combinedStars` logic? 
     // `palace.minorStars` + `palace.adjectiveStars` + 12 gods?
     // Let's stick to key minor ones usually found in minorStars array.
+    // Minor Stars (Local only) + 12 Gods
     const otherStars = [
         ...palace.minorStars, 
-        ...palace.adjectiveStars
+        ...palace.adjectiveStars,
+        // Add 12 Gods
+        ...(palace.changsheng12 ? [{ name: palace.changsheng12 }] : []),
+        ...(palace.boshi12 ? [{ name: palace.boshi12 }] : []),
+        ...(palace.jiangqian12 ? [{ name: palace.jiangqian12 }] : []),
+        ...(palace.suiqian12 ? [{ name: palace.suiqian12 }] : [])
     ].map(star => ({
         starName: star.name,
         isMajor: false,
-        content: getStarInterpretation(star.name, palace.name)
-    })).filter(i => i.content) // Only show if we have text
+        content: getStarInterpretation(star.name, palace.name) // Use ORIGINAL palace name context
+    }))
 
-    return [...majorInterps, ...otherStars]
+    return {
+        major: majorInterps,
+        minor: otherStars
+    }
 })
 
 // Add helper to handle palace click
@@ -466,23 +475,43 @@ const currentDecadeAges = computed(() => {
     </div>
 
     <!-- Interpretations -->
-    <div class="interpretations-container" v-if="selectedPalaceIndex !== null && selectedPalaceInterpretations.length > 0">
+    <div class="interpretations-container" v-if="selectedPalaceIndex !== null && (selectedPalaceInterpretations.major.length > 0 || selectedPalaceInterpretations.minor.length > 0)">
         <h3 class="interp-title">
             {{ displayPalaces[selectedPalaceIndex].name }}星曜解說
         </h3>
-        <div class="interp-list">
-            <div v-for="(interp, idx) in selectedPalaceInterpretations" :key="idx" class="interp-item">
-                <h4 class="interp-star-name">
-                    {{ interp.starName }}
-                    <span v-if="interp.isBorrowed" class="borrow-note">(借對宮{{ interp.borrowSource }})</span>
-                </h4>
-                <div class="interp-content">{{ interp.content }}</div>
+        
+        <!-- Major Stars Section -->
+        <div class="interp-group" v-if="selectedPalaceInterpretations.major.length > 0">
+            <h4 class="group-title">【主星】</h4>
+            <div class="interp-list major-list">
+                <div v-for="(interp, idx) in selectedPalaceInterpretations.major" :key="'major-'+idx" class="interp-item major-item">
+                    <h4 class="interp-star-name">
+                        {{ interp.starName }}
+                        <span v-if="interp.isBorrowed" class="borrow-note">(借對宮{{ interp.borrowSource }})</span>
+                    </h4>
+                    <div class="interp-content" v-if="interp.content">{{ interp.content }}</div>
+                    <div class="interp-content empty" v-else>暫無解說</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Minor Stars Section -->
+        <div class="interp-group" v-if="selectedPalaceInterpretations.minor.length > 0">
+            <h4 class="group-title">【輔星與雜曜】</h4>
+            <div class="interp-list minor-grid">
+                <div v-for="(interp, idx) in selectedPalaceInterpretations.minor" :key="'minor-'+idx" class="interp-item minor-item">
+                    <h4 class="interp-star-name">
+                        {{ interp.starName }}
+                    </h4>
+                    <div class="interp-content" v-if="interp.content">{{ interp.content }}</div>
+                    <div class="interp-content empty" v-else>暫無解說</div>
+                </div>
             </div>
         </div>
     </div>
     <div class="interpretations-container" v-else-if="selectedPalaceIndex !== null">
         <h3 class="interp-title">{{ displayPalaces[selectedPalaceIndex].name }}</h3>
-        <p style="color: #666;">此宮位無主星或暫無解說資料。</p>
+        <p style="color: #666;">此宮位無主要星曜資料。</p>
     </div>
 
 
@@ -678,11 +707,41 @@ const currentDecadeAges = computed(() => {
 .interp-star-name { color: #e65100; font-size: 18px; margin-bottom: 0.5rem; }
 .borrow-note { font-size: 0.8em; color: #7f8c8d; font-weight: normal; margin-left: 0.5rem; }
 .interp-content { font-size: 16px; color: #5d4037; line-height: 1.6; white-space: pre-line; }
+.interp-content.empty { color: #aaa; font-style: italic; }
+
+.interp-group { margin-bottom: 2rem; }
+.group-title { 
+    font-size: 19px; color: #795548; margin-bottom: 1rem; 
+    border-left: 4px solid #e65100; padding-left: 10px; font-weight: bold;
+}
+.major-list { 
+    display: grid; 
+    grid-template-columns: repeat(3, 1fr); 
+    gap: 1rem; 
+}
+.major-item { 
+    background: #fff8e1; padding: 1.5rem; border-radius: 8px; 
+    border: 1px solid #ffe0b2; margin-bottom: 0; 
+}
+.minor-grid { 
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
+    gap: 1rem; 
+}
+.minor-item { 
+    background: #fafafa; padding: 1rem; border-radius: 8px; 
+    border: 1px solid #eee; margin-bottom: 0; 
+}
+.minor-item .interp-content { font-size: 15px; }
+.minor-item .interp-star-name { font-size: 17px; margin-bottom: 0.3rem; color: #5d4037; font-weight: bold; }
 
 /* Patterns */
 .patterns-container {
     background: #fff; border: 1px solid #ebd5b3; padding: 1.5rem; border-radius: 12px; margin: 2rem 0;
     box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+
+@media (max-width: 900px) {
+    .major-list { grid-template-columns: 1fr; }
 }
 .patterns-container h3 { 
     color: #5d4037; font-size: 21px; margin-bottom: 1rem; 
