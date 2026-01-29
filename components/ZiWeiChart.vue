@@ -649,25 +649,24 @@ const currentDecadeAges = computed(() => {
 .stars-container { display: flex; flex-direction: column; flex: 1; }
 .stars-unified { display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; }
 
-.star { line-height: 1.4; white-space: nowrap; font-size: 14px; }
+.star { line-height: 1.4; white-space: nowrap; font-size: 16px; }
 .star.major { font-size: 16px; font-weight: bold; color: #c0392b; /* Deep Red */ }
 .star.major.brightness-top { color: #e74c3c; text-shadow: 0 0 1px rgba(231, 76, 60, 0.5); }
 
 .star.type-lucky { color: #27ae60; font-weight: 600; } /* Green */
 .star.type-sha { color: #8e44ad; font-weight: 600; } /* Purple */
 .star.type-peach { color: #d81b60; } /* Deep Pink */
-.star.type-misc { color: #7f8c8d; } /* Grey */
-.star.changsheng { color: #95a5a6; font-size: 13px; }
+.star.type-misc { color: #5d4037; } /* Grey -> Brown */
 
 /* Mutagen Badges */
-.mutagen-badge { font-size: 11px; padding: 1px 4px; border-radius: 4px; color: white; margin-left: 2px; vertical-align: text-bottom; }
+.mutagen-badge { font-size: 14px; padding: 0px 2px; border-radius: 4px; color: white; vertical-align: text-bottom; }
 .mutagen-natal { background: #c0392b; } 
 .mutagen-decadal { background: #2980b9; } 
 .mutagen-yearly { background: #f39c12; } 
 
 /* Footer (Limit Btn) */
 .palace-footer { margin-top: auto; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; }
-.limit-row { display: flex; align-items: center; gap: 4px; font-size: 13px; color: #7f8c8d; line-height: 1.4; width: 100%; }
+.limit-row { display: flex; align-items: center; gap: 4px; font-size: 13px; color: #5d4037; line-height: 1.4; width: 100%; }
 .limit-row.pointer { cursor: pointer; transition: color 0.2s; }
 .limit-row.pointer:hover { color: #81C7D4; font-weight: bold; }
 .limit-label { flex-shrink: 0; }
@@ -705,7 +704,7 @@ const currentDecadeAges = computed(() => {
 }
 .interp-item { margin-bottom: 1.5rem; }
 .interp-star-name { color: #e65100; font-size: 18px; margin-bottom: 0.5rem; }
-.borrow-note { font-size: 0.8em; color: #7f8c8d; font-weight: normal; margin-left: 0.5rem; }
+.borrow-note { font-size: 0.8em; color: #5d4037; font-weight: normal; margin-left: 0.5rem; }
 .interp-content { font-size: 16px; color: #5d4037; line-height: 1.6; white-space: pre-line; }
 .interp-content.empty { color: #aaa; font-style: italic; }
 
