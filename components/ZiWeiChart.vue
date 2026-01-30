@@ -37,6 +37,8 @@ const activeHoroscope = ref(null)
 const activeLimit = ref(null) 
 const hoveredIndex = ref(null)
 const selectedPalaceIndex = ref(null)
+const showToast = ref(false)
+const toastMessage = ref('')
 
 // Date Selection State
 const selectedDate = ref({
@@ -369,10 +371,54 @@ const currentDecadeAges = computed(() => {
     }
     return []
 })
+
+// === Debug Helper ===
+const isDev = import.meta.dev
+
+function copyDebugInfo() {
+    if (!centerInfo.value) return
+
+    const genderMap = { 'male': '男', 'female': '女', 'M': '男', 'F': '女', '男': '男', '女': '女' }
+    const gender = genderMap[centerInfo.value.gender] || centerInfo.value.gender
+
+    const info = [
+        `性別: ${gender}`,
+        `國曆: ${centerInfo.value.solarDate}`,
+        `農曆: ${centerInfo.value.lunarDate}`,
+        `干支: ${centerInfo.value.chineseDate}`,
+        `五行: ${centerInfo.value.fiveElementClass}`,
+        `命主: ${centerInfo.value.mingZhu}`,
+        `身主: ${centerInfo.value.shenZhu}`,
+    ].join('\n')
+
+    const patternInfo = patterns.value.length > 0 
+        ? `格局: ${patterns.value.map(p => p.name).join('、')}`
+        : '格局: 無特殊格局'
+
+    const fullText = `${info}\n${patternInfo}`
+    
+    // Modern Clipboard API
+    if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(fullText)
+            .then(() => {
+                toastMessage.value = '已複製個人資訊與格局'
+                showToast.value = true
+                setTimeout(() => showToast.value = false, 2000)
+            })
+            .catch(e => console.error(e))
+    } else {
+        console.log(fullText)
+        alert('複製失敗，請查看 Console')
+    }
+}
 </script>
 
 <template>
   <div class="chart-container">
+    <!-- Toast Popup -->
+    <div class="toast-popup" :class="{ show: showToast }">
+        {{ toastMessage }}
+    </div>
 
 
     <!-- Main Grid -->
@@ -381,6 +427,9 @@ const currentDecadeAges = computed(() => {
             <!-- Center -->
             <div v-if="paramIndex < 0" class="center-placeholder">
                 <div v-if="idx === 5" class="center-content">
+                    <button v-if="isDev" @click.stop="copyDebugInfo" class="debug-copy-btn" title="複製詳細資訊">
+                        📋
+                    </button>
                     <div class="chart-controls">
                         <div class="control-row">
                             <div class="date-picker">
@@ -625,6 +674,45 @@ const currentDecadeAges = computed(() => {
     letter-spacing: 4px; 
     text-shadow: 0 2px 4px rgba(255,255,255,0.8);
 }
+.debug-copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid #d7ccc8;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px 6px;
+    z-index: 20; 
+    pointer-events: auto;
+    transition: all 0.2s;
+}
+.debug-copy-btn:hover {
+    background: #fff;
+    transform: scale(1.1);
+}
+
+/* Toast */
+.toast-popup {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    z-index: 9999;
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+.toast-popup.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
 .limit-label { 
     background: #81C7D4; color: white; padding: 2px 4px; 
     border-radius: 4px; font-weight: bold; letter-spacing: 1px; 
