@@ -471,7 +471,7 @@ function copyDebugInfo() {
                          <span class="palace-name">
                              {{ displayPalaces[paramIndex].name }}{{ displayPalaces[paramIndex].isBaseBody ? '-身' : '' }}
                              <span v-for="(lbl, lIdx) in displayPalaces[paramIndex].limitLabels" :key="lIdx" class="limit-suffix" :class="lbl.class">
-                                 - {{ lbl.text }}
+                                 {{ lbl.text }}
                              </span>
                          </span>
                          
