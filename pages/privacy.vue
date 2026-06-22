@@ -40,7 +40,7 @@ useHead({
       <hr class="divider" />
 
       <!-- 中文版隱私權政策 -->
-      <div v-if="lang === 'zh'" class="policy-content">
+      <div v-if="lang === 'zh'" class="policy-content zh">
         <p>
           本隱私權政策適用於 
           <span class="fill-blank">江映澄紫微-AI 紫微斗數</span> 
@@ -128,7 +128,7 @@ useHead({
       </div>
 
       <!-- 英文版隱私權政策 -->
-      <div v-else class="policy-content">
+      <div v-else class="policy-content en">
         <p>
           This Privacy Policy applies to the 
           <span class="fill-blank">江映澄紫微-AI 紫微斗數</span> 
@@ -310,6 +310,11 @@ useHead({
   text-align: justify;
 }
 
+.policy-content.en p,
+.policy-content.en li {
+  text-align: left;
+}
+
 .policy-content h2 {
   font-size: 1.4rem;
   color: #4a3b32;
@@ -374,8 +379,12 @@ useHead({
 }
 
 @media (max-width: 768px) {
+  .privacy-page-container {
+    padding: 6rem 1rem 4rem;
+  }
+
   .privacy-card {
-    padding: 2rem 1.5rem;
+    padding: 2rem 1.25rem;
     border-radius: 12px;
   }
   
@@ -395,6 +404,31 @@ useHead({
   
   .policy-content h2 {
     font-size: 1.25rem;
+    margin-top: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .privacy-page-container {
+    padding: 5.5rem 0.5rem 3rem;
+  }
+  
+  .privacy-card {
+    padding: 1.5rem 0.75rem;
+    border-radius: 8px;
+  }
+  
+  .policy-title {
+    font-size: 1.5rem;
+  }
+  
+  .policy-content {
+    font-size: 0.95rem;
+  }
+  
+  .policy-content h2 {
+    font-size: 1.15rem;
+    margin-top: 1.8rem;
   }
 }
 </style>
