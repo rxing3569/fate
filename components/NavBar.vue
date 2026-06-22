@@ -51,7 +51,7 @@ function handleScroll() {
             
             <!-- Desktop Links -->
             <div class="nav-links">
-                <router-link to="/services">服務方案</router-link>
+                <!-- <router-link to="/services">服務方案</router-link> -->
                 <router-link to="/blog">命理專欄</router-link>
                 <router-link to="/contact">聯繫我</router-link>
                 <router-link to="/ziwei" class="nav-cta">免費線上排盤</router-link>

@@ -17,7 +17,7 @@
             <div class="social-links">
                 <a href="https://www.instagram.com/jiang.yin.cheng/" target="_blank">Instagram</a>
                 <a href="https://www.threads.net/@jiang.yin.cheng" target="_blank">Threads</a>
-                <!-- <a href="#">Facebook</a> -->
+                <NuxtLink to="/privacy">App 隱私權政策</NuxtLink>
             </div>
             <div class="copyright">© 2026 喜助數位. All Rights Reserved.</div>
         </div>
