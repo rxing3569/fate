@@ -17,6 +17,10 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      NUXT_PUBLIC_API_BASE: https://api.fatejyc.com/api
+      NUXT_PUBLIC_WS_ANALYZE_URL: wss://api.fatejyc.com/ws/analyze
+      NUXT_PUBLIC_GOOGLE_WEB_CLIENT_ID: 670031557422-b9s1vea1r2kf2s1o8eag3pk43sf4c727.apps.googleusercontent.com
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,12 +31,16 @@ jobs:
           node-version: "20"
 
       - name: Install dependencies
-        run: |
-          rm -f package-lock.json
-          npm install
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
 
       - name: Build with Nuxt
         run: npm run generate
+
+      - name: Add GitHub Pages SPA fallback
+        run: cp .output/public/index.html .output/public/404.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

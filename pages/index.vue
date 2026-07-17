@@ -1,330 +1,507 @@
-<script setup>
-useHead({
-  title: '江映澄命相 | 八字與紫微斗數諮詢，掌握運勢趨吉避凶的現代指引',
-  meta: [
-    { name: 'description', content: '結合現代心理學與傳統命理智慧，江映澄老師提供專業的八字、紫微斗數及流年運勢分析。我們深信命雖說已定，但運可以自己掌控。透過精準的命理諮詢，協助您在人生十字路口看清方向，學會趨吉避凶，找回生活的掌控權。' },
-    { property: 'og:title', content: '江映澄命相' },
-    { property: 'og:description', content: '結合現代心理學與傳統命理智慧，江映澄老師提供專業的八字、紫微斗數及流年運勢分析。我們深信命雖說已定，但運可以自己掌控。透過精準的命理諮詢，協助您在人生十字路口看清方向，學會趨吉避凶，找回生活的掌控權。' },
-    { property: 'og:image', content: '/logo.png' },
-  ],
-})
-
-const scrollToAbout = () => {
-    const element = document.getElementById('about');
-    if (element) {
-        // Reduced offset to hide the arrow in the previous section
-        const headerOffset = 100; 
-        const elementPosition = element.getBoundingClientRect().top;
-        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-
-        window.scrollTo({
-            top: offsetPosition,
-            behavior: "smooth"
-        });
-    }
+<script setup lang="ts">
+import {
+  ArrowDown,
+  ArrowRight,
+  BookOpen,
+  BrainCircuit,
+  CalendarClock,
+  Compass,
+  MessageCircle,
+  UsersRound,
+} from "@lucide/vue";
+const auth = useAuthStore();
+useSeoMeta({
+  title: "AI 紫微斗數命盤解析｜江映澄紫微",
+  description:
+    "江映澄紫微提供免費線上排盤、AI 命盤解析、時運解析、感情合盤與紫微斗數問答，結合命理老師經驗，協助你看懂天賦、運勢與人生方向。",
+  ogTitle: "AI 紫微斗數命盤解析｜江映澄紫微",
+  ogDescription:
+    "免費線上排盤，使用 AI 探索紫微命盤、流年時運、感情合盤與人生方向。",
+});
+const primaryAction = computed(() =>
+  auth.isAuthenticated ? "/chart" : "/ai-analysis?mode=chart",
+);
+function scrollToAbout() {
+  document.querySelector("#about")?.scrollIntoView({ behavior: "smooth" });
 }
 </script>
 
 <template>
-    <div class="page-container">
-        <!-- Hero Section -->
-        <section class="hero-section">
-            <div class="hero-content">
-                <div class="hero-text">
-                    <h1 class="main-title">江映澄命相</h1>
-                    <div class="sub-title">~ 命有定數．運在人為 ~</div>
-
-                    <div class="hero-desc">
-                        <p>透過紫微斗數與八字論命釐清天賦，融合現代心理學</p>
-                        <p>帶您揭開命運的面紗，為迷惘的自己尋找方向</p>
-                    </div>
-                </div>
-                <div class="hero-visual">
-                    <div class="hero-poem">
-                        <p>江海浮沉測吉凶</p>
-                        <p>映照流年萬象中</p>
-                        <p>澄澈慧心觀氣數</p>
-                        <p>撥開雲霧路從容</p>
-                    </div>
-                </div>
+  <AppPageLayout
+    screen-class="landing-screen"
+    content-mode="flush"
+    :show-header="false"
+  >
+    <main class="landing-content">
+      <section class="hero">
+        <h1>AI 紫微斗數命盤解析｜江映澄紫微</h1>
+        <p class="hero-subtitle">～ 命有定數・運在人為 ～</p>
+        <div class="hero-columns">
+          <div class="hero-copy">
+            <div class="hero-description">
+              <p>AI 結合紫微，融合現代心理學</p>
+              <p>帶您揭開命運的面紗，為迷惘的自己尋找方向</p>
             </div>
-            
-            <!-- Floating Scroll Indicator -->
-            <div class="scroll-indicator" @click="scrollToAbout">
-                <span class="scroll-text">深入認識映澄</span>
-                <div class="scroll-arrow">↓</div>
+            <div class="hero-actions">
+              <NuxtLink class="app-button" :to="primaryAction"
+                >免費線上排盤</NuxtLink
+              >
+              <NuxtLink class="app-button outline" to="/report"
+                >馬上解析命盤</NuxtLink
+              >
             </div>
-        </section>
-
-        <!-- About / Destiny Section -->
-        <section id="about" class="section-block about-container">
-            <div class="container-narrow">
-                <SectionHeader title="關於映澄" engTitle="ABOUT DESTINY" />
-                
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <span class="num">06</span>
-                        <span class="label">年資歷</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="num">300+</span>
-                        <span class="label">閱盤數量</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="num">100%</span>
-                        <span class="label">回覆率</span>
-                    </div>
-                </div>
-                
-                <div class="content-card">
-                      <p class="about-text">
-                     <b class="quote-highlight">【知命，是為了更好的造命】</b><br>
-
-<b>從業六載，閱人數百</b> <br>江某入途六年有餘，曾協助數百位個案釐清生命迷惘，風格獨樹一格，將「現代心理學」融入「傳統命理」之中；不語怪力亂神，而是引導您進行深度的自我覺察。
-<br>
-<b>算命非認命，旨在趨吉避凶</b> <br>我始終深信，命理的價值不在於讓人消極認命，而是讓您「知命」進而「造命」。透過精準的命盤解析，我將陪您找出運勢的突破口。</p>
-
-                </div>
-
-                <!-- Quick Links -->
-                <!-- Quick Links Card Grid -->
-                <div class="quick-links-container">
-                    <div class="card-grid">
-                        <NuxtLink to="/services" class="quick-card">
-                            <h3 class="card-title">服務方案</h3>
-                            <p class="card-desc">專業命理分析，全方位解析人生格局與流年運勢。</p>
-                            <span class="card-arrow">→</span>
-                        </NuxtLink>
-                        <NuxtLink to="/blog" class="quick-card">
-                            <h3 class="card-title">命理專欄</h3>
-                            <p class="card-desc">深入淺出的命理知識分享，帶您探索命運的奧秘。</p>
-                            <span class="card-arrow">→</span>
-                        </NuxtLink>
-                        <NuxtLink to="/contact" class="quick-card">
-                            <h3 class="card-title">聯繫我</h3>
-                            <p class="card-desc">預約諮詢或有任何疑問，歡迎隨時與我聯繫。</p>
-                            <span class="card-arrow">→</span>
-                        </NuxtLink>
-                    </div>
-                    
-                    <div class="action-wrapper">
-                        <NuxtLink to="/ziwei" class="btn-start-lg">免費線上排盤</NuxtLink>
-                    </div>
-                </div>
+            <div class="stats" aria-label="服務成果">
+              <div><b>4.8</b><span>星好評</span></div>
+              <div><b>800+</b><span>已生成報告</span></div>
+              <div><b>6 年</b><span>資歷老師把關</span></div>
             </div>
-        </section>
-    </div>
+          </div>
+          <div class="hero-aside">
+            <blockquote>
+              <span>江海浮沉測吉凶</span><span>映照流年萬象中</span
+              ><span>澄澈慧心觀氣數</span><span>撥開雲霧路從容</span>
+            </blockquote>
+          </div>
+        </div>
+        <button class="about-float" type="button" @click="scrollToAbout">
+          <span>深入認識</span><ArrowDown :size="18" />
+        </button>
+      </section>
+      <section id="about" class="belief">
+        <small>ABOUT US</small>
+        <h2>關於我們</h2>
+        <div class="ink-line" />
+        <article class="about-card glass">
+          <h3>知命是為了更好地造命</h3>
+          <p>
+            我們是一套結合<strong>紫微斗數、人工智慧與現代心理學</strong>的命理分析產品。
+          </p>
+          <p>
+            系統以一位擁有六年實務經驗的命理師為核心，整理數百份命盤案例、論命經驗與古籍資料，將分散而複雜的命理知識，建立成可持續分析與比對的命理資料庫，並訓練出專屬的
+            AI 命盤分析系統。
+          </p>
+
+          <h4>結合心理學的自我探索</h4>
+          <p>
+            我們不只解讀星曜與宮位，更融入卡爾・榮格等心理學理論，提供貼近現代生活的全方位分析。從性格特質、內在需求、關係模式到人生課題，我們不僅陪您探索內心，<strong
+              >更致力於為您發掘潛在的天賦優勢，對應出最能發揮所長的職涯方向與工作領域。</strong
+            >
+          </p>
+          <p>
+            AI
+            在這裡不代替您決定人生，而是協助整合命盤中的複雜資訊，將傳統命理轉化為清晰、具體的自我探索工具。我們不談怪力亂神，也不以宿命的吉凶製造焦慮，而是幫助您更深入地認識自己，找到在人生合適的出路。
+          </p>
+
+          <h4>算命旨在趨吉避凶</h4>
+
+          <p>命盤不是對人生的定論，而是一張理解自身特質與人生節奏的地圖。</p>
+          <p>
+            我們希望透過 AI
+            命理分析，幫助您看見自己的優勢、盲點與潛在課題，在關鍵選擇前掌握方向，在低潮與變化中找到突破口。同時，為您解碼<strong
+              >人際互動的深層動態——幫助您看清職場的暗流、避開感情中的無謂消耗，並遠離不必要的人際糾紛。</strong
+            >
+          </p>
+          <p>
+            真正的「趨吉避凶」，不是被動地恐懼未知，而是透過深刻的自我覺察，主動篩選出真正契合的伴侶與夥伴，為自己建立一段健康、滋養的關係網。
+          </p>
+        </article>
+      </section>
+      <section class="services" aria-labelledby="services-title">
+        <small>SYSTEM SERVICES</small>
+        <h2 id="services-title">系統服務</h2>
+        <div class="ink-line" />
+        <div class="entry-grid">
+          <NuxtLink to="/report" class="entry-card glass">
+            <BrainCircuit :size="24" />
+            <h3>AI 命盤解析</h3>
+            <p>
+              運用 AI
+              紫微斗數解析本命格局、十二宮與十年大運，從個性天賦、事業財運到人生課題，全面讀懂自己的命盤。
+            </p>
+            <span>開始解析 <ArrowRight :size="14" /></span>
+          </NuxtLink>
+          <NuxtLink to="/flow" class="entry-card glass">
+            <CalendarClock :size="24" />
+            <h3>AI 時運解析</h3>
+            <p>
+              透過 AI
+              分析流年、流月與流日運勢，掌握工作、感情及財運變化，提早看見重要時機與需要留意的方向。
+            </p>
+            <span>查看時運 <ArrowRight :size="14" /></span>
+          </NuxtLink>
+          <NuxtLink to="/match" class="entry-card glass">
+            <UsersRound :size="24" />
+            <h3>AI 合盤解析</h3>
+            <p>
+              結合雙方紫微命盤與 AI
+              關係分析，理解感情互動、溝通模式及彼此需求，找出更適合兩人的相處方式。
+            </p>
+            <span>開始合盤 <ArrowRight :size="14" /></span>
+          </NuxtLink>
+          <NuxtLink to="/qa" class="entry-card glass">
+            <MessageCircle :size="24" />
+            <h3>AI 問答</h3>
+            <p>
+              根據個人紫微命盤向 AI
+              即時提問，針對感情、事業、財運與人生選擇，獲得貼近自身命盤脈絡的解答。
+            </p>
+            <span>立即提問 <ArrowRight :size="14" /></span>
+          </NuxtLink>
+          <NuxtLink to="/learn" class="entry-card glass">
+            <BookOpen :size="24" />
+            <h3>學習紫微</h3>
+            <p>
+              從十四主星、十二宮位到基礎解盤，搭配學習地圖、題庫與測驗，循序建立實用的紫微斗數知識。
+            </p>
+            <span>開始學習 <ArrowRight :size="14" /></span>
+          </NuxtLink>
+          <NuxtLink to="/articles" class="entry-card glass">
+            <Compass :size="24" />
+            <h3>命理專欄</h3>
+            <p>
+              閱讀紫微斗數、流年運勢、感情合盤與自我成長文章，以深入淺出的方式理解傳統命理的現代應用。
+            </p>
+            <span>前往閱讀 <ArrowRight :size="14" /></span>
+          </NuxtLink>
+        </div>
+      </section>
+      <TestimonialsCarousel />
+      <section class="final-action">
+        <h2>準備好看懂自己的命盤了嗎？</h2>
+        <p>從認識自己開始，把命運重新握回手中。</p>
+        <div class="final-actions">
+          <NuxtLink class="app-button" :to="primaryAction"
+            >免費線上排盤</NuxtLink
+          >
+          <NuxtLink class="app-button outline" to="/report"
+            >馬上解析命盤</NuxtLink
+          >
+        </div>
+      </section>
+    </main>
+  </AppPageLayout>
 </template>
 
 <style scoped>
-.page-container {
-    animation: fadeIn 1s ease-out;
-    background: rgba(255,255,255,0.4);
+.landing-screen {
+  min-height: 100dvh;
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+  background: transparent;
 }
-
-/* --- Hero Section --- */
-.hero-section {
-    min-height: 85vh;
-    display: flex; align-items: center;
-    max-width: 1200px; margin: 0 auto; padding: 0 2rem;
-    position: relative; /* For absolute positioning of scroll indicator */
+.landing-screen::before {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.3)),
+    url("/assets/images/bg_landscape2.png") center / 100% 100% no-repeat;
+  pointer-events: none;
 }
-.hero-content { display: flex; flex-direction: row; width: 100%; }
-.hero-text { flex: 1; padding-right: 2rem; padding-top: 9rem; }
-.hero-visual { flex: 1; }
-
-.sub-title { font-size: 1.4rem; color: #81C7D4; margin-bottom: 2rem; letter-spacing: 4px; font-weight: 600; }
-.main-title { font-size: 4.5rem; color: #2c2c2c; margin-bottom: 0.5rem; line-height: 1.2; text-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-.hero-desc { font-size: 1.2rem; line-height: 2; color: #5d4037; margin-bottom: 3.5rem; font-weight: 600; padding-left: 1.5rem; }
-
-.hero-visual { flex: 1; display: flex; justify-content: flex-end; align-items: center; padding-top: 9rem; }
-
-.hero-poem {
-    writing-mode: vertical-lr;
-    text-orientation: upright;
-    font-family: 'BiauKai', 'DFKai-SB', '標楷體', serif;
-    font-size: 2rem;
-    color: #4a3b32;
-    height: fit-content;
-    display: flex;
-    flex-flow: column-reverse;
-    gap: 1.5rem; /* Adjusted gap */
-    letter-spacing: 1rem;
-    font-weight: 600;
-    line-height: title;
-    margin-right: 2rem;
-    text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 40px #fff, 0 0 60px #fff;
-    /* Ensure visual centering of the whole block */
-    align-self: center; 
+.landing-content {
+  position: relative;
+  z-index: 1;
 }
-
-.hero-poem p { 
-    margin: 0; 
-    padding-right: 0.8rem; 
-    transition: all 0.3s;
+.hero > h1,
+.hero-aside blockquote,
+.belief > h2,
+.services > h2,
+.about-card > h3,
+.final-action h2 {
+  font-family: "Noto Serif TC", serif;
 }
-.hero-poem p:last-child { border-right: none; }
-
-/* Scroll Indicator */
-.scroll-indicator {
-    position: absolute;
-    bottom: 2rem;
-    left: 50%;
-    transform: translateX(-50%);
+.belief,
+.services,
+.final-action {
+  text-align: center;
+}
+.hero {
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: 42px;
+  min-height: 100dvh;
+  padding: 72px 20px 150px;
+  box-sizing: border-box;
+  container-type: inline-size;
+}
+.hero > h1 {
+  margin: 0;
+  color: var(--mountain);
+  font-size: clamp(16px, 6cqw, 46px);
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-wrap: balance;
+  text-shadow: 0 2px 18px rgba(247, 243, 234, 0.95);
+}
+.hero-subtitle {
+  margin: -28px 0 0;
+  color: var(--tea);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-align: center;
+}
+.hero-columns {
+  display: grid;
+  gap: 32px;
+}
+.hero-copy {
+  text-align: center;
+}
+.hero-description p {
+  margin: 6px 0;
+  color: rgba(36, 87, 90, 0.82);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.8;
+}
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+  justify-content: center;
+}
+.hero-actions .app-button {
+  min-width: 168px;
+  margin: 0;
+  box-shadow: 0 8px 20px rgba(36, 87, 90, 0.18);
+}
+.hero-aside {
+  display: grid;
+  justify-items: center;
+}
+.hero-aside blockquote {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
+  color: rgba(36, 87, 90, 0.82);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  line-height: 2;
+  flex-direction: row-reverse;
+  align-items: flex-start;
+  text-shadow:
+    0 0 12px var(--paper),
+    0 0 24px var(--paper);
+}
+.hero-aside blockquote span {
+  display: block;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  white-space: nowrap;
+}
+.hero-aside blockquote span:nth-child(-n + 3)::first-letter {
+  background-color: rgba(36, 87, 90, 0.2);
+  border-radius: 100%;
+}
+.about-float {
+  position: absolute;
+  bottom: calc(88px + env(safe-area-inset-bottom));
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border: 0;
+  background: transparent;
+  color: var(--mountain);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  transform: translateX(-50%);
+}
+.about-float svg {
+  animation: float 2s ease-in-out infinite;
+}
+@keyframes float {
+  50% {
+    transform: translateY(7px);
+  }
+}
+.belief {
+  padding: 64px 18px 22px;
+  scroll-margin-top: 58px;
+}
+.belief > small,
+.services > small {
+  color: var(--tea);
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+.belief > h2,
+.services > h2 {
+  margin: 8px 0;
+  font-size: 27px;
+}
+.ink-line {
+  width: 52px;
+  height: 3px;
+  margin: auto;
+  border-radius: 3px;
+  background: var(--jade);
+}
+.stats {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  max-width: 100%;
+  margin: 16px auto 0;
+  color: var(--tea);
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.stats div {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+}
+.stats div + div::before {
+  content: "•";
+  margin: 0 7px;
+}
+.about-card {
+  margin-top: 25px;
+  padding: 24px;
+  border-radius: 26px;
+  text-align: left;
+}
+.about-card > h3 {
+  margin: 0 0 20px;
+  color: var(--tea);
+  font-size: 24px;
+  text-align: center;
+}
+.about-card h4 {
+  margin: 26px 0 8px;
+  color: var(--mountain);
+  font-size: 18px;
+}
+.about-card p {
+  margin: 10px 0;
+  color: var(--text-soft);
+  font-size: 14px;
+  line-height: 1.9;
+}
+.about-card strong {
+  color: var(--mountain);
+}
+.about-card .about-conclusion {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.entry-grid {
+  display: grid;
+  gap: 14px;
+  margin-top: 25px;
+}
+.services {
+  padding: 58px 18px 0;
+}
+.entry-card {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  align-items: start;
+  padding: 20px;
+  border-radius: 24px;
+}
+.entry-card > svg {
+  grid-row: 1/4;
+  color: var(--jade);
+}
+.entry-card h3 {
+  margin: 0;
+  font-size: 17px;
+}
+.entry-card p {
+  grid-column: 2/4;
+  margin: 7px 0 13px;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.entry-card span {
+  grid-column: 2/4;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 900;
+}
+.final-action {
+  padding: 40px 18px 24px;
+}
+.final-action h2 {
+  font-size: 22px;
+}
+.final-action p {
+  color: var(--text-soft);
+  font-size: 13px;
+}
+.final-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+.final-actions .app-button {
+  min-width: 168px;
+  margin: 0;
+  box-shadow: 0 8px 20px rgba(36, 87, 90, 0.14);
+}
+@media (min-width: 600px) {
+  .belief,
+  .services,
+  .final-action {
+    padding-right: 28px;
+    padding-left: 28px;
+  }
+  .hero {
+    padding-inline: 0;
+  }
+  .hero-columns {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 0.8fr);
+    align-items: center;
+  }
+  .hero-copy {
+    text-align: left;
+  }
+  .hero-actions {
+    justify-content: flex-start;
+  }
+  .stats {
+    margin-left: 0;
+  }
+  .hero > h1 {
+    white-space: nowrap;
+  }
+}
+@media (min-width: 760px) {
+  .entry-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .entry-card {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    cursor: pointer;
-    opacity: 0.6; /* Faint */
-    transition: opacity 0.3s;
-    color: #5d4037;
-}
-
-.scroll-indicator:hover {
-    opacity: 1;
-}
-
-.scroll-text {
-    font-size: 0.9rem;
-    letter-spacing: 3px;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-}
-
-.scroll-arrow {
-    font-size: 1.5rem;
-    animation: float 2.5s infinite ease-in-out;
-}
-
-@keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(10px); }
-}
-
-/* --- Shared Headers --- */
-.container-narrow { max-width: 900px; margin: 0 auto; padding: 0 2rem; }
-
-
-/* --- About Container --- */
-.stats-grid { display: flex; justify-content: center; gap: 4rem; margin-bottom: 3rem; text-align: center; }
-.stat-item { position: relative; }
-.stat-item::after { content: ''; position: absolute; right: -2rem; top: 20%; height: 60%; width: 1px; background: #ddd; }
-.stat-item:last-child::after { display: none; }
-.num { 
-    display: block; font-size: 3rem; font-weight: bold; 
-    color: #81C7D4;
-    text-shadow: 1px 1px 1px rgba(0,0,0,0.3);
-}
-.label { font-size: 1rem; color: #666; font-weight: bold; }
-
-.content-card { background: rgba(255, 255, 255, 0.6); padding: 3rem; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.05); backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.5); }
-.about-text { text-align: center; font-size: 1.1rem; line-height: 2.2; color: #4a3b32; }
-.quote-highlight { font-size: 1.4rem; color: #81C7D4; display: inline-block; margin-bottom: 0.5rem; }
-
-@media (max-width: 768px) {
-    .main-title { font-size: 2.2rem; margin-bottom: 1rem; }
-    .hero-section { flex-direction: column; text-align: center; padding-top: 7.5rem; padding-bottom: 6rem; justify-content: flex-start; }
-    .hero-content { flex-direction: column; }
-    .hero-text { padding: 0; }
-    .hero-desc { border-left: none; padding-left: 0; margin-bottom: 1.5rem; }
-    .hero-visual { display: flex; padding-top: 0; justify-content: center; width: 100%; } 
-    .hero-poem { 
-        display: flex; margin-right: 0; 
-        writing-mode: vertical-lr;
-        flex-flow: column-reverse;
-        width: auto;
-        gap: 1rem;
-        height: fit-content;
-        font-size: 1.4rem; /* Scaled down */
-        letter-spacing: 0.2rem;
-        margin-top: 0.5rem;
-    }
-    .hero-poem p {
-        padding-right: 0.6rem;
-        margin-top: 0 !important; /* Aligned top */
-    }
-
-    .stats-grid { grid-template-columns: 1fr; gap: 1rem; }
-    .about-text { padding: 0 1rem; font-size: 0.95rem; }
-    .hero-desc { border-left: none; padding-left: 0; }
-    .stats-grid { flex-direction: column; gap: 2rem; }
-    .stat-item::after { display: none; }
-    .content-card { padding: 1.5rem; }
-    .scroll-indicator { bottom: 1rem; }
-    
-    .card-grid { grid-template-columns: 1fr; }
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Quick Links Card Grid */
-.quick-links-container {
-    margin-top: 4rem;
-    animation: fadeIn 1s ease-out 0.3s backwards;
-}
-
-.card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 2rem;
-    margin-bottom: 3rem;
-}
-
-.quick-card {
-    background: rgba(255, 255, 255, 0.7);
-    padding: 2rem;
-    border-radius: 12px;
-    border: 1px solid rgba(129, 199, 212, 0.2);
-    text-decoration: none;
-    transition: all 0.3s ease;
-    display: flex; flex-direction: column;
-    position: relative;
-    backdrop-filter: blur(5px);
-}
-
-.quick-card:hover {
-    background: #fff;
-    transform: translateY(-5px);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-    border-color: #81C7D4;
-}
-
-.card-title {
-    font-size: 1.3rem; color: #5d4037; margin-bottom: 0.8rem;
-    font-weight: bold;
-}
-
-.card-desc {
-    font-size: 0.95rem; color: #666; line-height: 1.6; margin-bottom: 1.5rem; flex: 1;
-}
-
-.card-arrow {
-    align-self: flex-end; color: #81C7D4; font-size: 1.2rem; transition: transform 0.3s;
-}
-
-.quick-card:hover .card-arrow { transform: translateX(5px); }
-
-/* Centered Action Button */
-.action-wrapper { text-align: center; margin-top: 2rem; padding-bottom: 6rem; }
-
-.btn-start-lg {
-    display: inline-flex; justify-content: center; align-items: center;
-    background: #5d4037; color: white;
-    padding: 1rem 3.5rem;
-    font-size: 1.3rem; letter-spacing: 4px;
-    border-radius: 50px;
-    text-decoration: none;
-    box-shadow: 0 4px 15px rgba(93, 64, 55, 0.3);
-    transition: all 0.3s;
-    font-weight: bold;
-}
-
-.btn-start-lg:hover {
-    background: #4a3b32;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(93, 64, 55, 0.4);
+  }
+  .entry-card p {
+    flex: 1;
+  }
+  .entry-card span {
+    align-self: flex-end;
+  }
 }
 </style>

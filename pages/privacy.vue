@@ -12,7 +12,11 @@ useHead({
 </script>
 
 <template>
-  <div class="privacy-page-container">
+  <AppPageLayout
+    screen-class="privacy-page-container"
+    content-mode="flush"
+    :show-header="false"
+  >
     <div class="privacy-card">
       
       <!-- 右上角語言切換按鈕 -->
@@ -215,7 +219,7 @@ useHead({
       </div>
 
     </div>
-  </div>
+  </AppPageLayout>
 </template>
 
 <style scoped>

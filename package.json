@@ -1,25 +1,35 @@
 {
-  "name": "fate-book",
-  "type": "module",
+  "name": "ziwei-pwa",
   "private": true,
+  "type": "module",
   "scripts": {
+    "predev": "node scripts/check-port.mjs 3001",
+    "dev": "nuxt cleanup && NUXT_DEV_SSR=1 nuxt dev --port 3001",
+    "predev:pwa": "node scripts/check-port.mjs 3001",
+    "dev:pwa": "nuxt cleanup && nuxt build && nuxt preview --port 3001",
     "build": "nuxt build",
-    "dev": "nuxt dev",
-    "generate": "nuxt generate",
-    "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "generate:star-course": "node scripts/generate-star-course-data.mjs",
+    "generate": "NUXT_DEV_SSR=1 nuxt generate",
+    "prepreview": "node scripts/check-port.mjs 3001",
+    "preview": "nuxt preview --port 3001",
+    "typecheck": "nuxt typecheck"
   },
   "dependencies": {
-    "@vue/shared": "^3.5.27",
-    "@vueuse/core": "^14.1.0",
-    "@vueuse/nuxt": "^14.1.0",
-    "iztro": "^2.5.4",
-    "nuxt": "^4.2.2",
-    "sass": "^1.97.2",
-    "vue": "^3.5.27",
-    "vue-router": "^4.6.4"
+    "@lucide/vue": "^1.24.0",
+    "@nuxtjs/sitemap": "^7.6.0",
+    "@pinia/nuxt": "^0.9.0",
+    "@vite-pwa/nuxt": "^0.10.6",
+    "dompurify": "^3.4.12",
+    "lunar-typescript": "^1.8.0",
+    "marked": "^18.0.6",
+    "nuxt": "^3.21.8",
+    "pinia": "^2.3.1",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
   },
   "devDependencies": {
-    "@nuxtjs/sitemap": "^7.5.2"
+    "@types/node": "^22.10.7",
+    "typescript": "^5.7.3",
+    "vue-tsc": "^2.2.0"
   }
 }
