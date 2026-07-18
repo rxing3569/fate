@@ -110,7 +110,8 @@ function isTabActive(path: string) {
       route.path === "/point-history" ||
       route.path.startsWith("/profile/") ||
       route.path === "/issue-report" ||
-      route.path === "/privacy-pwa"
+      route.path === "/privacy-pwa" ||
+      route.path === "/nwp-live-check"
     );
   if (path === "/ai-analysis")
     return ["/ai-analysis", "/chart", "/report", "/flow", "/match", "/qa"].includes(

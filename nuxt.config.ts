@@ -30,11 +30,21 @@ export default defineNuxtConfig({
       ).concat(learningPrerenderRoutes, articlePrerenderRoutes),
     },
   },
+  routeRules: {
+    '/nwp-live-check': {
+      headers: {
+        'X-Robots-Tag': 'noindex, nofollow, noarchive, nosnippet',
+      },
+    },
+  },
   modules: process.env.NUXT_DISABLE_PWA === '1'
     ? ['@pinia/nuxt', '@nuxtjs/sitemap']
     : ['@pinia/nuxt', '@nuxtjs/sitemap', '@vite-pwa/nuxt'],
   site: {
     url: 'https://www.fatejyc.com',
+  },
+  sitemap: {
+    exclude: ['/nwp-live-check'],
   },
   css: ['~/assets/css/main.css'],
   runtimeConfig: {

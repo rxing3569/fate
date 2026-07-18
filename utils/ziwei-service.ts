@@ -155,4 +155,22 @@ export const ziweiApi = {
       body: JSON.stringify({ product_id: productId }),
     })
   },
+  createPaymentTestCheckout(kind: 'one_time' | 'recurring', payerEmail = '') {
+    return apiFetch('/billing/payment-test/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ kind, payer_email: payerEmail }),
+    })
+  },
+  getPaymentTestConfig() {
+    return apiFetch('/billing/payment-test/config', { notifyError: false })
+  },
+  getPaymentTestOrders() {
+    return apiFetch('/billing/payment-test/orders', { notifyError: false })
+  },
+  getPaymentTestOrder(orderId: string) {
+    return apiFetch(`/billing/payment-test/orders/${encodeURIComponent(orderId)}`, { notifyError: false })
+  },
+  terminatePaymentTestOrder(orderId: string) {
+    return apiFetch(`/billing/payment-test/orders/${encodeURIComponent(orderId)}/terminate`, { method: 'POST' })
+  },
 }
