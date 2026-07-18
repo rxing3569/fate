@@ -79,7 +79,7 @@ useSeoMeta({
     :title="level?.title || '題庫複習'"
     screen-class="review-detail-screen"
     show-back
-    back-to="/review"
+    back-to="/review/"
     back-label="返回題庫分類"
   >
     <LearningSectionTabs />
@@ -94,7 +94,7 @@ useSeoMeta({
         <NuxtLink
           v-for="id in level.courseIds"
           :key="id"
-          :to="`/review/${level.slug}/${id}`"
+          :to="`/review/${level.slug}/${id}/`"
           :class="{ active: id === courseId }"
         >
           <small>{{ id.replace("_", "-") }}</small>

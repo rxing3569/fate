@@ -19,7 +19,7 @@ useSeoMeta({
           v-for="(level, index) in reviewLevels"
           :key="level.slug"
           class="level-card glass"
-          :to="`/review/${level.slug}/${level.courseIds[0]}`"
+          :to="`/review/${level.slug}/${level.courseIds[0]}/`"
         >
           <span class="level-icon"
             ><component :is="icons[index]" :size="25"

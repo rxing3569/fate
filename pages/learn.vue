@@ -74,8 +74,8 @@ function rememberMapPosition() {
 function openStage(stage: (typeof stages)[number]) {
   saveMapPosition();
   if (stage.kind === "action")
-    return navigateTo("/ai-analysis");
-  navigateTo(`/learning/${stage.id}`);
+    return navigateTo("/ai-analysis/");
+  navigateTo(`/learning/${stage.id}/`);
 }
 </script>
 

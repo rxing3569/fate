@@ -251,7 +251,7 @@ async function next() {
 
 async function exitQuiz() {
   showExit.value = false;
-  if (stage.value) return router.replace(`/learning/${stage.value.id}`);
+  if (stage.value) return router.replace(`/learning/${stage.value.id}/`);
   view.value = "dashboard";
   await router.replace({ query: {} });
 }

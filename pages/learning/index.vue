@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const topics = [
-  { to: '/learning/1', title: '入門', desc: '紫微斗數基礎觀念' },
-  { to: '/quiz', title: '測驗', desc: '題庫與學習進度' },
+  { to: '/learning/1/', title: '入門', desc: '紫微斗數基礎觀念' },
+  { to: '/quiz/', title: '測驗', desc: '題庫與學習進度' },
 ]
 </script>
 
