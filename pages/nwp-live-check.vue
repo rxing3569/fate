@@ -2,9 +2,11 @@
 import { AlertTriangle, CalendarClock, CheckCircle2, CreditCard, LoaderCircle, RefreshCw, ShieldAlert, Square, SquareCheckBig, XCircle } from '@lucide/vue'
 
 definePageMeta({ middleware: 'auth' })
-useSeoMeta({
-  robots: 'noindex, nofollow, noarchive, nosnippet',
-  googlebot: 'noindex, nofollow, noarchive, nosnippet',
+useHead({
+  meta: [
+    { name: 'robots', content: 'noindex, nofollow, noarchive, nosnippet' },
+    { name: 'googlebot', content: 'noindex, nofollow, noarchive, nosnippet' },
+  ],
 })
 
 type EventItem = { uuid: string, event_type: string, provider_trade_no?: string, status: string, message?: string, amount: number, paid_at?: string, received_at: string }
