@@ -8,13 +8,13 @@ const learningPrerenderRoutes = [
   '1', '2_1', '2_2', '2_3',
   '3_1', '3_2', '3_3', '3_4', '3_5', '3_6', '3_7', '3_8',
   '4_1', '4_2',
-].map(courseId => `/learning/${courseId}`)
+].map(courseId => `/learning/${courseId}/`)
 
 const articlePrerenderRoutes = [
   'ziwei-chart-basics',
   'four-transformations',
   'ten-year-fortune',
-].map(slug => `/articles/${slug}`)
+].map(slug => `/articles/${slug}/`)
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-01-01',
@@ -23,10 +23,17 @@ export default defineNuxtConfig({
     port: 3001,
   },
   devtools: { enabled: false },
+  experimental: {
+    defaults: {
+      nuxtLink: {
+        trailingSlash: 'append',
+      },
+    },
+  },
   nitro: {
     prerender: {
       routes: Object.entries(reviewPrerenderRoutes).flatMap(([level, courseIds]) =>
-        courseIds.map(courseId => `/review/${level}/${courseId}`),
+        courseIds.map(courseId => `/review/${level}/${courseId}/`),
       ).concat(learningPrerenderRoutes, articlePrerenderRoutes),
     },
   },
@@ -42,6 +49,7 @@ export default defineNuxtConfig({
     : ['@pinia/nuxt', '@nuxtjs/sitemap', '@vite-pwa/nuxt'],
   site: {
     url: 'https://www.fatejyc.com',
+    trailingSlash: true,
   },
   sitemap: {
     exclude: ['/nwp-live-check'],
