@@ -60,9 +60,6 @@ export const useAuthStore = defineStore('auth', {
       try {
         this.accessToken = await getValidAccessToken()
         if (this.accessToken) {
-          const session = await apiFetch<{ user_uuid?: string }>('/auth/web/session', { notifyError: false })
-          const sessionUserUuid = String(session.user_uuid || '')
-          if (sessionUserUuid) saveOfflineSession(sessionUserUuid)
           const cached = sessionCache.get<{ profile?: UserProfile | null; points?: number; premium?: boolean; membershipQuotaRemaining?: number }>(AUTH_CACHE_KEY)
           this.profile = cached?.profile ?? null
           this.points = Number(cached?.points || 0)
@@ -111,6 +108,7 @@ export const useAuthStore = defineStore('auth', {
         }
         const userUuid = this.profile.uuid
         if (userUuid && !this.isOfflineSession) {
+          saveOfflineSession(userUuid)
           try {
             await saveOfflineAccount(userUuid, this.profile)
             this.offlineLastSyncedAt = Date.now()
@@ -221,8 +219,6 @@ export const useAuthStore = defineStore('auth', {
         return false
       }
       this.accessToken = 'cookie-session'
-      const billingReady = await this.refreshMembership()
-      if (!billingReady) return false
       if (requirePremium && !this.premium) {
         window.dispatchEvent(new CustomEvent('api-error-snackbar', { detail: { message: '此功能為 Premium 會員專屬，請先確認會員方案。' } }))
         return false

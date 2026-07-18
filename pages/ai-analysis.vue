@@ -12,9 +12,8 @@ const pendingBirthInfo = ref<
   Parameters<typeof chartStore.saveBirthInfo>[0] | null
 >(null);
 
-onMounted(async () => {
-  chartStore.hydrate();
-  await auth.loadProfile();
+onMounted(() => {
+  chartStore.hydrate(auth.profile);
 });
 
 const birthDate = computed(() => {

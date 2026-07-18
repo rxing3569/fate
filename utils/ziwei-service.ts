@@ -12,6 +12,7 @@ export interface AnalysisRequest {
 
 export async function streamAnalysis(request: AnalysisRequest) {
   const socket = await connectAnalyzeWebSocket()
+  let requestSent = false
   let resolveCompletion!: () => void
   let rejectCompletion!: (error: Error) => void
   const completion = new Promise<void>((resolve, reject) => { resolveCompletion = resolve; rejectCompletion = reject })
@@ -43,6 +44,7 @@ export async function streamAnalysis(request: AnalysisRequest) {
   socket.addEventListener('open', () => {
     if (finalized) return
     socket.send(JSON.stringify({ type: request.type, ...request.payload }))
+    requestSent = true
   })
   socket.addEventListener('message', (event) => {
     const text = String(event.data)
@@ -65,9 +67,9 @@ export async function streamAnalysis(request: AnalysisRequest) {
     }
   })
   socket.addEventListener('close', () => {
-    if (!finalized) fail('分析連線中斷，請重新讀取最新狀態')
+    if (!finalized) fail(requestSent ? 'analysis_connection_lost' : 'analysis_connection_failed')
   })
-  socket.addEventListener('error', () => fail('分析連線失敗'))
+  socket.addEventListener('error', () => fail(requestSent ? 'analysis_connection_lost' : 'analysis_connection_failed'))
   return completion.finally(() => request.signal?.removeEventListener('abort', abort))
 }
 

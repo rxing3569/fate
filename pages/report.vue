@@ -43,6 +43,7 @@ const outputs = reactive<Record<CategoryId, string>>({
 const records = ref<ReportRecord[]>([]);
 const loadingRecords = ref(true);
 const refreshingRecords = ref(false);
+const refreshingJob = ref(false);
 const analyzing = ref(false);
 const error = ref("");
 const showConfirm = ref(false);
@@ -165,7 +166,7 @@ const incompleteIsRecent = computed(() => {
   if (!raw) return false;
   const created = new Date(raw).getTime();
   return (
-    Number.isFinite(created) && Math.abs(Date.now() - created) < 10 * 60 * 1000
+    Number.isFinite(created) && Math.abs(Date.now() - created) < 6 * 60 * 1000
   );
 });
 const incompleteTime = computed(() => {
@@ -180,6 +181,13 @@ const incompleteTime = computed(() => {
 });
 const currentCategoryIsAnalyzing = computed(
   () => analyzing.value && analyzingCategory.value === activeCategory.value,
+);
+const reportDisconnected = computed(
+  () =>
+    activeAnalysis.active?.kind === "report" &&
+    activeAnalysis.active.status === "running" &&
+    !activeAnalysis.active.connected &&
+    analyzingCategory.value === activeCategory.value,
 );
 const currentContent = computed(() =>
   currentCategoryIsAnalyzing.value
@@ -207,9 +215,7 @@ const cardSections = computed(() =>
 
 onMounted(async () => {
   window.addEventListener("popstate", handleDetailHistory);
-  if (auth.isAuthenticated) await auth.refreshMembership();
   chartStore.hydrate(auth.profile);
-  await activeAnalysis.hydrate();
   syncActiveReport();
   restoreReportCache();
   const query = useRoute().query;
@@ -232,7 +238,6 @@ onMounted(async () => {
     if (requested.length) fullSelected.value = requested;
     await startFullAnalysis();
   }
-  void resumeDisconnectedReport();
 });
 watch(() => activeAnalysis.active, syncActiveReport, { deep: true });
 
@@ -254,66 +259,6 @@ function syncActiveReport() {
   if (job.error) error.value = job.error;
 }
 
-async function resumeDisconnectedReport() {
-  const job = activeAnalysis.active;
-  if (
-    !job ||
-    job.kind !== "report" ||
-    job.status !== "running" ||
-    job.connected
-  )
-    return;
-  const queue =
-    (job.metadata.queue as CategoryId[] | undefined)?.filter((item) =>
-      categories.some((category) => category.id === item),
-    ) || [];
-  if (!queue.length) return;
-  let index = Math.max(
-    0,
-    queue.indexOf(
-      (job.metadata.currentCategory as CategoryId | undefined) || queue[0]!,
-    ),
-  );
-  for (
-    let attempt = 0;
-    attempt < 120 && activeAnalysis.active?.status === "running";
-    attempt++
-  ) {
-    const category = queue[index]!;
-    await loadRecords(true);
-    const record = records.value.find((item) => item.category === category);
-    if (
-      !record?.content?.trim() ||
-      record.is_complete === false ||
-      record.isComplete === false
-    ) {
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      continue;
-    }
-    outputs[category] = record.content;
-    if (index >= queue.length - 1) {
-      await activeAnalysis.refreshStatus();
-      if (activeAnalysis.active?.status === "running")
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-      continue;
-    }
-    index++;
-    const nextCategory = queue[index]!;
-    activeAnalysis.updateMetadata({ currentCategory: nextCategory });
-    const usePointsFallback =
-      !auth.premium || auth.membershipQuotaRemaining < 1;
-    const completed = await start(
-      usePointsFallback,
-      false,
-      nextCategory,
-      true,
-      index === queue.length - 1,
-    );
-    if (!completed) break;
-  }
-  fullRunning.value = false;
-  await loadRecords(true);
-}
 onBeforeUnmount(() => {
   window.removeEventListener("popstate", handleDetailHistory);
   pageUnmounted.value = true;
@@ -429,6 +374,27 @@ async function loadRecords(force = false, notifyResult = false) {
 }
 
 async function refreshRecords() {
+  if (
+    activeAnalysis.active?.kind === "report" &&
+    activeAnalysis.active.status === "running"
+  ) {
+    refreshingJob.value = true;
+    try {
+      const status = await activeAnalysis.refreshStatus();
+      if (status === "running") {
+        showReloadSnackbar("任務仍在背景處理，請稍後再重新讀取。", "info");
+        return;
+      }
+    } catch (reason) {
+      showReloadSnackbar(
+        reason instanceof Error ? reason.message : "目前無法確認任務狀態",
+        "error",
+      );
+      return;
+    } finally {
+      refreshingJob.value = false;
+    }
+  }
   await loadRecords(true, true);
 }
 
@@ -536,7 +502,7 @@ async function start(
   const chart = chartStore.chart;
   if (!chart || (analyzing.value && !reuseJob)) return false;
   if (!reuseJob) {
-    if (!await auth.verifyOnlineAccess()) return false;
+    if (!(await auth.verifyOnlineAccess())) return false;
     const started = await activeAnalysis.begin("report", reportCacheKey.value, {
       currentCategory: targetCategory,
       queue: [targetCategory],
@@ -658,6 +624,16 @@ async function start(
     persistReportCache();
     return true;
   } catch (reason) {
+    if (
+      reason instanceof Error &&
+      reason.message === "analysis_connection_lost"
+    ) {
+      analyzing.value = true;
+      analyzingCategory.value = category;
+      error.value = "";
+      persistReportCache();
+      return false;
+    }
     analyzing.value = false;
     analyzingCategory.value = null;
     outputs[category] = "";
@@ -671,7 +647,7 @@ async function start(
 
 async function startFullAnalysis() {
   if (!canStartFull.value || fullRunning.value || hasActiveRunLock()) return;
-  if (!await auth.verifyOnlineAccess()) return;
+  if (!(await auth.verifyOnlineAccess())) return;
   const queue = categories
     .map((category) => category.id)
     .filter((category) => fullSelected.value.includes(category));
@@ -872,13 +848,17 @@ function goToDetailTop() {
         ><em v-else-if="newCategories.has(category.id)">new</em>
       </button>
     </div>
+    <AnalysisProgressBar
+      v-if="
+        !selectedDetail &&
+        currentCategoryIsAnalyzing &&
+        (receivedStreamData || reportDisconnected)
+      "
+    />
     <div
-      v-if="!selectedDetail && (analyzing || fullRunning) && receivedStreamData"
-      class="analysis-progress"
+      v-if="!selectedDetail && fullRunning && !reportDisconnected"
+      class="full-running"
     >
-      <span />
-    </div>
-    <div v-if="!selectedDetail && fullRunning" class="full-running">
       <Sparkles
         :size="15"
       />正在依序生成本命、宮位與大運解析；輪到該項開始時才會扣除額度或點數
@@ -888,6 +868,12 @@ function goToDetailTop() {
       <div v-if="loadingRecords" class="report-loader">
         <Sparkles :size="34" /><strong>正在整理命盤資料…</strong>
       </div>
+
+      <AnalysisDisconnectedState
+        v-else-if="reportDisconnected"
+        :loading="refreshingRecords || refreshingJob"
+        @refresh="refreshRecords"
+      />
 
       <AstrologyLoader
         v-else-if="currentCategoryIsAnalyzing && !receivedStreamData"
@@ -1287,26 +1273,6 @@ function goToDetailTop() {
   background: var(--tea);
   text-transform: uppercase;
 }
-.analysis-progress {
-  width: min(calc(100% - 48px), 620px);
-  height: 2px;
-  margin: 0 auto;
-  overflow: hidden;
-  background: rgba(36, 87, 90, 0.08);
-}
-.analysis-progress span {
-  display: block;
-  width: 35%;
-  height: 100%;
-  background: var(--mountain);
-  transform: translateX(-100%);
-  animation: progress 1.15s linear infinite;
-}
-@keyframes progress {
-  to {
-    transform: translateX(286%);
-  }
-}
 .report-body {
   min-height: calc(100dvh - 130px);
   padding: 8px 18px 48px;
@@ -1377,15 +1343,41 @@ function goToDetailTop() {
   align-items: center;
   gap: 4px;
   padding: 5px 8px;
-  border: 0;
+  border: 1px solid rgba(36, 87, 90, 0.18);
   border-radius: 12px;
-  background: rgba(36, 87, 90, 0.04);
-  color: inherit;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--mountain);
   font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 9px rgba(36, 87, 90, 0.08);
+  transition:
+    color 0.16s ease,
+    background 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+.generated-row button:not(:disabled):hover {
+  border-color: rgba(36, 87, 90, 0.34);
+  background: rgba(107, 166, 160, 0.14);
+  box-shadow: 0 5px 12px rgba(36, 87, 90, 0.13);
+  transform: translateY(-1px);
+}
+.generated-row button:not(:disabled):active {
+  box-shadow: none;
+  transform: translateY(1px);
+}
+.generated-row button:focus-visible {
+  outline: 2px solid rgba(107, 166, 160, 0.38);
+  outline-offset: 2px;
 }
 .generated-row button:disabled {
+  border-color: rgba(36, 87, 90, 0.06);
+  background: rgba(36, 87, 90, 0.035);
+  color: rgba(36, 87, 90, 0.28);
+  box-shadow: none;
   cursor: not-allowed;
-  opacity: 0.45;
+  opacity: 1;
 }
 .report-card {
   display: block;
@@ -1625,7 +1617,6 @@ function goToDetailTop() {
   overflow: hidden;
 }
 .report-tabs,
-.analysis-progress,
 .full-running {
   flex: 0 0 auto;
 }

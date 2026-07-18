@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ApiError, getValidAccessToken } from '~/utils/api'
+import { ApiError, getValidAccessToken, wasAuthCheckUnavailable } from '~/utils/api'
 
 export type AnalysisKind = 'report' | 'flow' | 'match' | 'qa'
 export type AnalysisStatus = 'idle' | 'running' | 'completed' | 'failed' | 'timed_out'
@@ -17,7 +17,6 @@ export interface ActiveAnalysisState {
 }
 
 const CACHE_KEY = 'ziwei:active-analysis'
-let pollingTimer: ReturnType<typeof setInterval> | undefined
 let activeController: AbortController | undefined
 
 type SnackbarOptions = {
@@ -72,6 +71,11 @@ function notifyConflict(runningKind: AnalysisKind, requestedKind: AnalysisKind) 
   })
 }
 
+function failureText(error: string) {
+  if (error === 'analysis_interrupted' || error === 'analysis_timeout') return '後端服務中斷，本次分析已停止，請重新執行。'
+  return error || '工作未完成，請稍後重新執行。'
+}
+
 export const useActiveAnalysisStore = defineStore('active-analysis', {
   state: () => ({
     active: null as ActiveAnalysisState | null,
@@ -88,9 +92,10 @@ export const useActiveAnalysisStore = defineStore('active-analysis', {
       else sessionStorage.removeItem(CACHE_KEY)
     },
     async hydrate() {
-      if (!import.meta.client || this.hydrated) return
-      if (!await getValidAccessToken()) {
-        this.stopPolling()
+      if (!import.meta.client) return
+      if (this.hydrated) return
+      const hasValidSession = Boolean(await getValidAccessToken())
+      if (!hasValidSession && !wasAuthCheckUnavailable()) {
         this.active = null
         sessionStorage.removeItem(CACHE_KEY)
         return
@@ -105,66 +110,88 @@ export const useActiveAnalysisStore = defineStore('active-analysis', {
       } catch {
         sessionStorage.removeItem(CACHE_KEY)
       }
+      await this.reconcileActive()
+      this.persist()
+    },
+    async reconcileActive() {
+      if (!import.meta.client) return false
+      if (!await getValidAccessToken()) return false
       try {
         const response = await ziweiApi.getActiveAnalysisJob({ notifyError: false }) as { data?: { client_job_id?: string, analysis_type?: string, context_key?: string, status?: AnalysisStatus, started_at?: string } | null }
-        const job = response?.data
-        if (job?.status === 'running') {
-          const kind = (['report', 'flow', 'match', 'qa'].includes(job.analysis_type || '') ? job.analysis_type : this.active?.kind) as AnalysisKind | undefined
-          if (kind && (!this.active || this.active.jobId !== job.client_job_id)) {
-            this.active = {
-              jobId: job.client_job_id || crypto.randomUUID(), kind,
-              contextKey: job.context_key || '', status: 'running', contents: {}, metadata: {},
-              error: '', startedAt: Date.parse(job.started_at || '') || Date.now(), connected: false,
+        const serverJob = response?.data
+        if (serverJob?.status === 'running') {
+          const kind = (['report', 'flow', 'match', 'qa'].includes(serverJob.analysis_type || '') ? serverJob.analysis_type : this.active?.kind) as AnalysisKind | undefined
+          if (kind) {
+            if (!this.active || this.active.jobId !== serverJob.client_job_id) {
+              this.active = {
+                jobId: serverJob.client_job_id || crypto.randomUUID(), kind,
+                contextKey: serverJob.context_key || '', status: 'running', contents: {}, metadata: {},
+                error: '', startedAt: Date.parse(serverJob.started_at || '') || Date.now(), connected: false,
+              }
+            } else {
+              this.active.status = 'running'
+              this.active.error = ''
             }
+            this.persist()
           }
-        } else if (this.active?.status === 'running' && !this.active.connected) {
-          await this.refreshStatus()
+          return true
         }
-      } catch {
-        // Keep the session snapshot while temporarily offline.
+        if (this.active?.status === 'running') await this.refreshStatus()
+        return true
+      } catch (reason) {
+        if (reason instanceof ApiError && reason.status === 401 && this.active?.status === 'running') {
+          this.active.status = 'failed'
+          this.active.connected = false
+          this.active.error = '登入狀態已失效'
+          this.persist()
+        }
+        return false
       }
-      this.persist()
-      if (this.active?.status === 'running' && !this.active.connected) this.startPolling()
-    },
-    startPolling() {
-      if (!import.meta.client || pollingTimer) return
-      pollingTimer = setInterval(() => { void this.refreshStatus() }, 3000)
-    },
-    stopPolling() {
-      if (pollingTimer) clearInterval(pollingTimer)
-      pollingTimer = undefined
     },
     async refreshStatus() {
       const job = this.active
-      if (!job || job.status !== 'running' || job.connected) { this.stopPolling(); return }
-      if (!await getValidAccessToken()) { this.stopPolling(); return }
+      if (!job || job.status !== 'running') return job?.status || 'idle'
+      if (!await getValidAccessToken()) {
+        if (wasAuthCheckUnavailable()) return job.status
+        job.status = 'failed'
+        job.connected = false
+        job.error = '登入狀態已失效'
+        this.persist()
+        return job.status
+      }
       try {
         const response = await ziweiApi.getAnalysisJob(job.jobId, { notifyError: false }) as { data?: { status?: AnalysisStatus, error?: string } }
         const status = response.data?.status
-        if (!status || status === 'running') return
+        if (!status || status === 'running') return job.status
+        const serverError = response.data?.error || ''
         job.status = status
-        job.error = response.data?.error || ''
+        job.error = status === 'completed' ? '' : failureText(serverError)
+        job.connected = false
         this.persist()
-        this.stopPolling()
         if (status === 'completed') notifyCompleted(job.kind)
-        else snackbar(job.error || '工作未完成，請稍後重新執行。', 'error', { title: `${labels[job.kind]}執行失敗` })
+        else snackbar(job.error, 'error', { title: `${labels[job.kind]}執行失敗` })
+        return job.status
       } catch (reason) {
         if (reason instanceof ApiError && reason.status === 401) {
-          this.stopPolling()
-          return
+          job.status = 'failed'
+          job.connected = false
+          job.error = '登入狀態已失效'
+          this.persist()
+          return job.status
         }
         if (reason instanceof ApiError && reason.status === 404 && this.active?.jobId === job.jobId) {
           job.status = 'failed'
           job.error = '找不到分析工作，請重新執行'
           this.persist()
-          this.stopPolling()
           snackbar(`${labels[job.kind]}失敗：${job.error}`, 'error')
+          return job.status
         }
-        // Other failures may be temporary network errors; keep polling.
+        throw reason
       }
     },
     async ensureAvailable(kind: AnalysisKind) {
       await this.hydrate()
+      await this.reconcileActive()
       if (this.active?.status === 'running') {
         notifyConflict(this.active.kind, kind)
         return false
@@ -220,6 +247,27 @@ export const useActiveAnalysisStore = defineStore('active-analysis', {
         return this.active.contents[contentKey] || ''
       } catch (reason) {
         const failureMessage = reason instanceof Error ? reason.message : '分析連線失敗'
+        if (failureMessage === 'analysis_connection_lost') {
+          if (this.active?.jobId === job.jobId) {
+            this.active.connected = false
+            this.active.error = ''
+            activeController = undefined
+            this.persist()
+            snackbar('即時連線已中斷，請使用畫面上的「重新讀取」確認任務狀態。', 'info', { title: `${labels[job.kind]}連線中斷` })
+          }
+          throw reason
+        }
+        if (failureMessage === 'analysis_connection_failed') {
+          if (this.active?.jobId === job.jobId) {
+            this.active.connected = false
+            this.active.status = 'failed'
+            this.active.error = '無法連線分析服務，請稍後再試。'
+            activeController = undefined
+            this.persist()
+            snackbar(this.active.error, 'error', { title: `${labels[job.kind]}執行失敗` })
+          }
+          throw reason
+        }
         if (failureMessage === 'analysis_in_progress') {
           activeController = undefined
           let runningKind = job.kind
@@ -243,7 +291,6 @@ export const useActiveAnalysisStore = defineStore('active-analysis', {
                 connected: false,
               }
               this.persist()
-              this.startPolling()
             }
           } catch { /* The explanatory snackbar is still useful while offline. */ }
           notifyConflict(runningKind, job.kind)
@@ -261,7 +308,6 @@ export const useActiveAnalysisStore = defineStore('active-analysis', {
       }
     },
     reset() {
-      this.stopPolling()
       activeController?.abort()
       activeController = undefined
       this.active = null

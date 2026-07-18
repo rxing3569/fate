@@ -31,6 +31,10 @@ interface FlowRecord {
   is_complete?: boolean;
   created_at?: string;
 }
+interface FlowScore {
+  title: string;
+  score: number;
+}
 
 const auth = useAuthStore();
 const chartStore = useChartStore();
@@ -45,6 +49,7 @@ const content = ref("");
 const createdAt = ref("");
 const analyzing = ref(false);
 const preparing = ref(false);
+const refreshingJob = ref(false);
 const error = ref("");
 const showConfirm = ref(false);
 const showFallback = ref(false);
@@ -93,14 +98,18 @@ const formattedCreatedAt = computed(() => {
     ? ""
     : value.toLocaleString("zh-TW", { hour12: false });
 });
+const flowDisconnected = computed(
+  () =>
+    activeAnalysis.active?.kind === "flow" &&
+    activeAnalysis.active.status === "running" &&
+    !activeAnalysis.active.connected,
+);
 
 watch([year, month], () => {
   if (day.value > days.value.length) day.value = days.value.length;
 });
 onMounted(async () => {
-  if (auth.isAuthenticated) await auth.refreshMembership();
   chartStore.hydrate(auth.profile);
-  await activeAnalysis.hydrate();
   syncActiveFlow();
   await recoverFlowResult();
 });
@@ -148,6 +157,22 @@ async function recoverFlowResult() {
     }
   } catch {
     /* The streamed snapshot remains available. */
+  }
+}
+
+async function refreshFlowJob() {
+  refreshingJob.value = true;
+  try {
+    const status = await activeAnalysis.refreshStatus();
+    if (status === "running") {
+      notify("任務仍在背景處理，請稍後再重新讀取");
+      return;
+    }
+  } catch (reason) {
+    error.value =
+      reason instanceof Error ? reason.message : "目前無法確認任務狀態";
+  } finally {
+    refreshingJob.value = false;
   }
 }
 
@@ -216,7 +241,6 @@ async function requestAnalysis(force = false) {
     }
   }
   preparing.value = false;
-  if (auth.isAuthenticated) await auth.refreshMembership();
   showConfirm.value = true;
 }
 
@@ -315,11 +339,16 @@ async function startAnalysis() {
     recalculate.value = false;
     await auth.loadBilling();
   } catch (reason) {
-    analyzing.value = false;
     const message =
       reason instanceof Error
         ? reason.message
         : "分析連線發生錯誤，請稍後再試。";
+    if (message === "analysis_connection_lost") {
+      analyzing.value = true;
+      error.value = "";
+      return;
+    }
+    analyzing.value = false;
     if (message.includes("membership_limit_exceeded"))
       showFallback.value = true;
     else if (message.includes("insufficient_points"))
@@ -346,13 +375,42 @@ function parseSections(text: string): FlowSection[] {
     lines = [];
   };
   for (const line of text.split("\n")) {
-    if (line.trim().startsWith("###")) {
+    const heading = line.trim().match(/^###\s+(.+)$/);
+    if (heading) {
       commit();
-      title = line.replace(/###/g, "").trim();
+      title = heading[1]!.trim();
     } else if (title || line.trim()) lines.push(line);
   }
   commit();
   return result;
+}
+
+function parseFlowScores(source: string): FlowScore[] {
+  return source
+    .split("\n")
+    .map((line) =>
+      line
+        .trim()
+        .match(/^[-*+]\s+(.+?)[：:]\s*(\d+)\s*[／/]\s*5\s*$/),
+    )
+    .filter((match): match is RegExpMatchArray => Boolean(match))
+    .map((match) => ({
+      title: match[1]!.trim(),
+      score: Math.max(0, Math.min(5, Number(match[2]))),
+    }));
+}
+
+function withoutFlowScores(source: string) {
+  return source
+    .split("\n")
+    .filter(
+      (line) =>
+        !line
+          .trim()
+          .match(/^[-*+]\s+(.+?)[：:]\s*(\d+)\s*[／/]\s*5\s*$/),
+    )
+    .join("\n")
+    .trim();
 }
 
 function goBack() {
@@ -403,7 +461,7 @@ function goBack() {
         <RefreshCw :size="16" />重新排算</button
       ><span v-else
     /></template>
-    <div v-if="analyzing && content" class="analysis-progress"><span /></div>
+    <AnalysisProgressBar v-if="analyzing && content && !flowDisconnected" />
 
     <main v-if="stage === 'type'" class="flow-body type-stage">
       <p class="stage-copy">請選擇您想排算的運勢週期，開始解析運勢</p>
@@ -449,7 +507,12 @@ function goBack() {
       <small v-if="formattedCreatedAt" class="analysis-time"
         >分析時間：{{ formattedCreatedAt }}</small
       >
-      <div v-if="analyzing && !content" class="flow-loading">
+      <AnalysisDisconnectedState
+        v-if="flowDisconnected"
+        :loading="refreshingJob"
+        @refresh="refreshFlowJob"
+      />
+      <div v-else-if="analyzing && !content" class="flow-loading">
         <AstrologyLoader />
       </div>
       <section v-else class="flow-result">
@@ -463,14 +526,23 @@ function goBack() {
             <strong>{{ section.title }}</strong
             ><ChevronDown :size="19" />
           </summary>
-          <MarkdownContent :source="section.content" />
+          <MarkdownContent
+            v-if="withoutFlowScores(section.content)"
+            :source="withoutFlowScores(section.content)"
+            :report-formatting="false"
+          />
+          <FlowScoreScale
+            v-if="parseFlowScores(section.content).length"
+            :scores="parseFlowScores(section.content)"
+          />
         </details>
         <MarkdownContent
           v-if="content && !sections.length"
           class="raw-content"
           :source="content"
+          :report-formatting="false"
         />
-        <div v-if="analyzing && content" class="streaming-note">
+        <div v-if="analyzing && content && !flowDisconnected" class="streaming-note">
           <Sparkles :size="16" />正在整理下一段內容...
         </div>
         <div v-if="error" class="result-error">
@@ -717,24 +789,6 @@ function goBack() {
 .choose-again {
   width: 100%;
   gap: 7px;
-}
-.analysis-progress {
-  height: 2px;
-  margin: 0 24px;
-  overflow: hidden;
-  background: rgba(36, 87, 90, 0.08);
-}
-.analysis-progress span {
-  display: block;
-  width: 35%;
-  height: 100%;
-  background: var(--mountain);
-  animation: progress 1.1s ease-in-out infinite alternate;
-}
-@keyframes progress {
-  to {
-    transform: translateX(185%);
-  }
 }
 .flow-sheet {
   width: min(100%, 680px);

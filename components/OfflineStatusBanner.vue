@@ -3,7 +3,7 @@ import { CloudOff, LogIn } from '@lucide/vue'
 
 const auth = useAuthStore()
 const isOnline = ref(true)
-const visible = computed(() => auth.isOfflineSession || !isOnline.value)
+const visible = computed(() => auth.sessionReady && (auth.isOfflineSession || !isOnline.value))
 const needsLogin = computed(() => auth.isOfflineSession && !auth.isAuthenticated && isOnline.value)
 const syncedLabel = computed(() => {
   if (!auth.offlineLastSyncedAt) return ''
@@ -20,6 +20,13 @@ onMounted(() => {
   window.addEventListener('online', updateConnection)
   window.addEventListener('offline', updateConnection)
 })
+watch(
+  () => [auth.isAuthenticated, isOnline.value] as const,
+  ([authenticated, online]) => {
+    if (authenticated && online) auth.leaveOfflineFallback()
+  },
+  { immediate: true },
+)
 onBeforeUnmount(() => {
   window.removeEventListener('online', updateConnection)
   window.removeEventListener('offline', updateConnection)

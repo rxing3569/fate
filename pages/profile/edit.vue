@@ -8,8 +8,7 @@ const error = ref('')
 const saving = ref(false)
 const pendingBirthInfo = ref<Parameters<typeof chartStore.saveBirthInfo>[0] | null>(null)
 
-onMounted(async () => {
-  await auth.loadProfile()
+onMounted(() => {
   if (auth.profile) chartStore.restoreFromProfile(auth.profile)
   else chartStore.hydrate()
 })

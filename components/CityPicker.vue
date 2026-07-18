@@ -37,7 +37,7 @@ function choose(city: CityOption) {
     <button class="city-trigger input" type="button" aria-haspopup="dialog" :aria-expanded="open" @click="open = true">
       <MapPin :size="20" aria-hidden="true" />
       <span v-if="selected"><strong>{{ selected.name }}</strong><small>{{ selected.id === 'OTHER' ? '手動設定出生地經度' : `${selected.id} · 經度 ${selected.lng.toFixed(2)}°` }}</small></span>
-      <span v-else class="city-placeholder"><strong>請選擇出生城市</strong><small>尚未選擇</small></span>
+      <span v-else class="city-placeholder"><strong>請選擇出生城市</strong></span>
       <ChevronDown :size="20" aria-hidden="true" />
     </button>
 

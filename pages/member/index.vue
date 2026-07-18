@@ -12,7 +12,6 @@ definePageMeta({ middleware: "auth" });
 const auth = useAuthStore();
 const showLogoutSheet = ref(false);
 const loggingOut = ref(false);
-onMounted(() => auth.loadProfile());
 async function logout() {
   if (loggingOut.value) return;
   loggingOut.value = true;

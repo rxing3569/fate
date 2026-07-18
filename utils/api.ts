@@ -43,6 +43,9 @@ async function parseResponse(response: Response) {
 }
 
 let refreshInFlight: Promise<boolean> | null = null
+let sessionCheckInFlight: Promise<string | null> | null = null
+let sessionValidatedAt = 0
+const SESSION_VALIDATION_TTL = 5000
 let authCheckUnavailable = false
 
 export function wasAuthCheckUnavailable() {
@@ -103,22 +106,36 @@ export async function getValidAccessToken(forceRefresh = false) {
   authCheckUnavailable = false
   const hasSessionHint = Boolean(getOfflineActiveUserUuid() || tokenStorage.getRefreshToken())
   if (!hasSessionHint) return null
-  if (forceRefresh && !await rotateToken()) return null
-  try {
-    const response = await fetch(`${apiBase()}/auth/web/session`, { credentials: 'include' })
-    if (response.ok) return 'cookie-session'
-    if (response.status !== 401) {
-      if (response.status >= 500) authCheckUnavailable = true
+  if (!forceRefresh && Date.now() - sessionValidatedAt < SESSION_VALIDATION_TTL) return 'cookie-session'
+  if (!forceRefresh && sessionCheckInFlight) return sessionCheckInFlight
+  if (forceRefresh) sessionValidatedAt = 0
+
+  const checkSession = async () => {
+    if (forceRefresh && !await rotateToken()) return null
+    try {
+      const response = await fetch(`${apiBase()}/auth/web/session`, { credentials: 'include' })
+      if (response.ok) {
+        sessionValidatedAt = Date.now()
+        return 'cookie-session'
+      }
+      if (response.status !== 401) {
+        if (response.status >= 500) authCheckUnavailable = true
+        return null
+      }
+      if (!await rotateToken()) return null
+      const retried = await fetch(`${apiBase()}/auth/web/session`, { credentials: 'include' })
+      if (retried.status >= 500) authCheckUnavailable = true
+      if (retried.ok) sessionValidatedAt = Date.now()
+      return retried.ok ? 'cookie-session' : null
+    } catch {
+      authCheckUnavailable = true
       return null
     }
-    if (!await rotateToken()) return null
-    const retried = await fetch(`${apiBase()}/auth/web/session`, { credentials: 'include' })
-    if (retried.status >= 500) authCheckUnavailable = true
-    return retried.ok ? 'cookie-session' : null
-  } catch {
-    authCheckUnavailable = true
-    return null
   }
+
+  if (forceRefresh) return checkSession()
+  sessionCheckInFlight = checkSession().finally(() => { sessionCheckInFlight = null })
+  return sessionCheckInFlight
 }
 
 type ApiFetchOptions = RequestInit & {
@@ -140,7 +157,10 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
   const useSnapshot = async () => {
     if (!canUseSnapshot) return null
     const cached = await loadOfflineSnapshot<T>(snapshotUserUuid, snapshotPath)
-    if (cached && import.meta.client) {
+    // A single request may fall back to a cached snapshot while the browser is
+    // still online (for example during a transient API failure). Do not mark
+    // the entire app as read-only offline unless the device is actually offline.
+    if (cached && import.meta.client && navigator.onLine === false) {
       window.dispatchEvent(new CustomEvent('offline-snapshot-used', { detail: { updatedAt: cached.updatedAt } }))
     }
     return cached

@@ -48,7 +48,6 @@ function toggleCategory(category: CategoryId, selected: boolean) {
     : selectedCategories.value.filter((item) => item !== category);
 }
 onMounted(async () => {
-  if (auth.isAuthenticated) await auth.refreshMembership();
   chartStore.hydrate(auth.profile);
   if (chartStore.chart || auth.sessionReady) chartHydrated.value = true;
 });

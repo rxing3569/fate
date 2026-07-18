@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import {
+  Briefcase,
+  Check,
   ChevronDown,
   ChevronLeft,
   Heart,
+  Handshake,
   History,
+  HouseHeart,
   Info,
   RefreshCw,
   Sparkles,
   Trash2,
+  Users,
   WifiOff,
   X,
 } from "@lucide/vue";
@@ -31,6 +36,52 @@ interface MatchRecord {
   created_at?: string;
   is_complete?: boolean;
   content?: string;
+  match_type?: MatchType;
+}
+
+type MatchType =
+  | "romance"
+  | "coworker"
+  | "business_partner"
+  | "family"
+  | "friendship";
+
+const matchTypes: Array<{
+  value: MatchType;
+  label: string;
+  description: string;
+}> = [
+  { value: "romance", label: "正緣姻緣", description: "感情互動與長期伴侶關係" },
+  { value: "coworker", label: "職場同事", description: "工作協作、溝通與分工" },
+  { value: "business_partner", label: "事業合夥", description: "共同決策、資源與經營風險" },
+  { value: "family", label: "親屬家人", description: "家庭角色、支持與相處界線" },
+  { value: "friendship", label: "朋友人際", description: "信任、友誼與社交互動" },
+];
+
+function normalizeMatchType(value?: string): MatchType {
+  return matchTypes.some((item) => item.value === value)
+    ? (value as MatchType)
+    : "romance";
+}
+
+function matchTypeLabel(value?: string) {
+  const normalized = normalizeMatchType(value);
+  return matchTypes.find((item) => item.value === normalized)?.label || "正緣姻緣";
+}
+
+function matchTypeIcon(value?: string) {
+  switch (normalizeMatchType(value)) {
+    case "coworker":
+      return Briefcase;
+    case "business_partner":
+      return Handshake;
+    case "family":
+      return HouseHeart;
+    case "friendship":
+      return Users;
+    default:
+      return Heart;
+  }
 }
 
 interface MatchSection {
@@ -46,6 +97,7 @@ interface MatchDimension {
 const auth = useAuthStore();
 const chartStore = useChartStore();
 const activeAnalysis = useActiveAnalysisStore();
+const membershipReady = ref(false);
 const analyzing = ref(false);
 const analysisText = ref("");
 const error = ref("");
@@ -53,27 +105,71 @@ const showConfirm = ref(false);
 const showHistory = ref(false);
 const historyLoading = ref(false);
 const historyError = ref("");
+const refreshingJob = ref(false);
 const records = ref<MatchRecord[]>([]);
 const deletingRecord = ref<MatchRecord | null>(null);
 const deleting = ref(false);
 const notice = ref("");
+const selectedMatchType = ref<MatchType>("romance");
+const pendingMatchType = ref<MatchType>("romance");
+const matchTypeOpen = ref(false);
+const matchTypePicker = ref<HTMLElement | null>(null);
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 
-const sections = computed(() => parseSections(analysisText.value));
-const visibleSections = computed(() =>
-  analyzing.value && sections.value.length
-    ? sections.value.slice(0, -1)
-    : sections.value,
+const selectedMatchTypeOption = computed(
+  () => matchTypes.find((item) => item.value === selectedMatchType.value)!,
+);
+const matchDisconnected = computed(
+  () =>
+    activeAnalysis.active?.kind === "match" &&
+    activeAnalysis.active.status === "running" &&
+    !activeAnalysis.active.connected,
 );
 
+function selectMatchType(value: MatchType) {
+  selectedMatchType.value = value;
+  matchTypeOpen.value = false;
+}
+
+function closeMatchTypePicker(event: MouseEvent) {
+  if (!matchTypePicker.value?.contains(event.target as Node)) {
+    matchTypeOpen.value = false;
+  }
+}
+
+const sections = computed(() => parseSections(analysisText.value));
+// Match reports are streamed section-by-section. Keep the active section
+// mounted so score cards and the radar can update as each score arrives.
+const visibleSections = computed(() => sections.value);
+
 onMounted(async () => {
-  if (auth.isAuthenticated) await auth.refreshMembership();
-  chartStore.hydrate(auth.profile);
-  await activeAnalysis.hydrate();
-  syncActiveMatch();
-  await recoverMatchResult();
+  document.addEventListener("click", closeMatchTypePicker);
+  try {
+    chartStore.hydrate(auth.profile);
+    syncActiveMatch();
+    await recoverMatchResult();
+    await nextTick();
+  } finally {
+    membershipReady.value = true;
+  }
+});
+onBeforeUnmount(() => {
+  document.removeEventListener("click", closeMatchTypePicker);
+  clearTimeout(noticeTimer);
 });
 watch(() => activeAnalysis.active, syncActiveMatch, { deep: true });
+watch(
+  () => activeAnalysis.active?.contents.main,
+  (streamedContent) => {
+    if (
+      activeAnalysis.active?.kind === "match" &&
+      typeof streamedContent === "string"
+    ) {
+      analysisText.value = streamedContent;
+    }
+  },
+  { immediate: true },
+);
 watch(
   () => activeAnalysis.active?.status,
   () => {
@@ -86,6 +182,9 @@ function syncActiveMatch() {
   if (!job || job.kind !== "match") return;
   const info = job.metadata.birthInfo as BirthInfo | undefined;
   if (info) pendingBirthInfo.value = info;
+  const matchType = normalizeMatchType(job.metadata.matchType as string | undefined);
+  pendingMatchType.value = matchType;
+  selectedMatchType.value = matchType;
   analysisText.value = job.contents.main || analysisText.value;
   analyzing.value = job.status === "running";
   if (job.error) error.value = job.error;
@@ -96,12 +195,14 @@ async function recoverMatchResult() {
   if (!job || job.kind !== "match" || job.status !== "completed") return;
   const info = job.metadata.birthInfo as BirthInfo | undefined;
   if (!info) return;
+  const matchType = normalizeMatchType(job.metadata.matchType as string | undefined);
   try {
     const list = normalizeRecords(await ziweiApi.getMatchRecords());
     const targetTime = `${info.year}-${String(info.month).padStart(2, "0")}-${String(info.day).padStart(2, "0")} ${String(info.hour).padStart(2, "0")}:${String(info.minute).padStart(2, "0")}`;
     const target = list.find(
       (record) =>
         record.is_complete &&
+        normalizeMatchType(record.match_type) === matchType &&
         record.target_gender === info.gender &&
         (record.target_birth_time || "")
           .replace("T", " ")
@@ -113,6 +214,22 @@ async function recoverMatchResult() {
     }
   } catch {
     /* Keep the streamed snapshot when history is temporarily unavailable. */
+  }
+}
+
+async function refreshMatchJob() {
+  refreshingJob.value = true;
+  try {
+    const status = await activeAnalysis.refreshStatus();
+    if (status === "running") {
+      notify("任務仍在背景處理，請稍後再重新讀取");
+      return;
+    }
+  } catch (reason) {
+    error.value =
+      reason instanceof Error ? reason.message : "目前無法確認任務狀態";
+  } finally {
+    refreshingJob.value = false;
   }
 }
 
@@ -179,6 +296,7 @@ async function requestStart(info: BirthInfo) {
   }
   if (!(await activeAnalysis.ensureAvailable("match"))) return;
   pendingBirthInfo.value = info;
+  pendingMatchType.value = selectedMatchType.value;
   try {
     const list = normalizeRecords(await ziweiApi.getMatchRecords());
     const targetTime = `${info.year}-${String(info.month).padStart(2, "0")}-${String(info.day).padStart(2, "0")} ${String(info.hour).padStart(2, "0")}:${String(info.minute).padStart(2, "0")}`;
@@ -188,6 +306,7 @@ async function requestStart(info: BirthInfo) {
       return (
         record.is_complete &&
         Boolean(record.content?.trim()) &&
+        normalizeMatchType(record.match_type) === selectedMatchType.value &&
         record.target_gender === info.gender &&
         record.target_city === cityName(info) &&
         Math.abs(Number(record.target_longitude) - targetLongitude) < 0.001 &&
@@ -203,7 +322,6 @@ async function requestStart(info: BirthInfo) {
   } catch {
     // History lookup must not prevent a fresh analysis.
   }
-  if (auth.isAuthenticated) await auth.refreshMembership();
   showConfirm.value = true;
 }
 
@@ -218,12 +336,14 @@ async function startAnalysis() {
   const longitude = Number((info.longitude ?? 120).toFixed(2));
   const partnerChart = calculateChartFromSolar({ ...info, longitude });
   const clockTime = `${info.year}-${String(info.month).padStart(2, "0")}-${String(info.day).padStart(2, "0")} ${String(info.hour).padStart(2, "0")}:${String(info.minute).padStart(2, "0")}`;
+  const matchType = pendingMatchType.value;
 
   const started = await activeAnalysis.begin(
     "match",
-    `match:${clockTime}:${info.gender}:${longitude}`,
+    `match:${matchType}:${clockTime}:${info.gender}:${longitude}`,
     {
       birthInfo: info,
+      matchType,
     },
   );
   if (!started) return;
@@ -235,6 +355,7 @@ async function startAnalysis() {
     analysisText.value = await activeAnalysis.runStep({
       ...prepareChartPayload(selfChart, "self"),
       analysis_type: "match",
+      match_type: matchType,
       recalculate: false,
       use_points_fallback: false,
       match_chart: prepareChartPayload(partnerChart, "partner"),
@@ -246,6 +367,11 @@ async function startAnalysis() {
     analyzing.value = false;
     await auth.loadBilling();
   } catch (reason) {
+    if (reason instanceof Error && reason.message === "analysis_connection_lost") {
+      analyzing.value = true;
+      error.value = "";
+      return;
+    }
     analyzing.value = false;
     error.value = reason instanceof Error ? reason.message : "分析連線失敗";
   }
@@ -272,64 +398,37 @@ function parseSections(content: string): MatchSection[] {
   return result;
 }
 
-const dimensionNames = [
-  "緣分吸引力",
-  "價值觀契合",
-  "現實互補度",
-  "精神與溝通",
-  "運勢抗風險",
-];
-
 function parseDimensions(content: string): MatchDimension[] {
   const result: MatchDimension[] = [];
-  const lines = content.split("\n");
   let current: MatchDimension | null = null;
   const commit = () => {
-    if (current)
+    if (current) {
       result.push({ ...current, description: current.description.trim() });
+    }
     current = null;
   };
-  for (const line of lines) {
-    const clean = line.replace(/^#{2,6}\s+/, "").trim();
-    const key = dimensionNames.find((name) => clean.includes(name));
-    const score = clean.match(/(?:[（(]|[:：]\s*)(\d{1,3})\s*\/\s*100/);
-    if (
-      key &&
-      (line.trim().startsWith("#") || line.trim().startsWith("*") || score)
-    ) {
+
+  for (const line of content.split("\n")) {
+    const scoreHeading = line
+      .trim()
+      .match(/^#{3,6}\s+(.+?)\s*[（(]\s*(\d{1,3})\s*[\/／]\s*100\s*[）)]\s*$/);
+    if (scoreHeading) {
       commit();
       current = {
-        title: key,
-        score: Math.min(100, Number(score?.[1] || 0)),
-        description: clean.replace(/^.*?100[）)]?\s*[:：，,。.-]?\s*/, ""),
+        title: scoreHeading[1]!.trim(),
+        score: Math.min(100, Number(scoreHeading[2])),
+        description: "",
       };
-    } else if (current && clean) {
-      const standalone = clean.match(/^\*{0,2}(\d{1,3})\s*\/\s*100\*{0,2}/);
-      if (standalone && current.score === 0)
-        current.score = Math.min(100, Number(standalone[1]));
-      else current.description += `${current.description ? "\n" : ""}${line}`;
+    } else if (current) {
+      current.description += `${current.description ? "\n" : ""}${line}`;
     }
   }
   commit();
-  if (result.length) return result;
-  for (const name of dimensionNames) {
-    const match = content.match(
-      new RegExp(`${name}[^\\d]{0,16}(\\d{1,3})\\s*\\/\\s*100`),
-    );
-    if (match)
-      result.push({
-        title: name,
-        score: Math.min(100, Number(match[1])),
-        description: "",
-      });
-  }
   return result;
 }
 
-function isQuickSection(section: MatchSection) {
-  return (
-    section.title.includes("快速合盤") || section.title.includes("合盤分析")
-  );
+function isScoreSection(section: MatchSection) {
+  return parseDimensions(section.content).length > 0;
 }
 
 function normalizeRecords(data: unknown): MatchRecord[] {
@@ -379,6 +478,8 @@ async function openRecord(record: MatchRecord) {
     }
     if (!content) throw new Error("此紀錄尚無可顯示的內容");
     analysisText.value = content;
+    selectedMatchType.value = normalizeMatchType(record.match_type);
+    pendingMatchType.value = selectedMatchType.value;
     error.value = "";
     showHistory.value = false;
   } catch (reason) {
@@ -462,10 +563,21 @@ function goBack() {
         <History :size="21" />
       </button>
     </template>
-    <div v-if="analyzing" class="analysis-progress"><span /></div>
+    <AnalysisProgressBar v-if="analyzing && !matchDisconnected" />
 
     <main v-if="!analysisText" class="match-body">
-      <section v-if="!auth.premium" class="premium-lock glass">
+      <section
+        v-if="!membershipReady"
+        class="membership-loading"
+        role="status"
+        aria-label="正在確認會員狀態"
+      >
+        <div class="loading-dots" aria-hidden="true">
+          <span /><span /><span />
+        </div>
+      </section>
+
+      <section v-else-if="!auth.premium" class="premium-lock glass">
         <span><AppMaterialIcon name="diversity_1_rounded" :size="31" /></span>
         <h2>Premium 專屬 - 合盤解析</h2>
         <p>
@@ -475,15 +587,52 @@ function goBack() {
         <NuxtLink class="app-button" to="/store">成為 Premium 解鎖</NuxtLink>
       </section>
 
-      <AstrologyLoader
-        v-else-if="analyzing"
-        message="正在為您與對象排定合相星曜，請稍候..."
+      <AnalysisDisconnectedState
+        v-else-if="matchDisconnected"
+        :loading="refreshingJob"
+        @refresh="refreshMatchJob"
       />
 
+      <div v-else-if="analyzing" class="match-loading">
+        <AstrologyLoader message="正在為您與對象排定合相星曜，請稍候..." />
+      </div>
+
       <section v-else class="partner-form">
-        <div class="form-heading">
-          <h2>對象出生資料</h2>
-          <p>輸入對象的出生時間與城市，進行雙方命盤合參。</p>
+        <div ref="matchTypePicker" class="match-type-field">
+          <label id="match-type-label">合盤類型</label>
+          <button
+            class="match-type-trigger"
+            type="button"
+            aria-labelledby="match-type-label"
+            aria-haspopup="listbox"
+            :aria-expanded="matchTypeOpen"
+            @click.stop="matchTypeOpen = !matchTypeOpen"
+          >
+            <span>{{ selectedMatchTypeOption.label }}</span>
+            <ChevronDown :size="18" :class="{ rotated: matchTypeOpen }" />
+          </button>
+          <Transition name="match-type-menu">
+            <div
+              v-if="matchTypeOpen"
+              class="match-type-menu glass"
+              role="listbox"
+              aria-labelledby="match-type-label"
+            >
+              <button
+                v-for="item in matchTypes"
+                :key="item.value"
+                type="button"
+                role="option"
+                :aria-selected="selectedMatchType === item.value"
+                :class="{ active: selectedMatchType === item.value }"
+                @click="selectMatchType(item.value)"
+              >
+                <span>{{ item.label }}</span>
+                <Check v-if="selectedMatchType === item.value" :size="17" />
+              </button>
+            </div>
+          </Transition>
+          <small>{{ selectedMatchTypeOption.description }}</small>
         </div>
         <p v-if="error" class="error-note"><WifiOff :size="17" />{{ error }}</p>
         <BirthInfoForm
@@ -506,29 +655,33 @@ function goBack() {
     </main>
 
     <main v-else class="result-body">
+      <AnalysisDisconnectedState
+        v-if="matchDisconnected"
+        :loading="refreshingJob"
+        @refresh="refreshMatchJob"
+      />
       <details
         v-for="(section, index) in visibleSections"
         :key="`${section.title}-${index}`"
         class="match-card glass"
-        :open="isQuickSection(section) || index === 1"
+        :open="isScoreSection(section) || index === 1"
       >
         <summary>
           <strong>{{ section.title || "合盤解析" }}</strong
           ><ChevronDown :size="19" />
         </summary>
-        <div v-if="isQuickSection(section)" class="quick-match">
+        <div v-if="isScoreSection(section)" class="quick-match">
           <MatchScoreOverview
-            v-if="parseDimensions(section.content).length >= 4"
             :dimensions="parseDimensions(section.content)"
           />
-          <MarkdownContent
-            v-if="!parseDimensions(section.content).length"
-            :source="section.content"
-          />
         </div>
-        <MarkdownContent v-else :source="section.content" />
+        <MarkdownContent
+          v-else
+          :source="section.content"
+          :report-formatting="false"
+        />
       </details>
-      <div v-if="analyzing" class="streaming-note">
+      <div v-if="analyzing && !matchDisconnected" class="streaming-note">
         <Sparkles :size="16" />正在整理下一段內容...
       </div>
       <p v-if="error" class="error-note"><WifiOff :size="17" />{{ error }}</p>
@@ -543,7 +696,7 @@ function goBack() {
         <section class="analysis-sheet" role="dialog" aria-modal="true">
           <div class="sheet-handle" />
           <h2>確認執行合盤解析</h2>
-          <p>此次操作將會消耗會員額度 1 次，是否確認使用？</p>
+          <p>將執行「{{ matchTypeLabel(pendingMatchType) }}」解析，並消耗會員額度 1 次，是否確認使用？</p>
           <div class="quota-row">
             <span>本月會員額度剩餘</span>
             <b>{{ auth.membershipQuotaRemaining }} 次</b>
@@ -617,14 +770,15 @@ function goBack() {
               @click="openRecord(record)"
             >
               <span class="record-icon"
-                ><Heart
+                ><component
                   v-if="record.is_complete"
+                  :is="matchTypeIcon(record.match_type)"
                   :size="17"
-                  fill="currentColor" /><WifiOff v-else :size="17"
+                /><WifiOff v-else :size="17"
               /></span>
               <div>
                 <strong
-                  >對象 ({{ record.target_gender || "女" }}) ·
+                  >{{ matchTypeLabel(record.match_type) }} · 對象 ({{ record.target_gender || "女" }}) ·
                   {{ record.target_city || "未知" }}</strong
                 ><small
                   >生日：{{ formatDate(record.target_birth_time, true)
@@ -702,24 +856,6 @@ function goBack() {
   opacity: 0.28;
   cursor: default;
 }
-.analysis-progress {
-  height: 2px;
-  margin: 0 24px;
-  overflow: hidden;
-  background: rgba(36, 87, 90, 0.08);
-}
-.analysis-progress span {
-  display: block;
-  width: 35%;
-  height: 100%;
-  background: var(--mountain);
-  animation: progress 1.1s ease-in-out infinite alternate;
-}
-@keyframes progress {
-  to {
-    transform: translateX(185%);
-  }
-}
 .match-body,
 .result-body {
   padding: 14px 18px 72px;
@@ -731,6 +867,46 @@ function goBack() {
   box-sizing: border-box;
   min-height: calc(100dvh - 58px);
   padding-bottom: calc(88px + env(safe-area-inset-bottom));
+}
+.membership-loading {
+  display: grid;
+  place-items: center;
+  min-height: calc(100dvh - 160px);
+}
+.loading-dots {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 14px 18px;
+  border: 1px solid rgba(36, 87, 90, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.52);
+  box-shadow: 0 8px 24px rgba(36, 87, 90, 0.06);
+}
+.loading-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--mountain);
+  animation: membership-dot 0.9s ease-in-out infinite;
+}
+.loading-dots span:nth-child(2) {
+  animation-delay: 0.14s;
+}
+.loading-dots span:nth-child(3) {
+  animation-delay: 0.28s;
+}
+@keyframes membership-dot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  30% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
 }
 .premium-lock {
   display: flex;
@@ -766,22 +942,109 @@ function goBack() {
   gap: 8px;
 }
 .partner-form {
-  max-width: 580px;
-  margin: 0 auto;
-}
-.form-heading {
-  margin: 4px 2px 22px;
-  text-align: center;
-}
-.form-heading h2 {
-  margin: 0 0 4px;
-  font-size: 19px;
-}
-.form-heading p {
+  width: 100%;
+  max-width: none;
   margin: 0;
+  text-align: left;
+}
+.match-loading {
+  display: grid;
+  place-items: center;
+  min-height: calc(100dvh - 150px);
+}
+.match-loading :deep(> *) {
+  width: 100%;
+}
+.match-type-field {
+  position: relative;
+  z-index: 5;
+  display: grid;
+  align-items: stretch;
+  width: 100%;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+.match-type-field > label {
+  padding-left: 4px;
+  color: var(--text-soft);
+  font-size: 14px;
+  font-weight: 600;
+}
+.match-type-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgba(36, 87, 90, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--mountain);
+  text-align: left;
+  outline: none;
+}
+.match-type-trigger:focus-visible {
+  border-color: rgba(107, 166, 160, 0.72);
+  box-shadow: 0 0 0 3px rgba(107, 166, 160, 0.12);
+}
+.match-type-trigger svg {
+  transition: transform 0.18s ease;
+}
+.match-type-trigger svg.rotated {
+  transform: rotate(180deg);
+}
+.match-type-menu {
+  position: absolute;
+  z-index: 20;
+  top: 78px;
+  left: 0;
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 7px;
+  border-radius: 18px;
+  overflow: hidden;
+}
+.match-type-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 44px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--mountain);
+  font-size: 14px;
+  font-weight: 750;
+  text-align: left;
+}
+.match-type-menu button:hover {
+  border-color: rgba(107, 166, 160, 0.16);
+  background: rgba(107, 166, 160, 0.1);
+}
+.match-type-menu button.active {
+  border-color: rgba(107, 166, 160, 0.25);
+  background: rgba(107, 166, 160, 0.18);
+}
+.match-type-menu-enter-active,
+.match-type-menu-leave-active {
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+.match-type-menu-enter-from,
+.match-type-menu-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+}
+.match-type-field > small {
+  min-height: 17px;
+  padding-left: 4px;
   color: var(--text-soft);
   font-size: 12px;
-  line-height: 1.45;
 }
 .self-chart-note,
 .error-note {

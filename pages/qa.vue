@@ -41,6 +41,7 @@ const showQuotaConfirm = ref(false);
 const showPointsFallback = ref(false);
 const showResetConfirm = ref(false);
 const resettingConversation = ref(false);
+const refreshingJob = ref(false);
 const pendingQuestion = ref("");
 const usePointsFallback = ref(false);
 const chatId = ref<string>(createChatId());
@@ -80,6 +81,12 @@ const canSend = computed(
     remaining.value > 0 &&
     Boolean(chartStore.chart),
 );
+const qaDisconnected = computed(
+  () =>
+    activeAnalysis.active?.kind === "qa" &&
+    activeAnalysis.active.status === "running" &&
+    !activeAnalysis.active.connected,
+);
 const cacheKey = computed(() => {
   const chart = chartStore.chart;
   return chart
@@ -92,13 +99,11 @@ onMounted(async () => {
   // membership only on the client, so rendering an auth-dependent <main>
   // during hydration can permanently retain the server branch's classes.
   pageReady.value = true;
-  if (auth.isAuthenticated) await auth.refreshMembership();
   chartStore.hydrate(auth.profile);
   suggestions.value = [...allSuggestions]
     .sort(() => Math.random() - 0.5)
     .slice(0, 3);
   restoreConversation();
-  await activeAnalysis.hydrate();
   syncActiveQa();
   await recoverQaHistory();
   try {
@@ -176,6 +181,22 @@ async function recoverQaHistory() {
     }
   } catch {
     /* Keep the local streamed conversation. */
+  }
+}
+
+async function refreshQaJob() {
+  refreshingJob.value = true;
+  try {
+    const status = await activeAnalysis.refreshStatus();
+    if (status === "running") {
+      error.value = "任務仍在背景處理，請稍後再重新讀取。";
+      return;
+    }
+  } catch (reason) {
+    error.value =
+      reason instanceof Error ? reason.message : "目前無法確認任務狀態";
+  } finally {
+    refreshingJob.value = false;
   }
 }
 
@@ -299,7 +320,6 @@ async function requestSend() {
   if (!(await activeAnalysis.ensureAvailable("qa"))) return;
   pendingQuestion.value = question;
   if (askedCount.value === 0 && !usePointsFallback.value) {
-    await auth.refreshMembership();
     showQuotaConfirm.value = true;
   } else sendQuestion(question);
 }
@@ -374,6 +394,7 @@ async function sendQuestion(question: string) {
       ),
   );
   const userMessage: QaMessage = { role: "user", content: question };
+  const consumesQuota = history.filter((item) => item.role === "user").length === 0;
   const started = await activeAnalysis.begin("qa", cacheKey.value, {
     chatId: chatId.value,
     question,
@@ -391,8 +412,7 @@ async function sendQuestion(question: string) {
       ...natal,
       analysis_type: "qa",
       analysisType: "qa",
-      is_first_question:
-        history.filter((item) => item.role === "user").length === 0,
+      is_first_question: consumesQuota,
       question,
       messages: [...history, userMessage],
       chat_id: chatId.value,
@@ -414,11 +434,18 @@ async function sendQuestion(question: string) {
     sending.value = false;
     persistConversation();
     scrollBottom();
+    if (consumesQuota) await auth.loadBilling();
   } catch (reason) {
-    if (!messages.value.at(-1)?.content) messages.value.pop();
-    sending.value = false;
     const message =
       reason instanceof Error ? reason.message : "網路連線不穩，請稍後再試。";
+    if (message === "analysis_connection_lost") {
+      sending.value = true;
+      error.value = "";
+      persistConversation();
+      return;
+    }
+    if (!messages.value.at(-1)?.content) messages.value.pop();
+    sending.value = false;
     if (message.includes("membership_limit_exceeded")) {
       if (
         messages.value.at(-1)?.role === "user" &&
@@ -483,6 +510,11 @@ function handleKeydown(event: KeyboardEvent) {
     </main>
 
     <main v-else key="chat" class="chat-layout">
+      <AnalysisDisconnectedState
+        v-if="qaDisconnected"
+        :loading="refreshingJob"
+        @refresh="refreshQaJob"
+      />
       <section ref="chatArea" class="chat-area" aria-live="polite">
         <div v-if="!messages.length" class="qa-welcome">
           <span class="welcome-icon"><MessageCircle :size="28" /></span>
