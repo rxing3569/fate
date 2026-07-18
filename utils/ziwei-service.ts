@@ -1,4 +1,5 @@
 import { apiFetch, connectAnalyzeWebSocket } from './api'
+import { markStageCompleted, normalizeCompletedStages } from './learning'
 
 export interface AnalysisRequest {
   type: 'report' | 'flow' | 'match' | 'qa'
@@ -52,6 +53,10 @@ export async function streamAnalysis(request: AnalysisRequest) {
     try {
       const data = JSON.parse(text)
       if (data === '/end') { finish(); return }
+      if (data.type === 'learning_progress') {
+        for (const stageId of normalizeCompletedStages(data.completed_stage_ids)) markStageCompleted(stageId)
+        return
+      }
       if (data.error || data.type === 'error') { fail(String(data.detail || data.error || data.message || '分析發生錯誤')); return }
       if (data.content) request.onMessage(String(data.content))
       if (data.done || data.type === 'done' || data.type === 'complete') finish()
@@ -67,6 +72,12 @@ export async function streamAnalysis(request: AnalysisRequest) {
 }
 
 export const ziweiApi = {
+  mergeLearningProgress(completedStageIds: string[]) {
+    return apiFetch('/users/me/learning-progress', {
+      method: 'PUT',
+      body: JSON.stringify({ completed_stage_ids: completedStageIds }),
+    })
+  },
   getRecordDetail(options: { notifyError?: boolean } = {}) {
     return apiFetch('/ziwei/records/detail', options)
   },
@@ -75,6 +86,9 @@ export const ziweiApi = {
   },
   getChatHistory(chatId: string, options: { notifyError?: boolean } = {}) {
     return apiFetch(`/ziwei/qa/history/${encodeURIComponent(chatId)}`, options)
+  },
+  deleteChat(chatId: string, options: { notifyError?: boolean } = {}) {
+    return apiFetch(`/ziwei/qa/chats/${encodeURIComponent(chatId)}`, { method: 'DELETE', ...options })
   },
   getActiveAnalysisJob(options: { notifyError?: boolean } = {}) {
     return apiFetch('/ziwei/analysis/jobs/active', options)

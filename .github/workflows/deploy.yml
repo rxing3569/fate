@@ -39,9 +39,6 @@ jobs:
       - name: Build with Nuxt
         run: npm run generate
 
-      - name: Add GitHub Pages SPA fallback
-        run: cp .output/public/index.html .output/public/404.html
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

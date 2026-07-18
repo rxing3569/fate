@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronLeft } from "@lucide/vue";
+import { ChevronLeft, Coins } from "@lucide/vue";
 const auth = useAuthStore();
 const chartStore = useChartStore();
 const route = useRoute();
@@ -193,7 +193,7 @@ async function confirmBirthChange() {
         type="button"
         @click="navigateTo('/point-history')"
       >
-        <img src="/gg-circle.svg" alt="" width="22" height="22" />
+        <Coins :size="22" aria-hidden="true" />
         <strong>{{ pointsLabel }}</strong>
       </button>
 
@@ -495,8 +495,7 @@ async function confirmBirthChange() {
     inset 0 1px 0 #fff,
     0 5px 12px rgba(36, 87, 90, 0.09);
 }
-.feature-icon img,
-.points-card img {
+.feature-icon img {
   filter: invert(28%) sepia(15%) saturate(1350%) hue-rotate(134deg)
     brightness(91%) contrast(91%);
 }

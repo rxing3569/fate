@@ -4,9 +4,21 @@ const reviewPrerenderRoutes = {
   expert: ['4_1', '4_2'],
 }
 
+const learningPrerenderRoutes = [
+  '1', '2_1', '2_2', '2_3',
+  '3_1', '3_2', '3_3', '3_4', '3_5', '3_6', '3_7', '3_8',
+  '4_1', '4_2',
+].map(courseId => `/learning/${courseId}`)
+
+const articlePrerenderRoutes = [
+  'ziwei-chart-basics',
+  'four-transformations',
+  'ten-year-fortune',
+].map(slug => `/articles/${slug}`)
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-01-01',
-  ssr: process.env.NUXT_DEV_SSR === '1',
+  ssr: true,
   devServer: {
     port: 3001,
   },
@@ -15,7 +27,7 @@ export default defineNuxtConfig({
     prerender: {
       routes: Object.entries(reviewPrerenderRoutes).flatMap(([level, courseIds]) =>
         courseIds.map(courseId => `/review/${level}/${courseId}`),
-      ),
+      ).concat(learningPrerenderRoutes, articlePrerenderRoutes),
     },
   },
   modules: process.env.NUXT_DISABLE_PWA === '1'
@@ -94,18 +106,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe>`,
       cleanupOutdatedCaches: true,
       clientsClaim: true,
       skipWaiting: true,
-      globPatterns: ['**/*.{js,css,html,png,svg,ico,json,txt,woff2,otf}'],
-      runtimeCaching: [
-        {
-          urlPattern: ({ url }) => url.origin === self.location.origin && url.pathname.startsWith('/api/'),
-          handler: 'NetworkFirst',
-          options: {
-            cacheName: 'api-cache',
-            expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 },
-            networkTimeoutSeconds: 8,
-          },
-        },
-      ],
+      globPatterns: ['**/*.{js,css,html,png,svg,ico,json,txt,md,woff2,otf}'],
     },
   },
 })

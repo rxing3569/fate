@@ -24,6 +24,7 @@ const mapPath = pathPoints.reduce((path, point, index, points) => {
 }, "");
 onMounted(async () => {
   completed.value = loadCompletedStages();
+  window.addEventListener("learning-progress-updated", refreshProgress);
   await nextTick();
   const scrollElement = mapScroll.value;
   if (scrollElement) {
@@ -47,9 +48,14 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   saveMapPosition();
   window.removeEventListener("pagehide", saveMapPosition);
+  window.removeEventListener("learning-progress-updated", refreshProgress);
   cancelAnimationFrame(revealFrame);
   cancelAnimationFrame(saveFrame);
 });
+
+function refreshProgress() {
+  completed.value = loadCompletedStages();
+}
 
 function saveMapPosition() {
   const scrollElement = mapScroll.value;

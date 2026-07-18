@@ -2,7 +2,7 @@
 import { ApiError } from "~/utils/api";
 import {
   BadgeCheck,
-  CircleDollarSign,
+  Coins,
   Crown,
   Info,
   LoaderCircle,
@@ -269,7 +269,7 @@ const money = (amount: number) => `NT$${amount}`;
           @click="choose(pointsProduct)"
         >
           <div class="plan-heading">
-            <span class="plan-icon"><CircleDollarSign :size="29" /></span>
+            <span class="plan-icon"><Coins :size="29" /></span>
             <span class="plan-title"
               ><strong>{{ pointsProduct.name }}</strong
               ><small>{{ pointsProduct.description }}</small></span

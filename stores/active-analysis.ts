@@ -46,7 +46,16 @@ const destinations: Record<AnalysisKind, string> = {
   qa: '/qa',
 }
 
+function normalizePath(path: string) {
+  const normalized = path.replace(/\/+$/, '')
+  return normalized || '/'
+}
+
 function notifyCompleted(kind: AnalysisKind) {
+  if (
+    import.meta.client
+    && normalizePath(window.location.pathname) === normalizePath(destinations[kind])
+  ) return
   snackbar(`${labels[kind]}結果已保存，點擊下方按鈕即可前往查看。`, 'info', {
     title: `${labels[kind]}已完成`,
     actionLabel: kind === 'qa' ? '前往 AI 問答' : '查看解析結果',

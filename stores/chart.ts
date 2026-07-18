@@ -33,8 +33,9 @@ export const useChartStore = defineStore('chart', {
     },
     restoreFromProfile(profile: UserProfile) {
       const match = profile.birth_time?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
-      if (!match || !profile.gender || !profile.city) return false
-      const cityId = profile.city.replaceAll('-', '_')
+      const hasLongitude = typeof profile.longitude === 'number' && Number.isFinite(profile.longitude)
+      if (!match || !profile.gender || (!profile.city && !hasLongitude)) return false
+      const cityId = profile.city ? profile.city.replaceAll('-', '_') : 'OTHER'
       const cityLongitude = cityData.find(city => city.id === cityId)?.lng
       this.saveBirthInfo({
         gender: profile.gender === '女' ? '女' : '男',

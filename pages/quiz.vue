@@ -12,7 +12,6 @@ import {
 } from "@lucide/vue";
 import {
   learningStages,
-  markStageCompleted,
   stageLabel,
 } from "~/utils/learning";
 
@@ -32,6 +31,7 @@ type Category = {
 
 const route = useRoute();
 const router = useRouter();
+const auth = useAuthStore();
 const stageId = computed(() =>
   typeof route.query.stage === "string" ? route.query.stage : "",
 );
@@ -241,7 +241,7 @@ async function next() {
     stagePassed.value =
       wrongQuestions.value.length === 0 &&
       score.value === questions.value.length;
-    if (stagePassed.value) markStageCompleted(stage.value.id);
+    if (stagePassed.value) await auth.completeLearningStage(stage.value.id);
     view.value = "stage-result";
   } else {
     view.value = "result";
@@ -563,7 +563,11 @@ watch(
       </div>
     </main>
 
-    <div v-if="showExit" class="exit-backdrop" @click.self="showExit = false">
+    <div
+      v-if="showExit"
+      class="exit-backdrop content-sheet-backdrop"
+      @click.self="showExit = false"
+    >
       <section>
         <CircleHelp :size="44" />
         <h2>確定退出測驗？</h2>
@@ -1087,7 +1091,7 @@ watch(
   background: rgba(21, 43, 43, 0.3);
 }
 .exit-backdrop > section {
-  width: min(100%, 680px);
+  width: min(644px, calc(100vw - 36px));
   padding: 28px 22px calc(30px + env(safe-area-inset-bottom));
   border-radius: 24px 24px 0 0;
   background: var(--paper);

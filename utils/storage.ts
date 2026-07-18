@@ -45,6 +45,11 @@ export const tokenStorage = {
     remove(REFRESH_TOKEN_KEY)
     remove(USER_UUID_KEY)
   },
+  clearLegacyTokens() {
+    remove(ACCESS_TOKEN_KEY)
+    remove(REFRESH_TOKEN_KEY)
+    remove(USER_UUID_KEY)
+  },
   getDeviceId() {
     let deviceId = read(DEVICE_ID_KEY)
     if (!deviceId) {

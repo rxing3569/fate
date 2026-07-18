@@ -3,7 +3,6 @@ import {
   ChevronDown,
   ChevronLeft,
   Heart,
-  HeartHandshake,
   History,
   Info,
   RefreshCw,
@@ -68,6 +67,7 @@ const visibleSections = computed(() =>
 );
 
 onMounted(async () => {
+  if (auth.isAuthenticated) await auth.refreshMembership();
   chartStore.hydrate(auth.profile);
   await activeAnalysis.hydrate();
   syncActiveMatch();
@@ -203,12 +203,14 @@ async function requestStart(info: BirthInfo) {
   } catch {
     // History lookup must not prevent a fresh analysis.
   }
+  if (auth.isAuthenticated) await auth.refreshMembership();
   showConfirm.value = true;
 }
 
 const pendingBirthInfo = ref<BirthInfo | null>(null);
 
 async function startAnalysis() {
+  if (!(await auth.verifyOnlineAccess(true))) return;
   const info = pendingBirthInfo.value;
   const selfChart = chartStore.chart;
   if (!info || !selfChart) return;
@@ -540,11 +542,12 @@ function goBack() {
       >
         <section class="analysis-sheet" role="dialog" aria-modal="true">
           <div class="sheet-handle" />
-          <span class="confirm-heart"><HeartHandshake :size="25" /></span>
-          <h2>確認使用會員額度</h2>
-          <p>
-            合盤解析將消耗會員額度 1 次。確認後系統會開始進行雙方命盤深度解析。
-          </p>
+          <h2>確認執行合盤解析</h2>
+          <p>此次操作將會消耗會員額度 1 次，是否確認使用？</p>
+          <div class="quota-row">
+            <span>本月會員額度剩餘</span>
+            <b>{{ auth.membershipQuotaRemaining }} 次</b>
+          </div>
           <div class="sheet-actions">
             <button
               class="app-button outline"
@@ -739,8 +742,7 @@ function goBack() {
   border-radius: 28px;
   text-align: center;
 }
-.premium-lock > span,
-.confirm-heart {
+.premium-lock > span {
   display: grid;
   place-items: center;
   width: 62px;
@@ -845,9 +847,6 @@ function goBack() {
   background: var(--paper);
   text-align: center;
 }
-.confirm-heart {
-  margin: 0 auto;
-}
 .analysis-sheet h2 {
   margin: 15px 0 8px;
   font-size: 20px;
@@ -857,6 +856,16 @@ function goBack() {
   color: var(--text-soft);
   font-size: 14px;
   line-height: 1.6;
+}
+.quota-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 13px 16px;
+  border-radius: 15px;
+  background: rgba(107, 166, 160, 0.1);
+  text-align: left;
 }
 .delete-sheet > svg {
   margin-top: 4px;

@@ -6,6 +6,7 @@ const activeAnalysis = useActiveAnalysisStore();
 const showLoginSheet = ref(false);
 const loginRedirect = ref("/");
 const showGoToTop = ref(false);
+const learningSyncing = ref(false);
 
 const tabs = [
   { to: "/", label: "首頁", icon: Home },
@@ -20,13 +21,12 @@ const tabs = [
   { to: "/member", label: "會員中心", icon: UserRound, gated: true },
 ];
 
-const immersiveRoutes = ["/login"];
-const showTabs = computed(() => {
-  return !immersiveRoutes.some((path) => route.path.startsWith(path));
-});
+const showTabs = true;
 
 onMounted(async () => {
   window.addEventListener("auth-login-required", openLoginSheet);
+  window.addEventListener("offline-snapshot-used", handleOfflineSnapshot);
+  window.addEventListener("online", handleOnline);
   window.addEventListener("scroll", updateGoToTop, { passive: true });
   updateGoToTop();
   const isAuthenticated = await auth.hydrate();
@@ -36,8 +36,29 @@ onMounted(async () => {
 });
 onBeforeUnmount(() => {
   window.removeEventListener("auth-login-required", openLoginSheet);
+  window.removeEventListener("offline-snapshot-used", handleOfflineSnapshot);
+  window.removeEventListener("online", handleOnline);
   window.removeEventListener("scroll", updateGoToTop);
 });
+
+async function acceptLearningProgressSync() {
+  if (learningSyncing.value) return;
+  learningSyncing.value = true;
+  try {
+    await auth.acceptLearningProgressSync();
+  } finally {
+    learningSyncing.value = false;
+  }
+}
+
+function handleOfflineSnapshot(event: Event) {
+  const updatedAt = Number((event as CustomEvent<{ updatedAt?: number }>).detail?.updatedAt || 0);
+  auth.activateOfflineFallback(updatedAt);
+}
+
+function handleOnline() {
+  auth.leaveOfflineFallback();
+}
 
 function updateGoToTop() {
   showGoToTop.value = window.scrollY >= 120;
@@ -63,7 +84,7 @@ function openLoginSheet(event?: Event) {
 }
 
 function openTab(tab: (typeof tabs)[number]) {
-  if (tab.gated && !auth.isAuthenticated) {
+  if (tab.gated && !auth.canViewMemberContent) {
     loginRedirect.value = tab.to;
     showLoginSheet.value = true;
     return;
@@ -92,7 +113,7 @@ function isTabActive(path: string) {
       route.path === "/privacy-pwa"
     );
   if (path === "/ai-analysis")
-    return ["/ai-analysis", "/report", "/flow", "/match", "/qa"].includes(
+    return ["/ai-analysis", "/chart", "/report", "/flow", "/match", "/qa"].includes(
       route.path,
     );
   return route.path === path;
@@ -103,9 +124,38 @@ function isTabActive(path: string) {
   <div class="app-shell">
     <PwaPrompt />
     <ApiErrorSnackbar />
+    <OfflineStatusBanner />
     <main class="app-main" :class="{ 'with-tabs': showTabs }">
       <slot />
       <SiteFooter v-if="showTabs" />
+      <AppBottomSheet
+        :open="Boolean(auth.pendingLearningProgressSync)"
+        role="alertdialog"
+        labelledby="learning-sync-title"
+        :close-on-backdrop="false"
+        locked
+      >
+        <h2 id="learning-sync-title">同步學習進度？</h2>
+        <p>偵測到登入前已完成的學習關卡。是否將這些進度合併到目前帳號？同步後只會增加，不會覆蓋帳號原有進度。</p>
+        <div class="learning-sync-actions">
+          <button
+            class="app-button outline"
+            type="button"
+            :disabled="learningSyncing"
+            @click="auth.declineLearningProgressSync()"
+          >
+            不同步
+          </button>
+          <button
+            class="app-button"
+            type="button"
+            :disabled="learningSyncing"
+            @click="acceptLearningProgressSync"
+          >
+            {{ learningSyncing ? "同步中…" : "同步進度" }}
+          </button>
+        </div>
+      </AppBottomSheet>
     </main>
 
     <Transition name="go-to-top">
@@ -200,6 +250,7 @@ function isTabActive(path: string) {
         </section>
       </div>
     </Transition>
+
   </div>
 </template>
 
@@ -233,6 +284,14 @@ function isTabActive(path: string) {
   opacity: 0;
   transform: translateY(10px) scale(0.9);
 }
+.learning-sync-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  margin-top: 18px;
+}
+.learning-sync-actions .app-button { width: 100%; }
 @media (min-width: 760px) {
   .go-to-top {
     right: 24px;

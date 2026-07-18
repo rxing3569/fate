@@ -39,10 +39,13 @@ const sending = ref(false);
 const error = ref("");
 const showQuotaConfirm = ref(false);
 const showPointsFallback = ref(false);
+const showResetConfirm = ref(false);
+const resettingConversation = ref(false);
 const pendingQuestion = ref("");
 const usePointsFallback = ref(false);
 const chatId = ref<string>(createChatId());
 const chatArea = ref<HTMLElement | null>(null);
+const pageReady = ref(false);
 
 const allSuggestions = [
   "適合自行創業，還是當個穩定的上班族？",
@@ -85,6 +88,11 @@ const cacheKey = computed(() => {
 });
 
 onMounted(async () => {
+  // Keep SSR and the first client render identical. Auth middleware restores
+  // membership only on the client, so rendering an auth-dependent <main>
+  // during hydration can permanently retain the server branch's classes.
+  pageReady.value = true;
+  if (auth.isAuthenticated) await auth.refreshMembership();
   chartStore.hydrate(auth.profile);
   suggestions.value = [...allSuggestions]
     .sort(() => Math.random() - 0.5)
@@ -125,9 +133,18 @@ function syncActiveQa() {
   )
     return;
   const answer = job.contents.main || "";
+  const question = typeof job.metadata.question === "string"
+    ? job.metadata.question
+    : "";
   const last = messages.value.at(-1);
-  if (last?.role === "assistant") last.content = answer;
-  else if (answer || job.status === "running")
+  const previous = messages.value.at(-2);
+  const isCurrentAnswer = last?.role === "assistant"
+    && previous?.role === "user"
+    && (!question || previous.content === question);
+  const isCurrentQuestion = last?.role === "user"
+    && (!question || last.content === question);
+  if (isCurrentAnswer) last.content = answer;
+  else if (isCurrentQuestion && (answer || job.status === "running"))
     messages.value.push({ role: "assistant", content: answer });
   sending.value = job.status === "running";
   if (job.error) error.value = job.error;
@@ -230,8 +247,31 @@ function scrollBottom() {
   );
 }
 
-function resetConversation() {
-  if (sending.value) return;
+function requestResetConversation() {
+  if (sending.value || resettingConversation.value) return;
+  showResetConfirm.value = true;
+}
+
+async function confirmResetConversation() {
+  if (sending.value || resettingConversation.value) return;
+  resettingConversation.value = true;
+  error.value = "";
+  try {
+    await ziweiApi.deleteChat(chatId.value, { notifyError: false });
+    if (activeAnalysis.active?.kind === "qa") activeAnalysis.reset();
+    clearConversation();
+    showResetConfirm.value = false;
+  } catch (reason) {
+    error.value =
+      reason instanceof Error
+        ? reason.message
+        : "無法刪除目前問答紀錄，請稍後再試。";
+  } finally {
+    resettingConversation.value = false;
+  }
+}
+
+function clearConversation() {
   messages.value = [];
   input.value = "";
   error.value = "";
@@ -258,9 +298,10 @@ async function requestSend() {
   }
   if (!(await activeAnalysis.ensureAvailable("qa"))) return;
   pendingQuestion.value = question;
-  if (askedCount.value === 0 && !usePointsFallback.value)
+  if (askedCount.value === 0 && !usePointsFallback.value) {
+    await auth.refreshMembership();
     showQuotaConfirm.value = true;
-  else sendQuestion(question);
+  } else sendQuestion(question);
 }
 
 function buildNatalPayload() {
@@ -322,6 +363,7 @@ async function confirmPointsFallback() {
 
 async function sendQuestion(question: string) {
   if (!question || sending.value) return;
+  if (!(await auth.verifyOnlineAccess(true))) return;
   const history = messages.value.filter(
     (message, index) =>
       !isSkippedPair(index) &&
@@ -420,27 +462,33 @@ function handleKeydown(event: KeyboardEvent) {
     content-mode="flush"
     show-back
   >
-    <main v-if="!auth.premium" class="premium-lock glass">
+    <main v-if="!pageReady" key="loading" class="qa-loading" aria-busy="true" />
+
+    <main
+      v-else-if="!auth.premium"
+      key="premium-lock"
+      class="premium-lock glass"
+    >
       <span class="feature-icon"><img src="/chat.svg" alt="" /></span>
       <h2>Premium 專屬 - AI 問答</h2>
       <p>成為 Premium 後，即可使用此功能來解答命盤細節之處。</p>
       <NuxtLink class="app-button" to="/store">成為 Premium 解鎖</NuxtLink>
     </main>
 
-    <main v-else-if="!chartStore.chart" class="qa-empty">
+    <main v-else-if="!chartStore.chart" key="chart-empty" class="qa-empty">
       <WifiOff :size="46" />
       <h2>尚未建立命盤</h2>
       <p>請先完成出生資料，才能依照您的命盤回答問題。</p>
       <NuxtLink class="app-button" to="/ai-analysis">前往建立命盤</NuxtLink>
     </main>
 
-    <main v-else class="chat-layout">
+    <main v-else key="chat" class="chat-layout">
       <section ref="chatArea" class="chat-area" aria-live="polite">
         <div v-if="!messages.length" class="qa-welcome">
           <span class="welcome-icon"><MessageCircle :size="28" /></span>
           <p>
             可透過問答更加理解命盤<br /><small
-              >單一問題可以有十次追問的機會</small
+              >(同一次對話裡面有十次追問的機會喔～)</small
             >
           </p>
           <div class="welcome-composer composer-field">
@@ -496,7 +544,11 @@ function handleKeydown(event: KeyboardEvent) {
 
       <footer v-if="messages.length" class="qa-composer">
         <div class="composer-actions">
-          <button type="button" :disabled="sending" @click="resetConversation">
+          <button
+            type="button"
+            :disabled="sending || resettingConversation"
+            @click="requestResetConversation"
+          >
             <RefreshCw :size="18" />重新提問
           </button>
         </div>
@@ -526,12 +578,46 @@ function handleKeydown(event: KeyboardEvent) {
       </footer>
     </main>
 
-    <AppBottomSheet :open="showQuotaConfirm" @close="showQuotaConfirm = false">
-      <h2>確認使用 AI 問答額度</h2>
+    <AppBottomSheet
+      :open="showResetConfirm"
+      role="alertdialog"
+      labelledby="qa-reset-title"
+      :locked="resettingConversation"
+      @close="showResetConfirm = false"
+    >
+      <h2 id="qa-reset-title">確定要重新提問？</h2>
       <p>
-        本次 AI 問答將消耗會員額度 1
-        次。此對話後續最多可追問十次，不重複扣除額度。
+        目前問題的所有對話紀錄將被放棄並刪除，系統不會繼續保存。開啟新對話後，首次提問將重新消耗會員額度
+        1 次。
       </p>
+      <div class="sheet-actions">
+        <button
+          class="app-button outline"
+          type="button"
+          :disabled="resettingConversation"
+          @click="showResetConfirm = false"
+        >
+          取消
+        </button>
+        <button
+          class="app-button"
+          type="button"
+          :disabled="resettingConversation"
+          @click="confirmResetConversation"
+        >
+          {{ resettingConversation ? "正在刪除…" : "開啟新對話" }}
+        </button>
+      </div>
+    </AppBottomSheet>
+
+    <AppBottomSheet :open="showQuotaConfirm" @close="showQuotaConfirm = false">
+      <h2>確認使用 AI 問答</h2>
+      <p>本次操作將消耗會員額度 1 次，且後續最多可追問十次，不重複扣除額度。</p>
+      <div class="quota-row">
+        <Coins :size="18" />
+        <span>本月會員額度剩餘</span>
+        <b>{{ auth.membershipQuotaRemaining }} 次</b>
+      </div>
       <div class="sheet-actions">
         <button
           class="app-button outline"
@@ -650,14 +736,42 @@ function handleKeydown(event: KeyboardEvent) {
   display: grid;
   flex: 1;
   grid-template-rows: minmax(0, 1fr) auto;
+  width: 100% !important;
   min-height: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
   overflow: hidden;
+}
+.qa-loading {
+  flex: 1;
+  min-height: 0;
 }
 .chat-area {
   min-height: 0;
   overflow-y: auto;
   padding: 18px 18px 30px;
   overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(36, 87, 90, 0.28) transparent;
+}
+.chat-area::-webkit-scrollbar {
+  width: 6px;
+  background: transparent;
+}
+.chat-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-area::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(36, 87, 90, 0.28);
+}
+.chat-area::-webkit-scrollbar-corner {
+  background: transparent;
 }
 .qa-welcome {
   display: flex;
@@ -842,6 +956,16 @@ function handleKeydown(event: KeyboardEvent) {
   font-size: 11.5px;
   font-weight: 700;
   text-align: center;
+}
+.quota-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 13px 16px;
+  border-radius: 15px;
+  background: rgba(107, 166, 160, 0.1);
+  text-align: left;
 }
 .qa-sheet {
   width: min(100%, 680px);

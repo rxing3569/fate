@@ -4,12 +4,12 @@
   "type": "module",
   "scripts": {
     "predev": "node scripts/check-port.mjs 3001",
-    "dev": "nuxt cleanup && NUXT_DEV_SSR=1 nuxt dev --port 3001",
+    "dev": "nuxt cleanup && nuxt dev --port 3001",
     "predev:pwa": "node scripts/check-port.mjs 3001",
     "dev:pwa": "nuxt cleanup && nuxt build && nuxt preview --port 3001",
     "build": "nuxt build",
     "generate:star-course": "node scripts/generate-star-course-data.mjs",
-    "generate": "NUXT_DEV_SSR=1 nuxt generate",
+    "generate": "nuxt generate",
     "prepreview": "node scripts/check-port.mjs 3001",
     "preview": "nuxt preview --port 3001",
     "typecheck": "nuxt typecheck"

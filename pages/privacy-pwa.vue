@@ -71,7 +71,7 @@ useHead({
             </li>
             <li>
               <strong>服務內容：</strong>包含您選擇的解析類型、AI
-              命盤解析結果、問題回報，以及維持服務連續性所需的歷史紀錄。
+              命盤解析結果、學習進度、問題回報，以及維持服務連續性所需的歷史紀錄。
             </li>
             <li>
               <strong>交易資料：</strong
@@ -185,8 +185,8 @@ useHead({
             </li>
             <li>
               <strong>Service content:</strong> Selected analysis types,
-              completed AI chart readings, issue reports, and history required
-              to provide continuity across sessions.
+              completed AI chart readings, learning progress, issue reports,
+              and history required to provide continuity across sessions.
             </li>
             <li>
               <strong>Transaction information:</strong> Order identifiers,

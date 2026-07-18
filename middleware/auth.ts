@@ -3,7 +3,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (import.meta.client && !auth.sessionReady) {
     await auth.hydrate()
   }
-  if (import.meta.client && !auth.isAuthenticated) {
+  if (import.meta.client && !auth.canViewMemberContent) {
     return navigateTo({
       path: '/login',
       query: { redirect: to.fullPath },

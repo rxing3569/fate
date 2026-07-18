@@ -4,15 +4,12 @@ import {
   ChevronRight,
   History,
   LogOut,
-  RotateCcw,
   ShieldCheck,
   ShoppingBag,
   UserRoundCog,
 } from "@lucide/vue";
-import { learningProgressKey } from "~/utils/learning";
 definePageMeta({ middleware: "auth" });
 const auth = useAuthStore();
-const showClearProgressSheet = ref(false);
 const showLogoutSheet = ref(false);
 const loggingOut = ref(false);
 onMounted(() => auth.loadProfile());
@@ -36,25 +33,11 @@ const menu = [
   { icon: UserRoundCog, label: "命盤資料", to: "/profile/edit" },
   { icon: History, label: "點數異動紀錄", to: "/point-history" },
   { icon: ShoppingBag, label: "購買紀錄", to: "/purchase-history" },
-  { icon: RotateCcw, label: "清除學習進度", action: "clear" },
   { icon: Bug, label: "問題回報", to: "/issue-report" },
   { icon: ShieldCheck, label: "隱私權政策", to: "/privacy-pwa" },
 ];
 function select(item: (typeof menu)[number]) {
   if (item.to) return navigateTo(item.to);
-  if (item.action === "clear") {
-    showClearProgressSheet.value = true;
-  }
-}
-function clearLearningProgress() {
-  localStorage.removeItem(learningProgressKey);
-  localStorage.removeItem("ziwei_learning_progress");
-  showClearProgressSheet.value = false;
-  window.dispatchEvent(
-    new CustomEvent("api-error-snackbar", {
-      detail: { message: "學習進度已清除", type: "info" },
-    }),
-  );
 }
 </script>
 
@@ -89,37 +72,6 @@ function clearLearningProgress() {
       </button>
     </div>
     <template #overlays>
-      <Transition name="sheet">
-        <div
-          v-if="showClearProgressSheet"
-          class="sheet-backdrop clear-progress-backdrop"
-          @click.self="showClearProgressSheet = false"
-        >
-          <section
-            class="clear-progress-sheet"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="clear-progress-title"
-          >
-            <div class="sheet-handle" />
-            <span class="clear-progress-icon"><RotateCcw :size="25" /></span>
-            <h2 id="clear-progress-title">清除學習進度？</h2>
-            <p>已完成的學習關卡紀錄將會清除，此動作無法復原。</p>
-            <div class="clear-progress-actions">
-              <button
-                class="app-button outline"
-                type="button"
-                @click="showClearProgressSheet = false"
-              >
-                取消
-              </button>
-              <button class="app-button danger-button" type="button" @click="clearLearningProgress">
-                確定清除
-              </button>
-            </div>
-          </section>
-        </div>
-      </Transition>
       <Transition name="sheet">
         <div
           v-if="showLogoutSheet"

@@ -47,7 +47,8 @@ function toggleCategory(category: CategoryId, selected: boolean) {
     ? [...new Set([...selectedCategories.value, category])]
     : selectedCategories.value.filter((item) => item !== category);
 }
-onMounted(() => {
+onMounted(async () => {
+  if (auth.isAuthenticated) await auth.refreshMembership();
   chartStore.hydrate(auth.profile);
   if (chartStore.chart || auth.sessionReady) chartHydrated.value = true;
 });

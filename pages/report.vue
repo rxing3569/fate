@@ -207,6 +207,7 @@ const cardSections = computed(() =>
 
 onMounted(async () => {
   window.addEventListener("popstate", handleDetailHistory);
+  if (auth.isAuthenticated) await auth.refreshMembership();
   chartStore.hydrate(auth.profile);
   await activeAnalysis.hydrate();
   syncActiveReport();
@@ -535,6 +536,7 @@ async function start(
   const chart = chartStore.chart;
   if (!chart || (analyzing.value && !reuseJob)) return false;
   if (!reuseJob) {
+    if (!await auth.verifyOnlineAccess()) return false;
     const started = await activeAnalysis.begin("report", reportCacheKey.value, {
       currentCategory: targetCategory,
       queue: [targetCategory],
@@ -669,6 +671,7 @@ async function start(
 
 async function startFullAnalysis() {
   if (!canStartFull.value || fullRunning.value || hasActiveRunLock()) return;
+  if (!await auth.verifyOnlineAccess()) return;
   const queue = categories
     .map((category) => category.id)
     .filter((category) => fullSelected.value.includes(category));
