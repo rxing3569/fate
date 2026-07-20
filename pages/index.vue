@@ -147,7 +147,7 @@ function scrollToAbout() {
             </p>
             <span>立即提問 <ArrowRight :size="14" /></span>
           </NuxtLink>
-          <NuxtLink to="/learn" class="entry-card glass">
+          <NuxtLink to="/learn/" class="entry-card glass">
             <BookOpen :size="24" />
             <h3>學習紫微</h3>
             <p>

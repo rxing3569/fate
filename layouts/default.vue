@@ -10,7 +10,7 @@ const learningSyncing = ref(false);
 
 const tabs = [
   { to: "/", label: "首頁", icon: Home },
-  { to: "/learn", label: "學習紫微", icon: BookOpen },
+  { to: "/learn/", label: "學習紫微", icon: BookOpen },
   {
     to: "/ai-analysis",
     label: "排盤解盤",
@@ -94,9 +94,9 @@ function openTab(tab: (typeof tabs)[number]) {
 
 function isTabActive(path: string) {
   if (path === "/") return route.path === "/";
-  if (path === "/learn")
+  if (path === "/learn/")
     return (
-      route.path === "/learn" ||
+      route.path === "/learn/" ||
       route.path === "/quiz" ||
       route.path.startsWith("/learning/") ||
       route.path.startsWith("/review")

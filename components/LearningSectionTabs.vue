@@ -4,7 +4,7 @@ const route = useRoute()
 
 <template>
   <nav class="learning-section-tabs segmented" aria-label="學習紫微內容">
-    <NuxtLink to="/learn" :class="{ active: route.path === '/learn' }">學習地圖</NuxtLink>
+    <NuxtLink to="/learn/" :class="{ active: route.path === '/learn/' }">學習地圖</NuxtLink>
     <NuxtLink to="/review" :class="{ active: route.path.startsWith('/review') }">題庫複習</NuxtLink>
     <NuxtLink to="/quiz?mode=exam" :class="{ active: route.path === '/quiz' && route.query.mode !== 'reading' }">測驗挑戰</NuxtLink>
   </nav>

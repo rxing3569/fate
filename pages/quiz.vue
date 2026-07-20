@@ -471,7 +471,7 @@ watch(
         v-if="stagePassed"
         class="app-button result-button"
         type="button"
-        @click="navigateTo('/learn', { replace: true })"
+        @click="navigateTo('/learn/', { replace: true })"
       >
         返回關卡地圖
       </button>
@@ -479,7 +479,7 @@ watch(
         <button
           class="app-button outline"
           type="button"
-          @click="navigateTo('/learn', { replace: true })"
+          @click="navigateTo('/learn/', { replace: true })"
         >
           退出關卡</button
         ><button class="app-button" type="button" @click="retry">

@@ -12,7 +12,7 @@ const linkGroups = [
   {
     title: "資源學習",
     links: [
-      { label: "學習紫微", to: "/learn" },
+      { label: "學習紫微", to: "/learn/" },
       { label: "命理專欄", to: "/articles" },
     ],
   },
