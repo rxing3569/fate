@@ -1,37 +1,40 @@
 <script setup lang="ts">
-const emit = defineEmits<{ close: [] }>()
-const sheet = ref<HTMLElement | null>(null)
-const dragging = ref(false)
-const dragOffset = ref(0)
-let pointerId: number | null = null
-let dragStartY = 0
-let dragStartedAt = 0
-let suppressClick = false
-let dragTarget: HTMLElement | null = null
+const emit = defineEmits<{ close: [] }>();
+const sheet = ref<HTMLElement | null>(null);
+const dragging = ref(false);
+const dragOffset = ref(0);
+let pointerId: number | null = null;
+let dragStartY = 0;
+let dragStartedAt = 0;
+let suppressClick = false;
+let dragTarget: HTMLElement | null = null;
 
 function closeFromBackdrop() {
-  if (!props.closeOnBackdrop || props.locked) return
-  emit("close")
+  if (!props.closeOnBackdrop || props.locked) return;
+  emit("close");
 }
 
-const props = withDefaults(defineProps<{
-  open: boolean
-  role?: "dialog" | "alertdialog"
-  labelledby?: string
-  closeOnBackdrop?: boolean
-  locked?: boolean
-  sheetClass?: string
-  contentClass?: string
-}>(), {
-  role: "dialog",
-  labelledby: undefined,
-  closeOnBackdrop: true,
-  locked: false,
-  sheetClass: "",
-  contentClass: "",
-})
+const props = withDefaults(
+  defineProps<{
+    open: boolean;
+    role?: "dialog" | "alertdialog";
+    labelledby?: string;
+    closeOnBackdrop?: boolean;
+    locked?: boolean;
+    sheetClass?: string;
+    contentClass?: string;
+  }>(),
+  {
+    role: "dialog",
+    labelledby: undefined,
+    closeOnBackdrop: true,
+    locked: false,
+    sheetClass: "",
+    contentClass: "",
+  },
+);
 
-useBodyScrollLock(toRef(props, "open"))
+useBodyScrollLock(toRef(props, "open"));
 
 function startDrag(event: PointerEvent) {
   if (
@@ -39,74 +42,84 @@ function startDrag(event: PointerEvent) {
     !event.isPrimary ||
     event.pointerType !== "touch" ||
     !window.matchMedia("(hover: none) and (pointer: coarse)").matches
-  ) return
-  pointerId = event.pointerId
-  dragStartY = event.clientY
-  dragStartedAt = performance.now()
-  dragOffset.value = 0
-  dragging.value = true
-  dragTarget = event.currentTarget as HTMLElement
-  dragTarget.setPointerCapture(event.pointerId)
+  )
+    return;
+  pointerId = event.pointerId;
+  dragStartY = event.clientY;
+  dragStartedAt = performance.now();
+  dragOffset.value = 0;
+  dragging.value = true;
+  dragTarget = event.currentTarget as HTMLElement;
+  dragTarget.setPointerCapture(event.pointerId);
 }
 
 function moveDrag(event: PointerEvent) {
-  if (!dragging.value || event.pointerId !== pointerId) return
-  const distance = event.clientY - dragStartY
+  if (!dragging.value || event.pointerId !== pointerId) return;
+  const distance = event.clientY - dragStartY;
   if (distance <= 0) {
-    dragOffset.value = 0
-    return
+    dragOffset.value = 0;
+    return;
   }
-  event.preventDefault()
-  dragOffset.value = distance
-  if (distance > 8) suppressClick = true
+  event.preventDefault();
+  dragOffset.value = distance;
+  if (distance > 8) suppressClick = true;
 }
 
 function finishDrag(event: PointerEvent) {
-  if (!dragging.value || event.pointerId !== pointerId) return
-  const elapsed = Math.max(performance.now() - dragStartedAt, 1)
-  const velocity = dragOffset.value / elapsed
-  const threshold = Math.min(100, (sheet.value?.offsetHeight || 400) * .25)
-  const shouldClose = dragOffset.value >= threshold || (dragOffset.value >= 36 && velocity >= .65)
-  resetDrag()
-  if (shouldClose && !props.locked) emit("close")
+  if (!dragging.value || event.pointerId !== pointerId) return;
+  const elapsed = Math.max(performance.now() - dragStartedAt, 1);
+  const velocity = dragOffset.value / elapsed;
+  const threshold = Math.min(100, (sheet.value?.offsetHeight || 400) * 0.25);
+  const shouldClose =
+    dragOffset.value >= threshold ||
+    (dragOffset.value >= 36 && velocity >= 0.65);
+  resetDrag();
+  if (shouldClose && !props.locked) emit("close");
 }
 
 function cancelDrag(event?: PointerEvent) {
-  if (event && event.pointerId !== pointerId) return
-  resetDrag()
+  if (event && event.pointerId !== pointerId) return;
+  resetDrag();
 }
 
 function handleLostPointerCapture(event: PointerEvent) {
-  if (dragging.value && event.pointerId === pointerId) resetDrag(false)
+  if (dragging.value && event.pointerId === pointerId) resetDrag(false);
 }
 
 function resetDrag(releaseCapture = true) {
-  const activePointerId = pointerId
-  const activeTarget = dragTarget
-  pointerId = null
-  dragTarget = null
-  dragging.value = false
-  dragOffset.value = 0
+  const activePointerId = pointerId;
+  const activeTarget = dragTarget;
+  pointerId = null;
+  dragTarget = null;
+  dragging.value = false;
+  dragOffset.value = 0;
   if (
     releaseCapture &&
     activePointerId !== null &&
     activeTarget?.hasPointerCapture(activePointerId)
-  ) activeTarget.releasePointerCapture(activePointerId)
-  if (suppressClick) window.setTimeout(() => { suppressClick = false }, 0)
+  )
+    activeTarget.releasePointerCapture(activePointerId);
+  if (suppressClick)
+    window.setTimeout(() => {
+      suppressClick = false;
+    }, 0);
 }
 
 function handleClick(event: MouseEvent) {
-  if (!suppressClick) return
-  event.preventDefault()
-  event.stopPropagation()
-  suppressClick = false
+  if (!suppressClick) return;
+  event.preventDefault();
+  event.stopPropagation();
+  suppressClick = false;
 }
 
-watch(() => props.open, value => {
-  if (!value) resetDrag()
-})
+watch(
+  () => props.open,
+  (value) => {
+    if (!value) resetDrag();
+  },
+);
 
-onBeforeUnmount(() => resetDrag())
+onBeforeUnmount(() => resetDrag());
 </script>
 
 <template>
@@ -141,7 +154,9 @@ onBeforeUnmount(() => resetDrag())
           class="app-bottom-sheet-content"
           :class="contentClass"
           data-sheet-scroll
-        ><slot /></div>
+        >
+          <slot />
+        </div>
       </section>
     </div>
   </Transition>
@@ -153,7 +168,7 @@ onBeforeUnmount(() => resetDrag())
   display: flex;
   flex-direction: column;
   width: min(100%, 680px);
-  max-height: 75dvh;
+  max-height: 65dvh;
   overflow: hidden;
   padding: 12px 22px calc(26px + env(safe-area-inset-bottom));
   border-radius: 30px 30px 0 0;
@@ -162,7 +177,7 @@ onBeforeUnmount(() => resetDrag())
   color: var(--mountain);
   transform: translate3d(0, var(--sheet-drag-y, 0), 0);
   overscroll-behavior-y: contain;
-  transition: transform .28s cubic-bezier(.22,.8,.25,1);
+  transition: transform 0.28s cubic-bezier(0.22, 0.8, 0.25, 1);
   will-change: transform;
 }
 .app-bottom-sheet-drag-region {
@@ -191,11 +206,13 @@ onBeforeUnmount(() => resetDrag())
   transform: translate3d(0, 100%, 0) !important;
 }
 .app-bottom-sheet-content {
-  flex: 1 1 auto;
+  /* Keep short sheets content-sized. Sheets that need a fixed scroll viewport
+     (for example CityPicker) opt back into flex-grow via contentClass. */
+  flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior-y: contain;
-  scrollbar-color: rgba(36, 87, 90, .28) transparent;
+  scrollbar-color: rgba(36, 87, 90, 0.28) transparent;
   text-align: center;
 }
 .app-bottom-sheet-content::-webkit-scrollbar {
@@ -206,7 +223,7 @@ onBeforeUnmount(() => resetDrag())
 }
 .app-bottom-sheet-content::-webkit-scrollbar-thumb {
   border-radius: 99px;
-  background: rgba(36, 87, 90, .28);
+  background: rgba(36, 87, 90, 0.28);
 }
 .app-bottom-sheet-content :deep(h2) {
   margin: 13px 0 8px;

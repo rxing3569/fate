@@ -1,10 +1,5 @@
 <script setup lang="ts">
-import {
-  ArrowDown,
-  ArrowRight,
-  BookOpen,
-  Newspaper,
-} from "@lucide/vue";
+import { ArrowDown, ArrowRight, BookOpen, Newspaper } from "@lucide/vue";
 const auth = useAuthStore();
 useSeoMeta({
   title: "AI 紫微斗數命盤解析｜江映澄紫微",
@@ -108,15 +103,21 @@ function scrollToAbout() {
         <div class="ink-line" />
         <div class="entry-grid">
           <NuxtLink to="/report" class="entry-card glass">
-            <div class="entry-heading"><AppMaterialIcon name="auto_stories_rounded" :size="24" /><h3>AI 命盤解析</h3></div>
+            <div class="entry-heading">
+              <AppMaterialIcon name="auto_stories_rounded" :size="24" />
+              <h3>AI 命盤解析</h3>
+            </div>
             <p>
               運用 AI
-              紫微斗數解析本命格局、十二宮與十年大運，從個性天賦、事業財運到人生課題，全面讀懂自己的命盤。
+              紫微斗數解析先天命格（本命格局）、十二宮位詳解與十年大運，從個性天賦、事業財運到人生課題，全面讀懂自己的命盤。
             </p>
             <span class="entry-action">開始解析 <ArrowRight :size="14" /></span>
           </NuxtLink>
           <NuxtLink to="/flow" class="entry-card glass">
-            <div class="entry-heading"><AppMaterialIcon name="insights_rounded" :size="24" /><h3>AI 時運解析</h3></div>
+            <div class="entry-heading">
+              <AppMaterialIcon name="insights_rounded" :size="24" />
+              <h3>AI 時運解析</h3>
+            </div>
             <p>
               透過 AI
               分析流年、流月與流日運勢，掌握工作、感情及財運變化，提早看見重要時機與需要留意的方向。
@@ -124,7 +125,10 @@ function scrollToAbout() {
             <span class="entry-action">查看時運 <ArrowRight :size="14" /></span>
           </NuxtLink>
           <NuxtLink to="/match" class="entry-card glass">
-            <div class="entry-heading"><AppMaterialIcon name="diversity_1_rounded" :size="24" /><h3>AI 合盤解析</h3></div>
+            <div class="entry-heading">
+              <AppMaterialIcon name="diversity_1_rounded" :size="24" />
+              <h3>AI 合盤解析</h3>
+            </div>
             <p>
               結合雙方紫微命盤與 AI
               關係分析，理解感情互動、溝通模式及彼此需求，找出更適合兩人的相處方式。
@@ -132,7 +136,10 @@ function scrollToAbout() {
             <span class="entry-action">開始合盤 <ArrowRight :size="14" /></span>
           </NuxtLink>
           <NuxtLink to="/qa" class="entry-card glass">
-            <div class="entry-heading"><i class="entry-chat-icon" aria-hidden="true" /><h3>AI 問答</h3></div>
+            <div class="entry-heading">
+              <i class="entry-chat-icon" aria-hidden="true" />
+              <h3>AI 問答</h3>
+            </div>
             <p>
               根據個人紫微命盤向 AI
               即時提問，針對感情、事業、財運與人生選擇，獲得貼近自身命盤脈絡的解答。
@@ -140,14 +147,20 @@ function scrollToAbout() {
             <span class="entry-action">立即提問 <ArrowRight :size="14" /></span>
           </NuxtLink>
           <NuxtLink to="/learn/" class="entry-card glass">
-            <div class="entry-heading"><BookOpen :size="24" /><h3>學習紫微</h3></div>
+            <div class="entry-heading">
+              <BookOpen :size="24" />
+              <h3>學習紫微</h3>
+            </div>
             <p>
               從十四主星、十二宮位到基礎解盤，搭配學習地圖、題庫與測驗，循序建立實用的紫微斗數知識。
             </p>
             <span class="entry-action">開始學習 <ArrowRight :size="14" /></span>
           </NuxtLink>
           <NuxtLink to="/articles" class="entry-card glass">
-            <div class="entry-heading"><Newspaper :size="24" /><h3>命理專欄</h3></div>
+            <div class="entry-heading">
+              <Newspaper :size="24" />
+              <h3>命理專欄</h3>
+            </div>
             <p>
               閱讀紫微斗數、流年運勢、感情合盤與自我成長文章，以深入淺出的方式理解傳統命理的現代應用。
             </p>

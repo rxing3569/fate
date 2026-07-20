@@ -243,6 +243,7 @@ function selectCity(city: CityOption) {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  margin-bottom: 16px;
 }
 .gender-picker button {
   position: relative;
@@ -334,10 +335,11 @@ function selectCity(city: CityOption) {
   gap: 10px;
   padding: 15px 17px;
   border-radius: 18px;
+  margin-bottom: 16px;
 }
 .solar-preview > span {
   display: grid;
-  gap: 6px;
+  gap: 0px;
 }
 .solar-preview strong {
   font-size: 14px;

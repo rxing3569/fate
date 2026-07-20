@@ -5,7 +5,8 @@ const chartStore = useChartStore();
 const route = useRoute();
 useSeoMeta({
   title: "免費紫微斗數排盤與 AI 解盤｜江映澄紫微",
-  description: "輸入出生日期、時間與城市，建立紫微斗數命盤、查看十二宮星曜，並使用 AI 進行本命、時運與合盤解析。",
+  description:
+    "輸入出生日期、時間與城市，建立紫微斗數命盤、查看十二宮星曜，並使用 AI 進行先天命格（本命）、時運（流年）與雙人事業合盤、雙人感情合盤等解析。",
   ogTitle: "免費紫微斗數排盤與 AI 解盤｜江映澄紫微",
   ogDescription: "免費建立紫微斗數命盤，查看十二宮星曜並使用 AI 進行多種解析。",
 });
@@ -38,14 +39,14 @@ const features = [
   {
     id: "report",
     title: "命盤解析",
-    subtitle: "透過 AI 學會本命、宮位與大運如何解析",
+    subtitle: "深入瞭解「先天命格」、「宮位詳解」、「十年大運」",
     icon: "auto_stories_rounded" as const,
     to: "/report",
   },
   {
     id: "flow",
     title: "時運解析",
-    subtitle: "透過 AI 學會流年、流月、流日如何解析",
+    subtitle: "深度分析，每年、每月、每日的運勢。",
     icon: "insights_rounded" as const,
     to: "/flow",
     primary: true,
@@ -53,7 +54,7 @@ const features = [
   {
     id: "match",
     title: "合盤解析",
-    subtitle: "透過 AI 學會關係互動如何解析",
+    subtitle: "深度分析兩人關係互動。",
     icon: "diversity_1_rounded" as const,
     to: "/match",
     primary: true,
@@ -61,7 +62,7 @@ const features = [
   {
     id: "qa",
     title: "AI 問答",
-    subtitle: "透過 AI 解惑所有命盤問題",
+    subtitle: "AI 命理師來解惑所有問題。",
     icon: "chat" as const,
     to: "/qa",
   },
@@ -125,11 +126,7 @@ async function persistBirth(
 }
 
 async function saveBirth(info: Parameters<typeof chartStore.saveBirthInfo>[0]) {
-  if (
-    auth.isAuthenticated &&
-    chartStore.birthInfo &&
-    !isSameBirthInfo(info)
-  ) {
+  if (auth.isAuthenticated && chartStore.birthInfo && !isSameBirthInfo(info)) {
     pendingBirthInfo.value = info;
     return;
   }

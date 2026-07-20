@@ -23,15 +23,19 @@ const analysisOptions: Array<{
   label: string;
   description: string;
 }> = [
-  { id: "general", label: "本命", description: "解析格局、個性特質、先天運勢" },
+  {
+    id: "general",
+    label: "先天命格",
+    description: "解析格局、個性特質、先天運勢",
+  },
   {
     id: "palace_detail",
-    label: "宮位",
+    label: "宮位詳解",
     description: "逐宮細推父母、夫妻、財帛、官祿等",
   },
   {
     id: "ten_year",
-    label: "大運",
+    label: "十年大運",
     description: "剖析當前十年大限事業、感情、機遇",
   },
 ];
@@ -66,7 +70,7 @@ async function requestFullAnalysis() {
     window.dispatchEvent(new CustomEvent("auth-login-required"));
     return;
   }
-  if (!await activeAnalysis.ensureAvailable("report")) return;
+  if (!(await activeAnalysis.ensureAvailable("report"))) return;
   checkingReport.value = true;
   message.value = "";
   try {
@@ -134,7 +138,12 @@ async function editChart() {
 </script>
 
 <template>
-  <AppPageLayout title="命盤排盤" screen-class="chart-screen" header-layout="wide" show-back>
+  <AppPageLayout
+    title="命盤排盤"
+    screen-class="chart-screen"
+    header-layout="wide"
+    show-back
+  >
     <template #actions>
       <button class="edit-link" type="button" @click="editChart">
         修改命盤 <Pencil :size="16" aria-hidden="true" />
@@ -157,105 +166,94 @@ async function editChart() {
       :open="showAnalysisSelection"
       @close="showAnalysisSelection = false"
     >
-          <template #header><h2>{{ completedCategories.size ? "是否重新解盤" : "AI 全盤解析" }}</h2></template>
-          <div class="selection-divider" />
-          <div v-if="completedCategories.size" class="reanalysis-copy">
-            <strong
-              >已存在您的本命、十二宮或十年大運解析資料，是否要重新進行解盤？</strong
-            >
-            <p>
-              {{
-                auth.premium
-                  ? "重新解盤將會重新進行命盤解析，並根據您的選擇消耗會員額度，如果您只想查看之前的解析，請直接點選「直接查看歷史紀錄」。"
-                  : "重新解盤將會重新進行命盤解析，並根據您的選擇扣除點數，如果您只想查看之前的解析，請直接點選「直接查看歷史紀錄」。"
-              }}
-            </p>
-          </div>
-          <div class="balance-card">
-            <span>{{ auth.premium ? "會員剩餘額度：" : "您當前的點數：" }}</span
-            ><b>{{
-              auth.premium
-                ? `${auth.membershipQuotaRemaining} 次`
-                : `${auth.points} P`
-            }}</b>
-          </div>
-          <div class="analysis-options">
-            <AppAnalysisOption
-              v-for="option in analysisOptions"
-              :key="option.id"
-              :model-value="selectedCategories.includes(option.id)"
-              :label="option.label"
-              :description="option.description"
-              :badge="completedCategories.has(option.id) ? '已生成' : ''"
-              :cost="
-                auth.premium &&
-                auth.membershipQuotaRemaining >= selectedCategories.length
-                  ? '1 次'
-                  : '100 P'
-              "
-              @update:model-value="toggleCategory(option.id, $event)"
-            />
-          </div>
-          <div class="selection-cost">
-            <strong>本次預計消耗：</strong
-            ><b>{{
-              auth.premium &&
-              auth.membershipQuotaRemaining >= selectedCategories.length
-                ? `${selectedCategories.length} 次`
-                : `${analysisCost} P`
-            }}</b>
-          </div>
-          <button
-            class="app-button selection-start"
-            type="button"
-            :disabled="!selectedCategories.length"
-            @click="confirmAnalysisSelection"
-          >
-            {{
-              !selectedCategories.length
-                ? "請選擇解盤項目"
-                : hasEnoughBalance
-                  ? completedCategories.size
-                    ? "確認重新解盤"
-                    : "開始解盤"
-                  : "點數不足，查看方案"
-            }}</button
-          ><button
-            v-if="completedCategories.size"
-            class="view-existing selection-existing"
-            type="button"
-            @click="
-              showAnalysisSelection = false;
-              navigateTo('/report');
-            "
-          >
-            直接查看歷史紀錄
-          </button>
+      <template #header
+        ><h2>
+          {{ completedCategories.size ? "是否重新解盤" : "AI 全盤解析" }}
+        </h2></template
+      >
+      <div v-if="completedCategories.size" class="reanalysis-copy">
+        <strong>已存在您的「命盤解析」，是否要重新進行解盤？</strong>
+        <p>
+          {{
+            auth.premium
+              ? "重新解盤將會重新進行命盤解析，並根據您的選擇消耗會員額度，如果您只想查看之前的解析，請直接點選「直接查看歷史紀錄」。"
+              : "重新解盤將會重新進行命盤解析，並根據您的選擇扣除點數，如果您只想查看之前的解析，請直接點選「直接查看歷史紀錄」。"
+          }}
+        </p>
+      </div>
+      <div class="balance-card">
+        <span>{{ auth.premium ? "會員剩餘額度：" : "您當前的點數：" }}</span
+        ><b>{{
+          auth.premium
+            ? `${auth.membershipQuotaRemaining} 次`
+            : `${auth.points} P`
+        }}</b>
+      </div>
+      <div class="analysis-options">
+        <AppAnalysisOption
+          v-for="option in analysisOptions"
+          :key="option.id"
+          :model-value="selectedCategories.includes(option.id)"
+          :label="option.label"
+          :description="option.description"
+          :badge="completedCategories.has(option.id) ? '已生成' : ''"
+          :cost="
+            auth.premium &&
+            auth.membershipQuotaRemaining >= selectedCategories.length
+              ? '1 次'
+              : '100 P'
+          "
+          @update:model-value="toggleCategory(option.id, $event)"
+        />
+      </div>
+      <div class="selection-cost">
+        <strong>本次預計消耗：</strong
+        ><b>{{
+          auth.premium &&
+          auth.membershipQuotaRemaining >= selectedCategories.length
+            ? `${selectedCategories.length} 次`
+            : `${analysisCost} P`
+        }}</b>
+      </div>
+      <button
+        class="app-button selection-start"
+        type="button"
+        :disabled="!selectedCategories.length"
+        @click="confirmAnalysisSelection"
+      >
+        {{
+          !selectedCategories.length
+            ? "請選擇解盤項目"
+            : hasEnoughBalance
+              ? completedCategories.size
+                ? "確認重新解盤"
+                : "開始解盤"
+              : "點數不足，查看方案"
+        }}</button
+      ><button
+        v-if="completedCategories.size"
+        class="view-existing"
+        type="button"
+        @click="
+          showAnalysisSelection = false;
+          navigateTo('/report');
+        "
+      >
+        直接查看歷史紀錄
+      </button>
     </AppBottomSheet>
   </AppPageLayout>
 </template>
 
 <style scoped>
-.reanalysis-copy {
-  margin: 0 0 16px;
-  color: var(--mountain);
-  text-align: left;
-}
-.reanalysis-copy strong {
-  display: block;
-  font-size: 15px;
-  line-height: 1.5;
-  text-align: center;
-}
-.reanalysis-copy p {
-  margin: 10px 0 0;
-  color: rgba(36, 87, 90, 0.8);
-  font-size: 13px;
-  line-height: 1.55;
-}
 .chart-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
   overflow: hidden;
 }
+
 .edit-link {
   display: flex;
   align-items: center;
@@ -281,11 +279,13 @@ async function editChart() {
 }
 .chart-content {
   display: flex;
+  flex: 1 1 auto;
   align-items: flex-start;
-  height: calc(100dvh - 58px);
+  min-height: 0;
   padding-bottom: 0;
-  overflow-y: auto;
+  overflow: hidden;
 }
+
 .chart-message {
   margin: 0;
   padding: 8px 14px;
@@ -295,69 +295,25 @@ async function editChart() {
   font-weight: 700;
   text-align: center;
 }
-.reanalysis-sheet,
-.selection-sheet {
-  box-sizing: border-box;
-  width: min(100%, 680px);
-  padding: 8px 24px calc(26px + env(safe-area-inset-bottom));
-  border-radius: 32px 32px 0 0;
-  background: var(--paper);
+
+.reanalysis-copy {
+  margin: 0 0 16px;
+  color: var(--mountain);
+  text-align: left;
 }
-.reanalysis-sheet {
-  text-align: center;
-}
-.reanalysis-sheet h2 {
-  margin: 12px 0 20px;
-  font-size: 20px;
-}
-.reanalysis-sheet > strong {
+.reanalysis-copy strong {
   display: block;
   font-size: 15px;
   line-height: 1.5;
+  text-align: center;
 }
-.reanalysis-sheet p {
-  max-width: 430px;
-  margin: 12px auto 32px;
+.reanalysis-copy p {
+  margin: 10px 0 0;
   color: rgba(36, 87, 90, 0.8);
   font-size: 13px;
   line-height: 1.55;
-  text-align: left;
 }
-.reanalysis-sheet .app-button {
-  width: 100%;
-  min-height: 48px;
-  border-radius: 18px;
-}
-.view-existing {
-  width: 100%;
-  min-height: 48px;
-  margin-top: 12px;
-  padding: 13px;
-  border: 1.2px solid rgba(36, 87, 90, 0.42);
-  border-radius: 18px;
-  background: transparent;
-  color: var(--mountain);
-  font-size: 15px;
-  font-weight: 800;
-}
-.selection-sheet {
-  max-height: 92dvh;
-  overflow-y: auto;
-  padding-inline: 20px;
-}
-.selection-sheet h2 {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin: 12px 0;
-  font-size: 20px;
-}
-.selection-divider {
-  height: 1px;
-  margin: 0 0 16px;
-  background: rgba(190, 164, 103, 0.22);
-}
+
 .balance-card {
   display: flex;
   align-items: center;
@@ -375,145 +331,43 @@ async function editChart() {
 .analysis-options {
   margin-top: 16px;
 }
-.analysis-option {
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-  margin-bottom: 12px;
-  padding: 12px 14px;
-  border: 2px solid rgba(36, 87, 90, 0.2);
-  border-radius: 18px;
-  background: var(--cloud, rgba(255, 255, 255, 0.5));
-  transition: 0.16s ease;
-}
-.analysis-option.selected {
-  border-color: rgba(36, 87, 90, 0.4);
-  background: rgba(107, 166, 160, 0.1);
-}
-.analysis-option input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-.analysis-option > i {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border: 2px solid rgba(36, 87, 90, 0.42);
-  border-radius: 50%;
-  color: white;
-  font-size: 14px;
-  font-style: normal;
-  font-weight: 900;
-}
-.analysis-option.selected > i {
-  border-color: var(--mountain);
-  background: var(--mountain);
-}
-.option-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--mountain);
-  font-size: 16px;
-  font-weight: 600;
-}
-.option-title em {
-  padding: 2px 6px;
-  border-radius: 6px;
-  background: rgba(107, 166, 160, 0.16);
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 800;
-}
-.analysis-option small {
-  display: block;
-  margin-top: 3px;
-  color: rgba(36, 87, 90, 0.58);
-  font-size: 12px;
-  line-height: 1.35;
-}
-.analysis-option > b {
-  color: var(--cinnabar);
-  font-size: 14px;
-  white-space: nowrap;
-}
+
 .selection-cost {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 12px 0 20px;
+  margin: 12px 0px;
   color: var(--mountain);
 }
 .selection-cost > b {
   color: var(--cinnabar);
-  font-size: 20px;
-  font-weight: 900;
+  font-size: 18px;
+  font-weight: 700;
 }
+
 .selection-start {
   width: 100%;
   min-height: 48px;
   border-radius: 16px;
   font-size: 15px;
 }
-.selection-existing {
+
+.view-existing {
+  width: 100%;
+  min-height: 48px;
   margin-top: 8px;
+  padding: 13px;
+  border: 1.2px solid rgba(36, 87, 90, 0.42);
   border-radius: 16px;
-}
-.chart-screen {
-  display: flex;
-  flex-direction: column;
-  height: 100dvh;
-  min-height: 0;
-  overflow: hidden;
-}
-.chart-content {
-  flex: 1 1 auto;
-  height: auto;
-  min-height: 0;
-  overflow: hidden;
-}
-.selection-divider {
-  height: auto;
-  margin-bottom: 0;
-  border-top: 1px solid rgba(190, 164, 103, 0.22);
   background: transparent;
-}
-.selection-divider::after {
-  content: "系統會依照您選擇的項目建立獨立報告。建議一次選擇本命、宮位與大運，獲得最完整的人生報告。";
-  display: block;
-  height: auto;
-  margin: 14px 0 16px;
   color: var(--mountain);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.5;
-  text-align: left;
+  font-size: 15px;
+  font-weight: 800;
 }
+
 @media (max-width: 759px) {
   .chart-screen {
     height: calc(100dvh - 72px - env(safe-area-inset-bottom));
-  }
-}
-@media (max-width: 380px) {
-  .selection-sheet {
-    padding-inline: 14px;
-  }
-  .analysis-option {
-    grid-template-columns: 22px minmax(0, 1fr);
-    gap: 8px;
-    padding: 10px;
-  }
-  .analysis-option > b {
-    grid-column: 2;
-  }
-  .option-title {
-    font-size: 15px;
-  }
-  .selection-divider::after {
-    font-size: 13px;
   }
 }
 </style>

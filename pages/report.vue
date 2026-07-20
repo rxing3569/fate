@@ -117,27 +117,26 @@ const categories: {
 }[] = [
   {
     id: "general",
-    label: "本命",
-    title: "尚未生成本命解析",
+    label: "先天命格",
+    title: "尚未生成「先天命格」解析",
     description:
-      "排定十二宮星曜，深度解析您的本命格局、個性特質、先天運勢與人生藍圖。",
-    button: "開始本命解析",
+      "深度解析您的「先天命格」，人格特質、天賦才華、適合從業，探索自己人生藍圖。",
+    button: "開始解析",
   },
   {
     id: "palace_detail",
-    label: "宮位",
-    title: "尚未生成宮位解析",
+    label: "宮位詳解",
+    title: "尚未生成「宮位詳解」解析",
     description:
       "逐宮推演父母、兄弟、夫妻、子女、財帛、交友、官祿、田宅與福德等宮位詳解。",
-    button: "開始宮位解析",
+    button: "開始解析",
   },
   {
     id: "ten_year",
-    label: "大運",
-    title: "尚未生成大運解析",
-    description:
-      "結合本命與大運星曜交會，細推每十年大限的事業、感情、財運起伏與關鍵機遇。",
-    button: "開始大運解析",
+    label: "十年大運",
+    title: "尚未生成「十年大運」解析",
+    description: "細推您每十年大限的事業、感情、財運起伏與關鍵機遇。",
+    button: "開始解析",
   },
 ];
 const currentMeta = computed(
@@ -776,7 +775,6 @@ function closeDetail() {
   if (location.hash.includes("detail")) history.back();
   else selectedDetail.value = null;
 }
-
 </script>
 
 <template>
@@ -844,7 +842,7 @@ function closeDetail() {
     >
       <Sparkles
         :size="15"
-      />正在依序生成本命、宮位與大運解析；輪到該項開始時才會扣除額度或點數
+      />正在依序生成「先天命格」、「宮位詳解」與「十年大運」解析；輪到該項開始時才會扣除額度或點數
     </div>
 
     <main v-if="!selectedDetail" class="report-body">
@@ -994,10 +992,7 @@ function closeDetail() {
     </main>
 
     <section v-else class="detail-page" aria-label="命盤解析詳細內容">
-      <main
-        ref="detailContent"
-        class="inline-detail-body"
-      >
+      <main ref="detailContent" class="inline-detail-body">
         <section class="inline-detail-surface glass">
           <MarkdownContent v-if="detailBefore" :source="detailBefore" />
           <aside v-if="detailSummary" class="inline-summary-box">
@@ -1018,7 +1013,11 @@ function closeDetail() {
     />
 
     <AppBottomSheet :open="showConfirm" @close="showConfirm = false">
-      <template #header><h2>{{ isRecalculate ? "確認重新解盤" : `開始${currentMeta.label}解析` }}</h2></template>
+      <template #header
+        ><h2>
+          {{ isRecalculate ? "確認重新解盤" : `開始${currentMeta.label}解析` }}
+        </h2></template
+      >
       <template v-if="isRecalculate"
         ><strong class="confirm-summary">{{
           auth.premium
@@ -1127,7 +1126,11 @@ function closeDetail() {
       labelledby="full-analysis-title"
       @close="showFullConfirm = false"
     >
-      <template #header><h2 id="full-analysis-title">{{ isFirstFullAnalysis ? "一次完成三種命盤解析" : "AI 全盤解析" }}</h2></template>
+      <template #header
+        ><h2 id="full-analysis-title">
+          {{ isFirstFullAnalysis ? "一次完成三種命盤解析" : "AI 全盤解析" }}
+        </h2></template
+      >
       <p v-if="isFirstFullAnalysis">
         建議首次一次完成本命、宮位與大運解析，能更完整地認識命盤。
       </p>
