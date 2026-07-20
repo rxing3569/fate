@@ -122,10 +122,34 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe>`,
     },
     workbox: {
       navigateFallback: '/',
+      navigateFallbackDenylist: [
+        /\/[^/?]+\.[^/]+$/,
+        /^\/__sitemap__\//,
+      ],
       cleanupOutdatedCaches: true,
       clientsClaim: true,
       skipWaiting: true,
       globPatterns: ['**/*.{js,css,html,png,svg,ico,json,txt,md,woff2,otf}'],
+      manifestTransforms: [
+        async entries => ({
+          manifest: entries.map((entry) => {
+            if (entry.url === 'index.html' || entry.url === '/index.html') {
+              return { ...entry, url: '/' }
+            }
+
+            if (entry.url.endsWith('/index.html')) {
+              return { ...entry, url: entry.url.slice(0, -'index.html'.length) }
+            }
+
+            if (entry.url.endsWith('.html')) {
+              return { ...entry, url: entry.url.slice(0, -'.html'.length) }
+            }
+
+            return entry
+          }),
+          warnings: [],
+        }),
+      ],
     },
   },
 })
