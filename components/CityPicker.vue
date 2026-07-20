@@ -38,38 +38,36 @@ function choose(city: CityOption) {
       <ChevronDown :size="20" aria-hidden="true" />
     </button>
 
-    <Teleport to="body">
-      <AppBottomSheet
-        :open="open"
-        height-mode="viewport"
-        sheet-class="city-sheet"
-        content-class="city-sheet-content"
-        labelledby="city-picker-title"
-        @close="open = false"
-      >
-        <template #header>
-          <header class="city-sheet-header"><LocateFixed :size="21" /><strong id="city-picker-title">選擇出生城市</strong></header>
-        </template>
-        <div class="city-sheet-body">
-            <label class="city-search"><Search :size="19" aria-hidden="true" /><input v-model="query" type="search" placeholder="搜尋城市、國家或代碼" autocomplete="off"></label>
-            <div class="city-other">
-              <button class="city-option" type="button" :class="{ selected: normalizedValue === 'OTHER' }" @click="choose(otherCity)">
-                <span class="city-pin"><MapPin :size="18" /></span>
-                <span><strong>{{ otherCity.name }}</strong><small>搜尋不到時可自行輸入經度</small></span>
-                <Check v-if="normalizedValue === 'OTHER'" :size="20" aria-hidden="true" />
-              </button>
-            </div>
-            <div class="city-list" data-sheet-scroll>
-              <button v-for="city in filtered" :key="city.id" class="city-option" type="button" :class="{ selected: city.id === normalizedValue }" @click="choose(city)">
-                <span class="city-pin"><MapPin :size="18" /></span>
-                <span><strong>{{ city.name }}</strong><small>{{ `${city.id} · 經度 ${city.lng.toFixed(2)}°` }}</small></span>
-                <Check v-if="city.id === normalizedValue" :size="20" aria-hidden="true" />
-              </button>
-              <p v-if="!filtered.length">找不到符合的城市</p>
-            </div>
+    <AppBottomSheet
+      :open="open"
+      height-mode="viewport"
+      sheet-class="city-sheet"
+      content-class="city-sheet-content"
+      labelledby="city-picker-title"
+      @close="open = false"
+    >
+      <template #header>
+        <header class="city-sheet-header"><LocateFixed :size="21" /><strong id="city-picker-title">選擇出生城市</strong></header>
+      </template>
+      <div class="city-sheet-body">
+        <label class="city-search"><Search :size="19" aria-hidden="true" /><input v-model="query" type="search" placeholder="搜尋城市、國家或代碼" autocomplete="off"></label>
+        <div class="city-other">
+          <button class="city-option" type="button" :class="{ selected: normalizedValue === 'OTHER' }" @click="choose(otherCity)">
+            <span class="city-pin"><MapPin :size="18" /></span>
+            <span><strong>{{ otherCity.name }}</strong><small>搜尋不到時可自行輸入經度</small></span>
+            <Check v-if="normalizedValue === 'OTHER'" :size="20" aria-hidden="true" />
+          </button>
         </div>
-      </AppBottomSheet>
-    </Teleport>
+        <div class="city-list" data-sheet-scroll>
+          <button v-for="city in filtered" :key="city.id" class="city-option" type="button" :class="{ selected: city.id === normalizedValue }" @click="choose(city)">
+            <span class="city-pin"><MapPin :size="18" /></span>
+            <span><strong>{{ city.name }}</strong><small>{{ `${city.id} · 經度 ${city.lng.toFixed(2)}°` }}</small></span>
+            <Check v-if="city.id === normalizedValue" :size="20" aria-hidden="true" />
+          </button>
+          <p v-if="!filtered.length">找不到符合的城市</p>
+        </div>
+      </div>
+    </AppBottomSheet>
   </div>
 </template>
 

@@ -498,6 +498,13 @@ function rememberScroll() {
     reportContent.value?.scrollTop || 0;
 }
 
+async function restoreReportScroll() {
+  await nextTick();
+  if (reportContent.value)
+    reportContent.value.scrollTop =
+      categoryScrollPositions[activeCategory.value] || 0;
+}
+
 async function start(
   usePointsOverride?: boolean,
   retryIncomplete = false,
@@ -763,6 +770,7 @@ function extractSummary(content: string) {
 }
 
 function openDetail(section: { title: string; content: string }) {
+  rememberScroll();
   const detail = {
     title: section.title || `${currentMeta.value.label}解析`,
     content: section.content,
@@ -776,13 +784,18 @@ function openDetail(section: { title: string; content: string }) {
   );
 }
 
-function handleDetailHistory() {
-  if (!location.hash.includes("detail")) selectedDetail.value = null;
+async function handleDetailHistory() {
+  if (location.hash.includes("detail")) return;
+  selectedDetail.value = null;
+  await restoreReportScroll();
 }
 
-function closeDetail() {
+async function closeDetail() {
   if (location.hash.includes("detail")) history.back();
-  else selectedDetail.value = null;
+  else {
+    selectedDetail.value = null;
+    await restoreReportScroll();
+  }
 }
 </script>
 

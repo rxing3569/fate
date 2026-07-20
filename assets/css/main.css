@@ -331,7 +331,7 @@ button {
 }
 .login-sheet {
   width: min(100%, 680px);
-  padding: 12px 24px calc(30px + env(safe-area-inset-bottom));
+  padding: 12px 24px max(30px, env(safe-area-inset-bottom));
   border-radius: 32px 32px 0 0;
   background: var(--paper);
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.07);

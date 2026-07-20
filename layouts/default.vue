@@ -20,7 +20,38 @@ const tabs = [
   { to: "/member", label: "會員中心", icon: UserRound, gated: true },
 ];
 
-const showTabs = true;
+const navigationHiddenRoutes = new Set([
+  "/chart",
+  "/report",
+  "/report-detail",
+  "/flow",
+  "/match",
+  "/qa",
+]);
+const normalizedPath = computed(() =>
+  route.path === "/" ? "/" : route.path.replace(/\/+$/, ""),
+);
+const showTabs = computed(() => {
+  if (navigationHiddenRoutes.has(normalizedPath.value)) return false;
+  if (
+    normalizedPath.value === "/profile/edit" &&
+    route.query.from === "chart"
+  )
+    return false;
+  if (
+    normalizedPath.value === "/ai-analysis" &&
+    typeof route.query.mode === "string" &&
+    route.query.mode.length > 0
+  )
+    return false;
+  return true;
+});
+const showFooter = computed(
+  () =>
+    normalizedPath.value === "/" ||
+    normalizedPath.value === "/articles" ||
+    normalizedPath.value.startsWith("/articles/"),
+);
 
 onMounted(async () => {
   window.addEventListener("auth-login-required", openLoginSheet);
@@ -113,7 +144,7 @@ function isTabActive(path: string) {
     <OfflineStatusBanner />
     <main class="app-main" :class="{ 'with-tabs': showTabs }">
       <slot />
-      <SiteFooter v-if="showTabs" />
+      <SiteFooter v-if="showFooter" />
       <AppBottomSheet
         :open="Boolean(auth.pendingLearningProgressSync)"
         role="alertdialog"

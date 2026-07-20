@@ -156,58 +156,60 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <Transition name="sheet">
-    <div
-      v-if="open"
-      class="sheet-backdrop app-bottom-sheet-backdrop"
-      :style="{
-        '--sheet-viewport-height': viewportHeight
-          ? `${viewportHeight}px`
-          : '100dvh',
-        '--sheet-content-max-height': viewportHeight
-          ? `${Math.round(viewportHeight * 0.65)}px`
-          : '65dvh',
-        '--sheet-viewport-offset-top': `${viewportOffsetTop}px`,
-      }"
-      @click.self="closeFromBackdrop"
-    >
-      <section
-        ref="sheet"
-        class="app-bottom-sheet"
-        :class="[
-          sheetClass,
-          {
-            'is-dragging': dragging,
-            'is-viewport-height': heightMode === 'viewport',
-          },
-        ]"
-        :style="{ '--sheet-drag-y': `${dragOffset}px` }"
-        :role="role"
-        aria-modal="true"
-        :aria-labelledby="labelledby"
+  <Teleport to="body">
+    <Transition name="sheet">
+      <div
+        v-if="open"
+        class="sheet-backdrop app-bottom-sheet-backdrop"
+        :style="{
+          '--sheet-viewport-height': viewportHeight
+            ? `${viewportHeight}px`
+            : '100dvh',
+          '--sheet-content-max-height': viewportHeight
+            ? `${Math.round(viewportHeight * 0.65)}px`
+            : '65dvh',
+          '--sheet-viewport-offset-top': `${viewportOffsetTop}px`,
+        }"
+        @click.self="closeFromBackdrop"
       >
-        <div
-          class="app-bottom-sheet-drag-region"
-          @pointerdown="startDrag"
-          @pointermove="moveDrag"
-          @pointerup="finishDrag"
-          @pointercancel="cancelDrag"
-          @lostpointercapture="handleLostPointerCapture"
-          @click.capture="handleClick"
+        <section
+          ref="sheet"
+          class="app-bottom-sheet"
+          :class="[
+            sheetClass,
+            {
+              'is-dragging': dragging,
+              'is-viewport-height': heightMode === 'viewport',
+            },
+          ]"
+          :style="{ '--sheet-drag-y': `${dragOffset}px` }"
+          :role="role"
+          aria-modal="true"
+          :aria-labelledby="labelledby"
         >
-          <div class="sheet-handle" aria-hidden="true" />
-          <slot name="header" />
-        </div>
-        <div
-          class="app-bottom-sheet-content"
-          :class="contentClass"
-          data-sheet-scroll
-        >
-          <slot />
-        </div>
-      </section>
-    </div>
-  </Transition>
+          <div
+            class="app-bottom-sheet-drag-region"
+            @pointerdown="startDrag"
+            @pointermove="moveDrag"
+            @pointerup="finishDrag"
+            @pointercancel="cancelDrag"
+            @lostpointercapture="handleLostPointerCapture"
+            @click.capture="handleClick"
+          >
+            <div class="sheet-handle" aria-hidden="true" />
+            <slot name="header" />
+          </div>
+          <div
+            class="app-bottom-sheet-content"
+            :class="contentClass"
+            data-sheet-scroll
+          >
+            <slot />
+          </div>
+        </section>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -215,11 +217,14 @@ onBeforeUnmount(() => {
   inset: auto 0 auto;
   top: var(--sheet-viewport-offset-top, 0);
   height: var(--sheet-viewport-height, 100dvh);
+  min-height: 0;
 }
 .app-bottom-sheet {
   box-sizing: border-box;
   display: flex;
+  flex: 0 0 auto;
   flex-direction: column;
+  height: auto;
   width: min(100%, 680px);
   max-height: var(--sheet-content-max-height, 65dvh);
   overflow: hidden;
@@ -234,6 +239,7 @@ onBeforeUnmount(() => {
   will-change: transform;
 }
 .app-bottom-sheet.is-viewport-height {
+  flex: 0 1 auto;
   height: min(75%, 720px);
   max-height: calc(100% - max(16px, env(safe-area-inset-top)));
   padding-bottom: max(12px, env(safe-area-inset-bottom));

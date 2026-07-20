@@ -10,9 +10,14 @@ useSeoMeta({
   ogTitle: "免費紫微斗數排盤與 AI 解盤｜江映澄紫微",
   ogDescription: "免費建立紫微斗數命盤，查看十二宮星曜並使用 AI 進行多種解析。",
 });
-const active = ref<string | null>(
-  route.query.mode === "chart" ? "chart" : null,
-);
+const featureModes = new Set(["chart", "report", "flow", "match", "qa"]);
+const routeMode = computed(() => {
+  const value = Array.isArray(route.query.mode)
+    ? route.query.mode[0]
+    : route.query.mode;
+  return typeof value === "string" && featureModes.has(value) ? value : null;
+});
+const active = ref<string | null>(routeMode.value);
 const savingBirth = ref(false);
 const birthError = ref("");
 const pendingBirthInfo = ref<
@@ -31,6 +36,22 @@ const redirectAfterBirth = computed(() => {
 onMounted(() => {
   chartStore.hydrate(auth.profile);
 });
+watch(routeMode, (value) => {
+  active.value = value;
+});
+
+async function enterMode(mode: string) {
+  active.value = mode;
+  await navigateTo({
+    path: "/ai-analysis",
+    query: { ...route.query, mode },
+  });
+}
+
+async function leaveMode() {
+  active.value = null;
+  await navigateTo("/ai-analysis", { replace: true });
+}
 
 const birthDate = computed(() => {
   const info = chartStore.birthInfo;
@@ -83,7 +104,7 @@ function openFeature(feature: (typeof features)[number]) {
     return;
   }
   if (!chartStore.chart) {
-    active.value = feature.id;
+    enterMode(feature.id);
     return;
   }
   navigateTo(feature.to);
@@ -91,7 +112,7 @@ function openFeature(feature: (typeof features)[number]) {
 
 function openChart() {
   if (!chartStore.chart) {
-    active.value = "chart";
+    enterMode("chart");
     return;
   }
   navigateTo("/chart");
@@ -177,7 +198,7 @@ async function confirmBirthChange() {
         class="icon-button"
         type="button"
         aria-label="返回"
-        @click="active = null"
+        @click="leaveMode"
       >
         <ChevronLeft :size="23" /></button
       ><span v-else />
@@ -187,7 +208,7 @@ async function confirmBirthChange() {
         v-if="!active"
         class="edit-chart"
         type="button"
-        @click="active = 'chart'"
+        @click="enterMode('chart')"
       >
         修改命盤 <AppMaterialIcon name="edit_rounded" :size="16" /></button
       ><span v-else />
