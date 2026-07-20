@@ -48,6 +48,8 @@ export default defineNuxtConfig({
         'X-Robots-Tag': 'noindex, nofollow, noarchive, nosnippet',
       },
     },
+    '/cms': { ssr: false, headers: { 'X-Robots-Tag': 'noindex, nofollow, noarchive, nosnippet' } },
+    '/cms/**': { ssr: false, headers: { 'X-Robots-Tag': 'noindex, nofollow, noarchive, nosnippet' } },
   },
   modules: process.env.NUXT_DISABLE_PWA === '1'
     ? ['@pinia/nuxt', '@nuxtjs/sitemap']
@@ -58,6 +60,7 @@ export default defineNuxtConfig({
   },
   sitemap: {
     exclude: [
+      '/cms/**',
       '/chart',
       '/flow',
       '/issue-report',
@@ -82,7 +85,7 @@ export default defineNuxtConfig({
       apiBase: process.env.NUXT_PUBLIC_API_BASE || '/api',
       wsAnalyzeUrl: process.env.NUXT_PUBLIC_WS_ANALYZE_URL || 'ws://localhost:3000/ws/analyze',
       appName: process.env.NUXT_PUBLIC_APP_NAME || '紫微斗數',
-      appVersion: process.env.NUXT_PUBLIC_APP_VERSION || '1.0.0',
+      appVersion: process.env.NUXT_PUBLIC_APP_VERSION || '1.1.0',
       googleWebClientId: process.env.NUXT_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
     },
   },
@@ -145,6 +148,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe>`,
     workbox: {
       navigateFallback: '/',
       navigateFallbackDenylist: [
+        /^\/cms(?:\/|$)/,
         /\/[^/?]+\.[^/]+$/,
         /^\/__sitemap__\//,
       ],
@@ -152,6 +156,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe>`,
       clientsClaim: true,
       skipWaiting: true,
       globPatterns: ['**/*.{js,css,html,png,svg,ico,json,txt,md,woff2,otf}'],
+      globIgnores: ['cms/**'],
       manifestTransforms: [
         async entries => ({
           manifest: entries.map((entry) => {

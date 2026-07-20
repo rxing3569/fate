@@ -2,6 +2,7 @@
 const route = useRoute()
 const privateRoutes = new Set([
   '/chart',
+  '/cms',
   '/flow',
   '/issue-report',
   '/login',

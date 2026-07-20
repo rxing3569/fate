@@ -27,9 +27,26 @@ function apiBase() {
   return useRuntimeConfig().public.apiBase.replace(/\/$/, '')
 }
 
-function notifyApiError(message: string) {
+type ApiErrorNotification = {
+  message: string
+  title?: string
+  duration?: number
+}
+
+function notifyApiError(notification: string | ApiErrorNotification) {
   if (!import.meta.client) return
-  window.dispatchEvent(new CustomEvent('api-error-snackbar', { detail: { message } }))
+  const detail = typeof notification === 'string' ? { message: notification } : notification
+  window.dispatchEvent(new CustomEvent('api-error-snackbar', { detail }))
+}
+
+function getSuspendedAccountMessage(payload: unknown) {
+  if (!payload || typeof payload !== 'object') return null
+  const errorPayload = payload as { error?: unknown, reason?: unknown }
+  if (errorPayload.error !== 'account_suspended') return null
+  const reason = typeof errorPayload.reason === 'string' ? errorPayload.reason.trim() : ''
+  return reason
+    ? `此帳號目前已停權，暫時無法登入。停權原因：${reason}`
+    : '此帳號目前已停權，暫時無法登入；如有疑問請聯絡客服。'
 }
 
 async function parseResponse(response: Response) {
@@ -208,13 +225,18 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
       const cached = await useSnapshot()
       if (cached) return cached.payload
     }
-    const message = typeof payload === 'object' && payload && ('error' in payload || 'message' in payload)
-      ? String((payload as { error?: unknown, message?: unknown }).error || (payload as { message?: unknown }).message)
+    const suspendedMessage = response.status === 403 ? getSuspendedAccountMessage(payload) : null
+    const message = suspendedMessage || (typeof payload === 'object' && payload && ('error' in payload || 'message' in payload)
+      ? String((payload as { error?: unknown, message?: unknown }).message || (payload as { error?: unknown }).error)
       : response.status === 401 ? '登入狀態已失效，請重新登入。'
         : response.status === 403 ? '您目前沒有執行此操作的權限。'
           : response.status >= 500 ? '伺服器暫時發生錯誤，請稍後再試。'
-            : `請求發生錯誤（${response.status}）`
-    if (notifyError) notifyApiError(message)
+            : `請求發生錯誤（${response.status}）`)
+    if (notifyError) {
+      notifyApiError(suspendedMessage
+        ? { title: '帳號已停權', message: suspendedMessage, duration: 8000 }
+        : message)
+    }
     throw new ApiError(response.status, message, payload)
   }
   return payload as T
