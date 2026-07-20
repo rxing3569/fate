@@ -249,34 +249,28 @@ function starDescription(star: string, palaceName: string) {
       </section>
     </div>
 
-    <Transition name="sheet">
-      <div
-        v-if="selectedPalace && showPalaceDetail"
-        class="palace-backdrop"
-        @click.self="showPalaceDetail = false"
-      >
-        <section class="palace-sheet" role="dialog" aria-modal="true">
-          <div class="sheet-handle" />
-          <header>
-            <h2>
-              {{ fullPalaceName(selectedPalace.name) }} ({{
-                selectedPalace.branch
-              }})
-            </h2>
-            <button
-              class="sheet-analysis-button"
-              type="button"
-              @click="
-                showPalaceDetail = false;
-                emit('fullAnalysis');
-              "
-            >
-              <AppMaterialIcon name="auto_awesome_rounded" :size="14" />AI
-              全盤解析
-            </button>
-          </header>
+    <AppBottomSheet
+      :open="Boolean(selectedPalace && showPalaceDetail)"
+      content-class="palace-sheet-content"
+      @close="showPalaceDetail = false"
+    >
+      <template v-if="selectedPalace" #header>
+        <header class="palace-sheet-header">
+          <h2>
+            {{ fullPalaceName(selectedPalace.name) }} ({{ selectedPalace.branch }})
+          </h2>
+          <button
+            class="sheet-analysis-button"
+            type="button"
+            @click="showPalaceDetail = false; emit('fullAnalysis')"
+          >
+            <AppMaterialIcon name="auto_awesome_rounded" :size="14" />AI 全盤解析
+          </button>
+        </header>
+      </template>
+      <div v-if="selectedPalace" class="palace-sheet">
           <div class="sheet-divider" />
-          <div class="sheet-scroll">
+          <div class="sheet-scroll" data-sheet-scroll>
             <h3>大小限虛歲</h3>
             <div class="limits">
               <p>
@@ -348,9 +342,8 @@ function starDescription(star: string, palaceName: string) {
               <p>{{ starDescription(star, selectedPalace.name) }}</p>
             </article>
           </div>
-        </section>
       </div>
-    </Transition>
+    </AppBottomSheet>
   </div>
 </template>
 
@@ -539,28 +532,17 @@ function starDescription(star: string, palaceName: string) {
 }
 
 /* Palace detail sheet */
-.palace-backdrop {
-  position: fixed;
-  z-index: 80;
-  inset: 0;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  background: rgba(21, 43, 43, 0.44);
-}
 .palace-sheet {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  width: min(100%, 680px);
-  height: 60dvh;
-  max-height: 60dvh;
+  width: 100%;
+  height: calc(60dvh - 42px);
   overflow: hidden;
   padding: 0;
-  border-radius: 32px 32px 0 0;
-  background: var(--paper);
+  background: transparent;
 }
-.palace-sheet header {
+.palace-sheet-header {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
@@ -568,7 +550,7 @@ function starDescription(star: string, palaceName: string) {
   gap: 12px;
   padding: 0 20px 10px;
 }
-.palace-sheet h2 {
+.palace-sheet-header h2 {
   min-width: 0;
   margin: 0;
   font-size: 20px;
@@ -725,10 +707,6 @@ function starDescription(star: string, palaceName: string) {
     linear-gradient(rgba(179, 62, 50, 0.08), rgba(179, 62, 50, 0.08)),
     #fff;
   box-shadow: inset 0 0 0 0.5px rgba(179, 62, 50, 0.16);
-}
-.palace-sheet > .sheet-handle {
-  flex: 0 0 auto;
-  margin-block: 12px;
 }
 .sheet-analysis-button {
   display: flex;

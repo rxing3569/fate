@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { ArrowUp, BookOpen, Home, Newspaper, UserRound } from "@lucide/vue";
+import { BookOpen, Home, Newspaper, UserRound } from "@lucide/vue";
 const route = useRoute();
 const auth = useAuthStore();
 const activeAnalysis = useActiveAnalysisStore();
 const showLoginSheet = ref(false);
 const loginRedirect = ref("/");
-const showGoToTop = ref(false);
 const learningSyncing = ref(false);
 
 const tabs = [
@@ -27,8 +26,6 @@ onMounted(async () => {
   window.addEventListener("auth-login-required", openLoginSheet);
   window.addEventListener("offline-snapshot-used", handleOfflineSnapshot);
   window.addEventListener("online", handleOnline);
-  window.addEventListener("scroll", updateGoToTop, { passive: true });
-  updateGoToTop();
   const isAuthenticated = await auth.hydrate();
   if (isAuthenticated) await activeAnalysis.hydrate();
   else activeAnalysis.reset();
@@ -38,7 +35,6 @@ onBeforeUnmount(() => {
   window.removeEventListener("auth-login-required", openLoginSheet);
   window.removeEventListener("offline-snapshot-used", handleOfflineSnapshot);
   window.removeEventListener("online", handleOnline);
-  window.removeEventListener("scroll", updateGoToTop);
 });
 
 async function acceptLearningProgressSync() {
@@ -58,17 +54,6 @@ function handleOfflineSnapshot(event: Event) {
 
 function handleOnline() {
   auth.leaveOfflineFallback();
-}
-
-function updateGoToTop() {
-  showGoToTop.value = window.scrollY >= 120;
-}
-
-function goToTop() {
-  const reduceMotion = window.matchMedia(
-    "(prefers-reduced-motion: reduce)",
-  ).matches;
-  window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
 }
 
 function openLoginSheet(event?: Event) {
@@ -136,7 +121,7 @@ function isTabActive(path: string) {
         :close-on-backdrop="false"
         locked
       >
-        <h2 id="learning-sync-title">同步學習進度？</h2>
+        <template #header><h2 id="learning-sync-title">同步學習進度？</h2></template>
         <p>偵測到登入前已完成的學習關卡。是否將這些進度合併到目前帳號？同步後只會增加，不會覆蓋帳號原有進度。</p>
         <div class="learning-sync-actions">
           <button
@@ -159,17 +144,9 @@ function isTabActive(path: string) {
       </AppBottomSheet>
     </main>
 
-    <Transition name="go-to-top">
-      <button
-        v-if="showTabs && showGoToTop"
-        class="go-to-top"
-        type="button"
-        aria-label="回到頁面頂端"
-        @click="goToTop"
-      >
-        <ArrowUp :size="21" aria-hidden="true" />
-      </button>
-    </Transition>
+    <AppGoToTop
+      v-if="showTabs && !['/report', '/report/'].includes(route.path)"
+    />
 
     <nav v-if="showTabs" class="primary-nav" aria-label="主要功能">
       <NuxtLink class="nav-brand" to="/" aria-label="江映澄紫微首頁">
@@ -212,21 +189,13 @@ function isTabActive(path: string) {
       <div class="nav-footer"><span>AI 打造的紫微解析與學習平台</span></div>
     </nav>
 
-    <Transition name="sheet">
-      <div
-        v-if="showLoginSheet"
-        class="sheet-backdrop content-sheet-backdrop"
-        @click.self="showLoginSheet = false"
-      >
-        <section
-          class="login-sheet"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="login-sheet-title"
-        >
-          <div class="sheet-handle" />
-          <img class="sheet-logo" src="/remove-background-logo.png" alt="" />
-          <h2 id="login-sheet-title">開始探索紫微</h2>
+    <AppBottomSheet
+      :open="showLoginSheet"
+      sheet-class="login-sheet"
+      labelledby="login-sheet-title"
+      @close="showLoginSheet = false"
+    >
+          <template #header><img class="sheet-logo" src="/remove-background-logo.png" alt="" /><h2 id="login-sheet-title">開始探索紫微</h2></template>
           <p>
             命盤解析盤等 AI 功能需要登入帳號後方可使用。<br />立即註冊領取 300P
           </p>
@@ -248,43 +217,12 @@ function isTabActive(path: string) {
               >前往登入 / 註冊</NuxtLink
             >
           </div>
-        </section>
-      </div>
-    </Transition>
+    </AppBottomSheet>
 
   </div>
 </template>
 
 <style scoped>
-.go-to-top {
-  position: fixed;
-  z-index: calc(var(--layer-navigation) + 1);
-  right: max(16px, calc((100vw - 330px) / 2));
-  bottom: calc(84px + env(safe-area-inset-bottom));
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.78);
-  border-radius: 50%;
-  background: rgba(247, 243, 234, 0.86);
-  box-shadow: 0 10px 24px rgba(36, 87, 90, 0.2);
-  color: var(--mountain);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
-  backdrop-filter: blur(18px) saturate(150%);
-}
-.go-to-top-enter-active,
-.go-to-top-leave-active {
-  transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
-}
-.go-to-top-enter-from,
-.go-to-top-leave-to {
-  opacity: 0;
-  transform: translateY(10px) scale(0.9);
-}
 .learning-sync-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -293,10 +231,4 @@ function isTabActive(path: string) {
   margin-top: 18px;
 }
 .learning-sync-actions .app-button { width: 100%; }
-@media (min-width: 760px) {
-  .go-to-top {
-    right: 24px;
-    bottom: 24px;
-  }
-}
 </style>

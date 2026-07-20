@@ -556,7 +556,7 @@ function goBack() {
     </main>
 
     <AppBottomSheet :open="showConfirm" @close="showConfirm = false"
-      ><h2>確認執行時運解析</h2>
+      ><template #header><h2>確認執行時運解析</h2></template>
       <p>
         {{
           auth.premium
@@ -598,7 +598,7 @@ function goBack() {
       </div></AppBottomSheet
     >
     <AppBottomSheet :open="showFallback" @close="showFallback = false"
-      ><h2>會員月度額度已滿</h2>
+      ><template #header><h2>會員月度額度已滿</h2></template>
       <p>是否改為扣除 100 點數繼續本次時運解析？目前點數：{{ auth.points }}</p>
       <div class="sheet-actions">
         <button

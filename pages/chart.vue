@@ -157,9 +157,7 @@ async function editChart() {
       :open="showAnalysisSelection"
       @close="showAnalysisSelection = false"
     >
-          <h2>
-            {{ completedCategories.size ? "是否重新解盤" : "AI 全盤解析" }}
-          </h2>
+          <template #header><h2>{{ completedCategories.size ? "是否重新解盤" : "AI 全盤解析" }}</h2></template>
           <div class="selection-divider" />
           <div v-if="completedCategories.size" class="reanalysis-copy">
             <strong

@@ -617,7 +617,7 @@ function handleKeydown(event: KeyboardEvent) {
       :locked="resettingConversation"
       @close="showResetConfirm = false"
     >
-      <h2 id="qa-reset-title">確定要重新提問？</h2>
+      <template #header><h2 id="qa-reset-title">確定要重新提問？</h2></template>
       <p>
         目前問題的所有對話紀錄將被放棄並刪除，系統不會繼續保存。開啟新對話後，首次提問將重新消耗會員額度
         1 次。
@@ -643,7 +643,7 @@ function handleKeydown(event: KeyboardEvent) {
     </AppBottomSheet>
 
     <AppBottomSheet :open="showQuotaConfirm" @close="showQuotaConfirm = false">
-      <h2>確認使用 AI 問答</h2>
+      <template #header><h2>確認使用 AI 問答</h2></template>
       <p>本次操作將消耗會員額度 1 次，且後續最多可追問十次，不重複扣除額度。</p>
       <div class="quota-row">
         <Coins :size="18" />
@@ -666,7 +666,7 @@ function handleKeydown(event: KeyboardEvent) {
       :open="showPointsFallback"
       @close="showPointsFallback = false"
     >
-      <h2>會員月度額度已滿</h2>
+      <template #header><h2>會員月度額度已滿</h2></template>
       <p>是否改為扣除 100 點數繼續本次 AI 問答？目前點數：{{ auth.points }}</p>
       <div class="sheet-actions">
         <button

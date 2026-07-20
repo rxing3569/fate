@@ -10,10 +10,7 @@ import {
   Sparkles,
   X,
 } from "@lucide/vue";
-import {
-  learningStages,
-  stageLabel,
-} from "~/utils/learning";
+import { learningStages, stageLabel } from "~/utils/learning";
 
 type Question = {
   text: string;
@@ -89,6 +86,11 @@ const loading = ref(false);
 const error = ref("");
 const showExit = ref(false);
 const showCustomSheet = ref(false);
+const feedbackOpen = computed(
+  () => view.value === "quiz" && Boolean(selected.value),
+);
+
+useBodyScrollLock(feedbackOpen);
 
 function shuffle<T>(values: T[]) {
   const result = [...values];
@@ -563,14 +565,14 @@ watch(
       </div>
     </main>
 
-    <div
-      v-if="showExit"
-      class="exit-backdrop content-sheet-backdrop"
-      @click.self="showExit = false"
+    <AppBottomSheet
+      :open="showExit"
+      role="alertdialog"
+      labelledby="quiz-exit-title"
+      @close="showExit = false"
     >
-      <section>
-        <CircleHelp :size="44" />
-        <h2>確定退出測驗？</h2>
+      <template #header><h2 id="quiz-exit-title">確定退出測驗？</h2></template>
+      <section class="exit-sheet">
         <p>退出後，本次測驗的進度將不會被保存。</p>
         <div>
           <button
@@ -584,64 +586,57 @@ watch(
           </button>
         </div>
       </section>
-    </div>
+    </AppBottomSheet>
 
-    <Transition name="sheet">
-      <div
-        v-if="showCustomSheet"
-        class="custom-sheet-backdrop"
-        @click.self="showCustomSheet = false"
-      >
-        <section
-          class="custom-sheet"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="custom-sheet-title"
-        >
-          <span class="sheet-handle" />
-          <header>
-            <div>
-              <small>測驗挑戰</small>
-              <h2 id="custom-sheet-title">自訂題庫範圍</h2>
-            </div>
-            <button
-              class="icon-button"
-              type="button"
-              aria-label="關閉自訂題庫"
-              @click="showCustomSheet = false"
-            >
-              <X :size="21" />
-            </button>
-          </header>
-          <div class="custom-course-list">
-            <label
-              v-for="course in courseStages"
-              :key="course.id"
-              :class="{ selected: customIds.includes(course.id) }"
-            >
-              <input v-model="customIds" type="checkbox" :value="course.id" />
-              <span
-                ><small>課程 {{ course.id.replace("_", "-") }}</small
-                ><strong>{{ course.title }}</strong></span
-              >
-              <Check :size="17" />
-            </label>
+    <AppBottomSheet
+      :open="showCustomSheet"
+      labelledby="custom-sheet-title"
+      :locked="loading"
+      @close="showCustomSheet = false"
+    >
+      <template #header>
+        <header class="custom-sheet-header">
+          <div>
+            <small>測驗挑戰</small>
+            <h2 id="custom-sheet-title">自訂題庫範圍</h2>
           </div>
-          <p class="sheet-selection">
-            已選擇 {{ customIds.length }} 個課程單元
-          </p>
-          <p v-if="error" class="form-error">{{ error }}</p>
           <button
-            class="app-button sheet-confirm"
+            class="icon-button"
             type="button"
-            :disabled="loading || !customIds.length"
-            @click="confirmCustomExam"
+            aria-label="關閉自訂題庫"
+            @click="showCustomSheet = false"
           >
-            {{ loading ? "正在準備題目" : "確認並開始 10 題挑戰" }}
+            <X :size="21" />
           </button>
-        </section>
+        </header>
+      </template>
+      <div class="custom-sheet">
+        <div class="custom-course-list" data-sheet-scroll>
+          <label
+            v-for="course in courseStages"
+            :key="course.id"
+            :class="{ selected: customIds.includes(course.id) }"
+          >
+            <input v-model="customIds" type="checkbox" :value="course.id" />
+            <span
+              ><small>課程 {{ course.id.replace("_", "-") }}</small
+              ><strong>{{ course.title }}</strong></span
+            >
+            <Check :size="17" />
+          </label>
+        </div>
+        <p class="sheet-selection">已選擇 {{ customIds.length }} 個課程單元</p>
+        <p v-if="error" class="form-error">{{ error }}</p>
+        <button
+          class="app-button sheet-confirm"
+          type="button"
+          :disabled="loading || !customIds.length"
+          @click="confirmCustomExam"
+        >
+          {{ loading ? "正在準備題目" : "確認並開始 10 題挑戰" }}
+        </button>
       </div>
-    </Transition>
+    </AppBottomSheet>
   </LearningHubLayout>
 </template>
 
@@ -852,11 +847,15 @@ watch(
   background: rgba(247, 243, 234, 0.94);
   transform: translateX(-50%);
 }
-.quiz-progress > .icon-button { grid-column:1;grid-row:1;justify-self:start; }
+.quiz-progress > .icon-button {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+}
 .quiz-progress h1 {
-  grid-column:1 / -1;
-  grid-row:1;
-  justify-self:center;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  justify-self: center;
   overflow: hidden;
   margin: 0;
   font-size: 17px;
@@ -880,7 +879,7 @@ watch(
 .quiz-progress b {
   grid-column: 2;
   grid-row: 2;
-  align-self:center;
+  align-self: center;
   text-align: right;
   font-size: 13px;
 }
@@ -1081,29 +1080,17 @@ watch(
 .result-actions .app-button {
   gap: 5px;
 }
-.exit-backdrop {
-  position: fixed;
-  z-index: 90;
-  inset: 0;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  background: rgba(21, 43, 43, 0.3);
-}
-.exit-backdrop > section {
-  width: min(644px, calc(100vw - 36px));
-  padding: 28px 22px calc(30px + env(safe-area-inset-bottom));
-  border-radius: 24px 24px 0 0;
-  background: var(--paper);
+.exit-sheet {
+  width: 100%;
   text-align: center;
 }
-.exit-backdrop h2 {
+.exit-sheet h2 {
   margin: 10px 0;
 }
-.exit-backdrop p {
+.exit-sheet p {
   color: var(--text-soft);
 }
-.exit-backdrop section > div {
+.exit-sheet > div {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 11px;
@@ -1113,31 +1100,8 @@ watch(
   border-color: var(--cinnabar);
   background: var(--cinnabar);
 }
-.custom-sheet-backdrop {
-  position: fixed;
-  z-index: 95;
-  inset: 0;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  background: rgba(21, 43, 43, 0.38);
-  -webkit-backdrop-filter: blur(3px);
-  backdrop-filter: blur(3px);
-}
 .custom-sheet {
-  box-sizing: border-box;
-  width: min(100%, 680px);
-  max-height: min(82dvh, 720px);
-  padding: 8px 18px calc(18px + env(safe-area-inset-bottom));
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  border-bottom: 0;
-  border-radius: 28px 28px 0 0;
-  background: linear-gradient(
-    155deg,
-    rgba(255, 255, 255, 0.96),
-    rgba(247, 243, 234, 0.94)
-  );
-  box-shadow: 0 -18px 50px rgba(21, 43, 43, 0.2);
+  width: 100%;
   overflow: hidden;
 }
 .sheet-handle {
@@ -1148,13 +1112,13 @@ watch(
   border-radius: 99px;
   background: rgba(36, 87, 90, 0.2);
 }
-.custom-sheet > header {
+.custom-sheet-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
 }
-.custom-sheet header small {
+.custom-sheet-header small {
   color: var(--cinnabar);
   font-size: 11px;
   font-weight: 900;
@@ -1224,22 +1188,6 @@ watch(
 }
 .sheet-confirm {
   width: 100%;
-}
-.sheet-enter-active,
-.sheet-leave-active {
-  transition: background 0.25s ease;
-}
-.sheet-enter-active .custom-sheet,
-.sheet-leave-active .custom-sheet {
-  transition: transform 0.28s cubic-bezier(0.22, 0.8, 0.24, 1);
-}
-.sheet-enter-from,
-.sheet-leave-to {
-  background: transparent;
-}
-.sheet-enter-from .custom-sheet,
-.sheet-leave-to .custom-sheet {
-  transform: translateY(100%);
 }
 @keyframes spin {
   to {

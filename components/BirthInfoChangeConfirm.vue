@@ -5,7 +5,7 @@ defineEmits<{ cancel: [], confirm: [] }>()
 
 <template>
   <AppBottomSheet :open="open" :locked="loading" labelledby="birth-confirm-title" @close="$emit('cancel')">
-        <h2 id="birth-confirm-title">確認修改命盤資料？</h2>
+        <template #header><h2 id="birth-confirm-title">確認修改命盤資料？</h2></template>
         <p>修改出生資料或性別後，系統將會清空所有您已保存的命盤與分析紀錄，此動作無法復原。</p>
         <p>是否確定要修改並清空舊有命盤？</p>
         <div class="confirm-actions">

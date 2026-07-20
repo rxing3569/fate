@@ -28,6 +28,23 @@
 
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(36, 87, 90, 0.28) transparent;
+}
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+  background: transparent;
+}
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+  box-shadow: none;
+}
+*::-webkit-scrollbar-thumb {
+  border: 0;
+  border-radius: 99px;
+  background: rgba(36, 87, 90, 0.28);
 }
 html,
 body,
@@ -301,7 +318,7 @@ button {
   width: auto;
   transform: none;
 }
-.app-main.with-tabs .sheet-backdrop > *,
+.app-main.with-tabs .sheet-backdrop:not(.app-bottom-sheet-backdrop) > *,
 .content-sheet-backdrop > * {
   position: absolute;
   bottom: 0;

@@ -71,23 +71,15 @@ function select(item: (typeof menu)[number]) {
       </button>
     </div>
     <template #overlays>
-      <Transition name="sheet">
-        <div
-          v-if="showLogoutSheet"
-          class="sheet-backdrop"
-          @click.self="!loggingOut && (showLogoutSheet = false)"
-        >
-          <section
-            class="clear-progress-sheet"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="logout-confirm-title"
-          >
-            <div class="sheet-handle" />
-            <span class="clear-progress-icon logout-confirm-icon">
-              <LogOut :size="25" />
-            </span>
-            <h2 id="logout-confirm-title">確定要登出？</h2>
+      <AppBottomSheet
+        :open="showLogoutSheet"
+        role="alertdialog"
+        labelledby="logout-confirm-title"
+        :locked="loggingOut"
+        @close="showLogoutSheet = false"
+      >
+          <template #header><span class="clear-progress-icon logout-confirm-icon"><LogOut :size="25" /></span><h2 id="logout-confirm-title">確定要登出？</h2></template>
+          <div class="clear-progress-sheet">
             <p>登出後需要重新登入，才能繼續使用會員功能與查看個人資料。</p>
             <div class="clear-progress-actions">
               <button
@@ -107,9 +99,8 @@ function select(item: (typeof menu)[number]) {
                 {{ loggingOut ? "登出中…" : "確定登出" }}
               </button>
             </div>
-          </section>
-        </div>
-      </Transition>
+          </div>
+      </AppBottomSheet>
     </template>
   </AppPageLayout>
 </template>
@@ -209,11 +200,7 @@ function select(item: (typeof menu)[number]) {
   background: rgba(255, 255, 255, 0.72);
 }
 .clear-progress-sheet {
-  width: min(100%, 680px);
-  padding: 10px 24px calc(30px + env(safe-area-inset-bottom));
-  border-radius: 30px 30px 0 0;
-  background: var(--paper);
-  box-shadow: 0 -12px 34px rgba(36, 87, 90, 0.16);
+  width: 100%;
   text-align: center;
 }
 .clear-progress-icon {

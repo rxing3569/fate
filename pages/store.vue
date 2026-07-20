@@ -376,29 +376,19 @@ const money = (amount: number) => `NT$${amount}`;
       </template>
     </main>
 
-    <Transition name="sheet">
-      <div
-        v-if="selected"
-        class="sheet-backdrop"
-        @click.self="!purchasing && (selected = null)"
-      >
-        <section class="purchase-sheet" role="dialog" aria-modal="true">
-          <div class="sheet-handle" />
+    <AppBottomSheet
+      :open="Boolean(selected)"
+      :locked="purchasing"
+      @close="selected = null"
+    >
+        <template v-if="selected" #header>
           <div class="sheet-title">
             <span><Sparkles :size="22" /></span>
-            <div>
-              <h2>前往付款</h2>
-              <p>{{ selected.name }}</p>
-            </div>
-            <button
-              type="button"
-              aria-label="關閉"
-              :disabled="purchasing"
-              @click="selected = null"
-            >
-              <X :size="20" />
-            </button>
+            <div><h2>前往付款</h2><p>{{ selected.name }}</p></div>
+            <button type="button" aria-label="關閉" :disabled="purchasing" @click="selected = null"><X :size="20" /></button>
           </div>
+        </template>
+        <div v-if="selected" class="purchase-sheet">
           <div class="order-row">
             <span>商品金額</span
             ><strong class="checkout-price"
@@ -453,9 +443,8 @@ const money = (amount: number) => `NT$${amount}`;
               }}
             </button>
           </div>
-        </section>
-      </div>
-    </Transition>
+        </div>
+    </AppBottomSheet>
   </AppPageLayout>
 </template>
 
@@ -724,10 +713,8 @@ const money = (amount: number) => `NT$${amount}`;
   font-weight: 800;
 }
 .purchase-sheet {
-  width: min(100%, 680px);
-  padding: 12px 24px calc(30px + env(safe-area-inset-bottom));
-  border-radius: 28px 28px 0 0;
-  background: var(--paper);
+  width: 100%;
+  text-align: left;
 }
 .sheet-title {
   display: grid;

@@ -21,6 +21,16 @@ async function findIndexFiles(directory) {
   return indexFiles
 }
 
+async function findGeneratedCodeFiles(directory) {
+  const files = []
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name)
+    if (entry.isDirectory()) files.push(...await findGeneratedCodeFiles(path))
+    else if (entry.isFile() && /\.(?:html|js)$/.test(entry.name)) files.push(path)
+  }
+  return files
+}
+
 const serviceWorker = await readFile(serviceWorkerPath, 'utf8')
 const precacheUrls = new Set(
   [...serviceWorker.matchAll(/\burl:\s*["']([^"']+)["']/g)].map(match => match[1]),
@@ -37,12 +47,23 @@ const nonCanonicalUrls = routeUrls
   .map(url => url.slice(0, -1))
   .filter(url => precacheUrls.has(url))
 
-if (missingCanonicalUrls.length || nonCanonicalUrls.length) {
+const leakedDirectivePattern = /@(pointer(?:down|move|up|cancel)|click\.capture)\s*=/
+const leakedDirectiveFiles = []
+for (const file of await findGeneratedCodeFiles(publicDir)) {
+  if (leakedDirectivePattern.test(await readFile(file, 'utf8'))) {
+    leakedDirectiveFiles.push(relative(publicDir, file).split(sep).join('/'))
+  }
+}
+
+if (missingCanonicalUrls.length || nonCanonicalUrls.length || leakedDirectiveFiles.length) {
   if (missingCanonicalUrls.length) {
     console.error(`Missing canonical precache URLs: ${missingCanonicalUrls.join(', ')}`)
   }
   if (nonCanonicalUrls.length) {
     console.error(`Non-canonical precache URLs: ${nonCanonicalUrls.join(', ')}`)
+  }
+  if (leakedDirectiveFiles.length) {
+    console.error(`Raw Vue event directives leaked into generated output: ${leakedDirectiveFiles.join(', ')}`)
   }
   process.exitCode = 1
 }

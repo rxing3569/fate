@@ -687,15 +687,9 @@ function goBack() {
       <p v-if="error" class="error-note"><WifiOff :size="17" />{{ error }}</p>
     </main>
 
-    <Transition name="sheet">
-      <div
-        v-if="showConfirm"
-        class="sheet-backdrop"
-        @click.self="showConfirm = false"
-      >
-        <section class="analysis-sheet" role="dialog" aria-modal="true">
-          <div class="sheet-handle" />
-          <h2>確認執行合盤解析</h2>
+    <AppBottomSheet :open="showConfirm" @close="showConfirm = false">
+        <template #header><h2>確認執行合盤解析</h2></template>
+        <div class="analysis-sheet-content">
           <p>將執行「{{ matchTypeLabel(pendingMatchType) }}」解析，並消耗會員額度 1 次，是否確認使用？</p>
           <div class="quota-row">
             <span>本月會員額度剩餘</span>
@@ -712,9 +706,8 @@ function goBack() {
               確認使用
             </button>
           </div>
-        </section>
-      </div>
-    </Transition>
+        </div>
+    </AppBottomSheet>
 
     <Transition name="drawer">
       <div
@@ -803,20 +796,14 @@ function goBack() {
       </div>
     </Transition>
 
-    <Transition name="sheet">
-      <div
-        v-if="deletingRecord"
-        class="sheet-backdrop"
-        @click.self="deletingRecord = null"
-      >
-        <section
-          class="analysis-sheet delete-sheet"
-          role="alertdialog"
-          aria-modal="true"
-        >
-          <div class="sheet-handle" />
-          <Trash2 :size="24" />
-          <h2>確認刪除</h2>
+    <AppBottomSheet
+      :open="Boolean(deletingRecord)"
+      role="alertdialog"
+      :locked="deleting"
+      @close="deletingRecord = null"
+    >
+        <template #header><Trash2 :size="24" /><h2>確認刪除</h2></template>
+        <div class="analysis-sheet-content delete-sheet">
           <p>您確定要刪除這筆合盤紀錄嗎？<br />刪除後將無法恢復。</p>
           <div class="sheet-actions">
             <button
@@ -835,9 +822,8 @@ function goBack() {
               {{ deleting ? "刪除中..." : "刪除" }}
             </button>
           </div>
-        </section>
-      </div>
-    </Transition>
+        </div>
+    </AppBottomSheet>
 
     <Transition name="toast"
       ><div v-if="notice" class="toast">{{ notice }}</div></Transition
@@ -1102,19 +1088,14 @@ function goBack() {
   font-size: 13px;
   font-weight: 700;
 }
-.analysis-sheet {
-  box-sizing: border-box;
-  width: min(100%, 680px);
-  padding: 12px 24px calc(28px + env(safe-area-inset-bottom));
-  border-radius: 28px 28px 0 0;
-  background: var(--paper);
+.analysis-sheet-content {
   text-align: center;
 }
-.analysis-sheet h2 {
+.analysis-sheet-content h2 {
   margin: 15px 0 8px;
   font-size: 20px;
 }
-.analysis-sheet p {
+.analysis-sheet-content p {
   margin: 0 0 22px;
   color: var(--text-soft);
   font-size: 14px;

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
   BookOpen,
-  ArrowUp,
   ChevronLeft,
   ChevronRight,
   Coins,
@@ -66,7 +65,6 @@ const pageUnmounted = ref(false);
 const reportCacheSavedAt = ref(0);
 const reportContent = ref<HTMLElement | null>(null);
 const detailContent = ref<HTMLElement | null>(null);
-const showDetailGoToTop = ref(false);
 const categoryScrollPositions = reactive<Record<CategoryId, number>>({
   general: 0,
   palace_detail: 0,
@@ -761,7 +759,6 @@ function openDetail(section: { title: string; content: string }) {
     title: section.title || `${currentMeta.value.label}解析`,
     content: section.content,
   };
-  showDetailGoToTop.value = false;
   selectedDetail.value = detail;
   sessionStorage.setItem("ziwei_report_detail", JSON.stringify(detail));
   history.pushState(
@@ -776,24 +773,10 @@ function handleDetailHistory() {
 }
 
 function closeDetail() {
-  showDetailGoToTop.value = false;
   if (location.hash.includes("detail")) history.back();
   else selectedDetail.value = null;
 }
 
-function rememberDetailScroll() {
-  showDetailGoToTop.value = (detailContent.value?.scrollTop || 0) >= 120;
-}
-
-function goToDetailTop() {
-  const reduceMotion = window.matchMedia(
-    "(prefers-reduced-motion: reduce)",
-  ).matches;
-  detailContent.value?.scrollTo({
-    top: 0,
-    behavior: reduceMotion ? "auto" : "smooth",
-  });
-}
 </script>
 
 <template>
@@ -1014,7 +997,6 @@ function goToDetailTop() {
       <main
         ref="detailContent"
         class="inline-detail-body"
-        @scroll.passive="rememberDetailScroll"
       >
         <section class="inline-detail-surface glass">
           <MarkdownContent v-if="detailBefore" :source="detailBefore" />
@@ -1028,23 +1010,15 @@ function goToDetailTop() {
           <MarkdownContent v-if="detailAfter" :source="detailAfter" />
         </section>
       </main>
-      <Transition name="go-to-top">
-        <button
-          v-if="showDetailGoToTop"
-          class="detail-go-to-top"
-          type="button"
-          aria-label="回到詳細內容頂端"
-          @click="goToDetailTop"
-        >
-          <ArrowUp :size="21" />
-        </button>
-      </Transition>
     </section>
 
+    <AppGoToTop
+      :scroll-target="selectedDetail ? detailContent : reportContent"
+      :label="selectedDetail ? '回到詳細內容頂端' : '回到命盤解析頂端'"
+    />
+
     <AppBottomSheet :open="showConfirm" @close="showConfirm = false">
-      <h2>
-        {{ isRecalculate ? "確認重新解盤" : `開始${currentMeta.label}解析` }}
-      </h2>
+      <template #header><h2>{{ isRecalculate ? "確認重新解盤" : `開始${currentMeta.label}解析` }}</h2></template>
       <template v-if="isRecalculate"
         ><strong class="confirm-summary">{{
           auth.premium
@@ -1119,7 +1093,7 @@ function goToDetailTop() {
       :open="showQuotaFallback"
       @close="showQuotaFallback = false"
     >
-      <h2>會員月度額度已滿</h2>
+      <template #header><h2>會員月度額度已滿</h2></template>
       <p class="fallback-copy">
         您本月的會員免費額度已消耗完畢。<br /><br />是否改為扣除 100
         點數繼續本次解析？
@@ -1153,9 +1127,7 @@ function goToDetailTop() {
       labelledby="full-analysis-title"
       @close="showFullConfirm = false"
     >
-      <h2 id="full-analysis-title">
-        {{ isFirstFullAnalysis ? "一次完成三種命盤解析" : "AI 全盤解析" }}
-      </h2>
+      <template #header><h2 id="full-analysis-title">{{ isFirstFullAnalysis ? "一次完成三種命盤解析" : "AI 全盤解析" }}</h2></template>
       <p v-if="isFirstFullAnalysis">
         建議首次一次完成本命、宮位與大運解析，能更完整地認識命盤。
       </p>
@@ -1745,21 +1717,6 @@ function goToDetailTop() {
 .inline-detail-body::-webkit-scrollbar-thumb {
   border-radius: 5px;
   background: rgba(36, 87, 90, 0.28);
-}
-.detail-go-to-top {
-  position: fixed;
-  z-index: 35;
-  right: 20px;
-  bottom: calc(88px + env(safe-area-inset-bottom));
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 50%;
-  background: rgba(247, 243, 234, 0.94);
-  box-shadow: 0 10px 28px rgba(36, 87, 90, 0.2);
-  color: var(--mountain);
 }
 .inline-detail-surface {
   min-height: 100%;
