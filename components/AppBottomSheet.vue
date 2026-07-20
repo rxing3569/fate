@@ -3,6 +3,8 @@ const emit = defineEmits<{ close: [] }>();
 const sheet = ref<HTMLElement | null>(null);
 const dragging = ref(false);
 const dragOffset = ref(0);
+const viewportHeight = ref(0);
+const viewportOffsetTop = ref(0);
 let pointerId: number | null = null;
 let dragStartY = 0;
 let dragStartedAt = 0;
@@ -23,6 +25,7 @@ const props = withDefaults(
     locked?: boolean;
     sheetClass?: string;
     contentClass?: string;
+    heightMode?: "content" | "viewport";
   }>(),
   {
     role: "dialog",
@@ -31,6 +34,7 @@ const props = withDefaults(
     locked: false,
     sheetClass: "",
     contentClass: "",
+    heightMode: "content",
   },
 );
 
@@ -112,14 +116,43 @@ function handleClick(event: MouseEvent) {
   suppressClick = false;
 }
 
+function updateViewportMetrics() {
+  const viewport = window.visualViewport;
+  viewportHeight.value = Math.round(viewport?.height || window.innerHeight);
+  viewportOffsetTop.value = Math.round(viewport?.offsetTop || 0);
+}
+
+function addViewportListeners() {
+  updateViewportMetrics();
+  window.visualViewport?.addEventListener("resize", updateViewportMetrics);
+  window.visualViewport?.addEventListener("scroll", updateViewportMetrics);
+  window.addEventListener("orientationchange", updateViewportMetrics);
+}
+
+function removeViewportListeners() {
+  window.visualViewport?.removeEventListener("resize", updateViewportMetrics);
+  window.visualViewport?.removeEventListener("scroll", updateViewportMetrics);
+  window.removeEventListener("orientationchange", updateViewportMetrics);
+}
+
 watch(
   () => props.open,
   (value) => {
-    if (!value) resetDrag();
+    if (value) addViewportListeners();
+    else {
+      resetDrag();
+      removeViewportListeners();
+    }
   },
 );
 
-onBeforeUnmount(() => resetDrag());
+onMounted(() => {
+  if (props.open) addViewportListeners();
+});
+onBeforeUnmount(() => {
+  resetDrag();
+  removeViewportListeners();
+});
 </script>
 
 <template>
@@ -127,12 +160,27 @@ onBeforeUnmount(() => resetDrag());
     <div
       v-if="open"
       class="sheet-backdrop app-bottom-sheet-backdrop"
+      :style="{
+        '--sheet-viewport-height': viewportHeight
+          ? `${viewportHeight}px`
+          : '100dvh',
+        '--sheet-content-max-height': viewportHeight
+          ? `${Math.round(viewportHeight * 0.65)}px`
+          : '65dvh',
+        '--sheet-viewport-offset-top': `${viewportOffsetTop}px`,
+      }"
       @click.self="closeFromBackdrop"
     >
       <section
         ref="sheet"
         class="app-bottom-sheet"
-        :class="[sheetClass, { 'is-dragging': dragging }]"
+        :class="[
+          sheetClass,
+          {
+            'is-dragging': dragging,
+            'is-viewport-height': heightMode === 'viewport',
+          },
+        ]"
         :style="{ '--sheet-drag-y': `${dragOffset}px` }"
         :role="role"
         aria-modal="true"
@@ -163,14 +211,19 @@ onBeforeUnmount(() => resetDrag());
 </template>
 
 <style scoped>
+.app-bottom-sheet-backdrop {
+  inset: auto 0 auto;
+  top: var(--sheet-viewport-offset-top, 0);
+  height: var(--sheet-viewport-height, 100dvh);
+}
 .app-bottom-sheet {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   width: min(100%, 680px);
-  max-height: 65dvh;
+  max-height: var(--sheet-content-max-height, 65dvh);
   overflow: hidden;
-  padding: 12px 22px calc(26px + env(safe-area-inset-bottom));
+  padding: 12px 22px max(26px, env(safe-area-inset-bottom));
   border-radius: 30px 30px 0 0;
   background: var(--paper);
   box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.08);
@@ -179,6 +232,11 @@ onBeforeUnmount(() => resetDrag());
   overscroll-behavior-y: contain;
   transition: transform 0.28s cubic-bezier(0.22, 0.8, 0.25, 1);
   will-change: transform;
+}
+.app-bottom-sheet.is-viewport-height {
+  height: min(75%, 720px);
+  max-height: calc(100% - max(16px, env(safe-area-inset-top)));
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
 .app-bottom-sheet-drag-region {
   flex: 0 0 auto;

@@ -18,6 +18,15 @@ const birthError = ref("");
 const pendingBirthInfo = ref<
   Parameters<typeof chartStore.saveBirthInfo>[0] | null
 >(null);
+const allowedBirthRedirects = new Set(["/chart", "/report"]);
+const redirectAfterBirth = computed(() => {
+  const value = Array.isArray(route.query.redirect)
+    ? route.query.redirect[0]
+    : route.query.redirect;
+  return typeof value === "string" && allowedBirthRedirects.has(value)
+    ? value
+    : "";
+});
 
 onMounted(() => {
   chartStore.hydrate(auth.profile);
@@ -104,6 +113,20 @@ function isSameBirthInfo(next: Parameters<typeof chartStore.saveBirthInfo>[0]) {
   );
 }
 
+function birthDestination() {
+  if (redirectAfterBirth.value) return redirectAfterBirth.value;
+  if (active.value === "chart") return "/chart";
+  return features.find((item) => item.id === active.value)?.to || "";
+}
+
+async function finishBirthFlow() {
+  const destination = birthDestination();
+  active.value = null;
+  if (!destination) return;
+  await navigateTo("/ai-analysis", { replace: true });
+  await navigateTo(destination);
+}
+
 async function persistBirth(
   info: Parameters<typeof chartStore.saveBirthInfo>[0],
   isModification = false,
@@ -112,11 +135,7 @@ async function persistBirth(
   birthError.value = "";
   try {
     await chartStore.saveBirthInfoAndSync(info, isModification);
-    const shouldOpenChart = active.value === "chart";
-    const feature = features.find((item) => item.id === active.value);
-    active.value = null;
-    if (shouldOpenChart) await navigateTo("/chart");
-    else if (feature) await navigateTo(feature.to);
+    await finishBirthFlow();
   } catch (error) {
     birthError.value =
       error instanceof Error ? error.message : "出生資料儲存失敗，請稍後再試";
@@ -131,9 +150,7 @@ async function saveBirth(info: Parameters<typeof chartStore.saveBirthInfo>[0]) {
     return;
   }
   if (isSameBirthInfo(info)) {
-    const shouldOpenChart = active.value === "chart";
-    active.value = null;
-    if (shouldOpenChart) await navigateTo("/chart");
+    await finishBirthFlow();
     return;
   }
   await persistBirth(info);

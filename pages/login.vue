@@ -170,7 +170,11 @@ async function login() {
   >
     <main class="login-content">
       <h2>探索紫微，揭開命運的輪廓</h2>
-      <form v-if="!sent" class="form-stack" @submit.prevent="requestCode">
+      <form
+        v-if="!sent"
+        class="form-stack form-input"
+        @submit.prevent="requestCode"
+      >
         <div class="field">
           <label for="email">請輸入您的電子郵件以繼續</label
           ><input
@@ -417,5 +421,8 @@ async function login() {
   text-align: center;
   color: var(--cinnabar);
   font-size: 13px;
+}
+.form-input {
+  gap: 16px;
 }
 </style>

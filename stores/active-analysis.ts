@@ -16,6 +16,17 @@ export interface ActiveAnalysisState {
   connected: boolean
 }
 
+interface AnalysisJobResponse {
+  client_job_id?: string
+  analysis_type?: string
+  context_key?: string
+  status?: AnalysisStatus
+  error?: string
+  metadata?: unknown
+  started_at?: string
+  updated_at?: string
+}
+
 const CACHE_KEY = 'ziwei:active-analysis'
 let activeController: AbortController | undefined
 
@@ -76,6 +87,26 @@ function failureText(error: string) {
   return error || '工作未完成，請稍後重新執行。'
 }
 
+function normalizeMetadata(value: unknown): Record<string, unknown> {
+  if (!value) return {}
+  if (typeof value === 'object' && !Array.isArray(value)) return value as Record<string, unknown>
+  if (typeof value !== 'string') return {}
+  try {
+    const parsed = JSON.parse(value) as unknown
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {}
+  } catch {
+    return {}
+  }
+}
+
+function analysisKind(value: string | undefined, fallback?: AnalysisKind) {
+  return value && ['report', 'flow', 'match', 'qa'].includes(value)
+    ? value as AnalysisKind
+    : fallback
+}
+
 export const useActiveAnalysisStore = defineStore('active-analysis', {
   state: () => ({
     active: null as ActiveAnalysisState | null,
@@ -117,20 +148,26 @@ export const useActiveAnalysisStore = defineStore('active-analysis', {
       if (!import.meta.client) return false
       if (!await getValidAccessToken()) return false
       try {
-        const response = await ziweiApi.getActiveAnalysisJob({ notifyError: false }) as { data?: { client_job_id?: string, analysis_type?: string, context_key?: string, status?: AnalysisStatus, started_at?: string } | null }
+        const response = await ziweiApi.getActiveAnalysisJob({ notifyError: false }) as { data?: AnalysisJobResponse | null }
         const serverJob = response?.data
         if (serverJob?.status === 'running') {
-          const kind = (['report', 'flow', 'match', 'qa'].includes(serverJob.analysis_type || '') ? serverJob.analysis_type : this.active?.kind) as AnalysisKind | undefined
+          const kind = analysisKind(serverJob.analysis_type, this.active?.kind)
           if (kind) {
+            const metadata = normalizeMetadata(serverJob.metadata)
             if (!this.active || this.active.jobId !== serverJob.client_job_id) {
               this.active = {
                 jobId: serverJob.client_job_id || crypto.randomUUID(), kind,
-                contextKey: serverJob.context_key || '', status: 'running', contents: {}, metadata: {},
+                contextKey: serverJob.context_key || '', status: 'running', contents: {}, metadata,
                 error: '', startedAt: Date.parse(serverJob.started_at || '') || Date.now(), connected: false,
               }
             } else {
+              this.active.kind = kind
+              this.active.contextKey = serverJob.context_key || this.active.contextKey
               this.active.status = 'running'
               this.active.error = ''
+              if (Object.keys(metadata).length) {
+                this.active.metadata = { ...this.active.metadata, ...metadata }
+              }
             }
             this.persist()
           }
@@ -160,9 +197,15 @@ export const useActiveAnalysisStore = defineStore('active-analysis', {
         return job.status
       }
       try {
-        const response = await ziweiApi.getAnalysisJob(job.jobId, { notifyError: false }) as { data?: { status?: AnalysisStatus, error?: string } }
+        const response = await ziweiApi.getAnalysisJob(job.jobId, { notifyError: false }) as { data?: AnalysisJobResponse }
         const status = response.data?.status
-        if (!status || status === 'running') return job.status
+        const metadata = normalizeMetadata(response.data?.metadata)
+        if (Object.keys(metadata).length) job.metadata = { ...job.metadata, ...metadata }
+        if (!status || status === 'running') {
+          job.connected = false
+          this.persist()
+          return job.status
+        }
         const serverError = response.data?.error || ''
         job.status = status
         job.error = status === 'completed' ? '' : failureText(serverError)
@@ -227,6 +270,7 @@ export const useActiveAnalysisStore = defineStore('active-analysis', {
             ...payload,
             client_job_id: job.jobId,
             analysis_context_key: job.contextKey,
+            analysis_job_metadata: job.metadata,
             job_is_final: final,
           },
           signal: activeController?.signal,
@@ -272,11 +316,9 @@ export const useActiveAnalysisStore = defineStore('active-analysis', {
           activeController = undefined
           let runningKind = job.kind
           try {
-            const response = await ziweiApi.getActiveAnalysisJob({ notifyError: false }) as { data?: { client_job_id?: string, analysis_type?: string, context_key?: string, started_at?: string } | null }
+            const response = await ziweiApi.getActiveAnalysisJob({ notifyError: false }) as { data?: AnalysisJobResponse | null }
             const running = response.data
-            const recoveredKind = running?.analysis_type && ['report', 'flow', 'match', 'qa'].includes(running.analysis_type)
-              ? running.analysis_type as AnalysisKind
-              : runningKind
+            const recoveredKind = analysisKind(running?.analysis_type, runningKind) || runningKind
             runningKind = recoveredKind
             if (running?.client_job_id) {
               this.active = {
@@ -285,7 +327,7 @@ export const useActiveAnalysisStore = defineStore('active-analysis', {
                 contextKey: running.context_key || '',
                 status: 'running',
                 contents: {},
-                metadata: {},
+                metadata: normalizeMetadata(running.metadata),
                 error: '',
                 startedAt: Date.parse(running.started_at || '') || Date.now(),
                 connected: false,

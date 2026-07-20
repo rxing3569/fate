@@ -152,7 +152,7 @@ function syncActiveQa() {
   else if (isCurrentQuestion && (answer || job.status === "running"))
     messages.value.push({ role: "assistant", content: answer });
   sending.value = job.status === "running";
-  if (job.error) error.value = job.error;
+  error.value = job.error || "";
   persistConversation();
   scrollBottom();
 }

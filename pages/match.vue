@@ -187,7 +187,7 @@ function syncActiveMatch() {
   selectedMatchType.value = matchType;
   analysisText.value = job.contents.main || analysisText.value;
   analyzing.value = job.status === "running";
-  if (job.error) error.value = job.error;
+  error.value = job.error || "";
 }
 
 async function recoverMatchResult() {

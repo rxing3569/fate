@@ -135,7 +135,8 @@ const categories: {
     id: "ten_year",
     label: "十年大運",
     title: "尚未生成「十年大運」解析",
-    description: "細推您每十年大限的事業、感情、財運起伏與關鍵機遇。",
+    description:
+      "細推您每十年的人生大運走勢，學業、事業、感情、財運運勢起伏與關鍵機遇。",
     button: "開始解析",
   },
 ];
@@ -248,12 +249,20 @@ function syncActiveReport() {
   analyzing.value = job.status === "running";
   fullRunning.value =
     job.status === "running" && job.metadata.fullRunning === true;
-  analyzingCategory.value =
-    (job.metadata.currentCategory as CategoryId | undefined) ?? null;
+  const restoredCategory = job.metadata.currentCategory as
+    | CategoryId
+    | undefined;
+  analyzingCategory.value = categories.some(
+    (category) => category.id === restoredCategory,
+  )
+    ? restoredCategory!
+    : job.status === "running"
+      ? activeCategory.value
+      : null;
   receivedStreamData.value = Object.values(job.contents).some((value) =>
     value.trim(),
   );
-  if (job.error) error.value = job.error;
+  error.value = job.error || "";
 }
 
 onBeforeUnmount(() => {

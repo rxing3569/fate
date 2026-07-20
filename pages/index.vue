@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowDown, ArrowRight, BookOpen, Newspaper } from "@lucide/vue";
 const auth = useAuthStore();
+const chartStore = useChartStore();
 useSeoMeta({
   title: "AI 紫微斗數命盤解析｜江映澄紫微",
   description:
@@ -9,9 +10,33 @@ useSeoMeta({
   ogDescription:
     "免費線上排盤，使用 AI 探索紫微命盤、流年時運、感情合盤與人生方向。",
 });
-const primaryAction = computed(() =>
-  auth.isAuthenticated ? "/chart" : "/ai-analysis?mode=chart",
-);
+async function hydrateNavigationState() {
+  if (!auth.sessionReady) await auth.hydrate();
+  chartStore.hydrate(auth.profile);
+}
+
+async function openChartEntry() {
+  await hydrateNavigationState();
+  await navigateTo(
+    chartStore.chart ? "/chart" : "/ai-analysis?mode=chart&redirect=/chart",
+  );
+}
+
+async function openReportEntry() {
+  await hydrateNavigationState();
+  const destination = chartStore.chart
+    ? "/report"
+    : "/ai-analysis?mode=chart&redirect=/report";
+  if (!auth.isAuthenticated) {
+    window.dispatchEvent(
+      new CustomEvent("auth-login-required", {
+        detail: { redirect: destination },
+      }),
+    );
+    return;
+  }
+  await navigateTo(destination);
+}
 function scrollToAbout() {
   document.querySelector("#about")?.scrollIntoView({ behavior: "smooth" });
 }
@@ -34,15 +59,19 @@ function scrollToAbout() {
               <p>帶您揭開命運的面紗，為迷惘的自己尋找方向</p>
             </div>
             <div class="hero-actions">
-              <NuxtLink class="app-button" :to="primaryAction"
-                >免費線上排盤</NuxtLink
+              <button class="app-button" type="button" @click="openChartEntry">
+                免費線上排盤
+              </button>
+              <button
+                class="app-button outline"
+                type="button"
+                @click="openReportEntry"
               >
-              <NuxtLink class="app-button outline" to="/report"
-                >馬上解析命盤</NuxtLink
-              >
+                馬上解析命盤
+              </button>
             </div>
             <div class="stats" aria-label="服務成果">
-              <div><b>4.8</b><span>星好評</span></div>
+              <div><b>50+</b><span>書籍數據庫</span></div>
               <div><b>800+</b><span>已生成報告</span></div>
               <div><b>6 年</b><span>資歷老師把關</span></div>
             </div>
@@ -173,12 +202,16 @@ function scrollToAbout() {
         <h2>準備好看懂自己的命盤了嗎？</h2>
         <p>從認識自己開始，把命運重新握回手中。</p>
         <div class="final-actions">
-          <NuxtLink class="app-button" :to="primaryAction"
-            >免費線上排盤</NuxtLink
+          <button class="app-button" type="button" @click="openChartEntry">
+            免費線上排盤
+          </button>
+          <button
+            class="app-button outline"
+            type="button"
+            @click="openReportEntry"
           >
-          <NuxtLink class="app-button outline" to="/report"
-            >馬上解析命盤</NuxtLink
-          >
+            馬上解析命盤
+          </button>
         </div>
       </section>
     </main>

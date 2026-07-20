@@ -136,7 +136,7 @@ function syncActiveFlow() {
   if (meta.day) day.value = meta.day;
   content.value = job.contents.main || content.value;
   analyzing.value = job.status === "running";
-  if (job.error) error.value = job.error;
+  error.value = job.error || "";
   stage.value = "result";
 }
 
