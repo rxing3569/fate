@@ -36,10 +36,17 @@ const precacheUrls = new Set(
   [...serviceWorker.matchAll(/\burl:\s*["']([^"']+)["']/g)].map(match => match[1]),
 )
 
-const routeUrls = (await findIndexFiles(publicDir)).map((file) => {
+const excludedRoutePatterns = [
+  /^\/?cms(?:\/|$)/,
+]
+const isExcludedRoute = url => excludedRoutePatterns.some(pattern => pattern.test(url))
+
+const generatedRouteUrls = (await findIndexFiles(publicDir)).map((file) => {
   const directory = relative(publicDir, join(file, '..')).split(sep).join('/')
   return directory ? `${directory}/` : '/'
 })
+const routeUrls = generatedRouteUrls.filter(url => !isExcludedRoute(url))
+const excludedPrecacheUrls = [...precacheUrls].filter(isExcludedRoute)
 
 const missingCanonicalUrls = routeUrls.filter(url => !precacheUrls.has(url))
 const nonCanonicalUrls = routeUrls
@@ -55,12 +62,15 @@ for (const file of await findGeneratedCodeFiles(publicDir)) {
   }
 }
 
-if (missingCanonicalUrls.length || nonCanonicalUrls.length || leakedDirectiveFiles.length) {
+if (missingCanonicalUrls.length || nonCanonicalUrls.length || excludedPrecacheUrls.length || leakedDirectiveFiles.length) {
   if (missingCanonicalUrls.length) {
     console.error(`Missing canonical precache URLs: ${missingCanonicalUrls.join(', ')}`)
   }
   if (nonCanonicalUrls.length) {
     console.error(`Non-canonical precache URLs: ${nonCanonicalUrls.join(', ')}`)
+  }
+  if (excludedPrecacheUrls.length) {
+    console.error(`Excluded private routes found in precache: ${excludedPrecacheUrls.join(', ')}`)
   }
   if (leakedDirectiveFiles.length) {
     console.error(`Raw Vue event directives leaked into generated output: ${leakedDirectiveFiles.join(', ')}`)
@@ -68,5 +78,6 @@ if (missingCanonicalUrls.length || nonCanonicalUrls.length || leakedDirectiveFil
   process.exitCode = 1
 }
 else {
-  console.log(`Verified ${routeUrls.length} canonical page URLs in the PWA precache.`)
+  const excludedCount = generatedRouteUrls.length - routeUrls.length
+  console.log(`Verified ${routeUrls.length} canonical page URLs in the PWA precache; ${excludedCount} CMS routes remain excluded.`)
 }
