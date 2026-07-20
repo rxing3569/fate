@@ -38,6 +38,11 @@ export default defineNuxtConfig({
     },
   },
   routeRules: {
+    '/sw.js': {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      },
+    },
     '/nwp-live-check': {
       headers: {
         'X-Robots-Tag': 'noindex, nofollow, noarchive, nosnippet',
