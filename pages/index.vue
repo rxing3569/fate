@@ -3,11 +3,7 @@ import {
   ArrowDown,
   ArrowRight,
   BookOpen,
-  BrainCircuit,
-  CalendarClock,
-  Compass,
-  MessageCircle,
-  UsersRound,
+  Newspaper,
 } from "@lucide/vue";
 const auth = useAuthStore();
 useSeoMeta({
@@ -112,56 +108,50 @@ function scrollToAbout() {
         <div class="ink-line" />
         <div class="entry-grid">
           <NuxtLink to="/report" class="entry-card glass">
-            <BrainCircuit :size="24" />
-            <h3>AI 命盤解析</h3>
+            <div class="entry-heading"><AppMaterialIcon name="auto_stories_rounded" :size="24" /><h3>AI 命盤解析</h3></div>
             <p>
               運用 AI
               紫微斗數解析本命格局、十二宮與十年大運，從個性天賦、事業財運到人生課題，全面讀懂自己的命盤。
             </p>
-            <span>開始解析 <ArrowRight :size="14" /></span>
+            <span class="entry-action">開始解析 <ArrowRight :size="14" /></span>
           </NuxtLink>
           <NuxtLink to="/flow" class="entry-card glass">
-            <CalendarClock :size="24" />
-            <h3>AI 時運解析</h3>
+            <div class="entry-heading"><AppMaterialIcon name="insights_rounded" :size="24" /><h3>AI 時運解析</h3></div>
             <p>
               透過 AI
               分析流年、流月與流日運勢，掌握工作、感情及財運變化，提早看見重要時機與需要留意的方向。
             </p>
-            <span>查看時運 <ArrowRight :size="14" /></span>
+            <span class="entry-action">查看時運 <ArrowRight :size="14" /></span>
           </NuxtLink>
           <NuxtLink to="/match" class="entry-card glass">
-            <UsersRound :size="24" />
-            <h3>AI 合盤解析</h3>
+            <div class="entry-heading"><AppMaterialIcon name="diversity_1_rounded" :size="24" /><h3>AI 合盤解析</h3></div>
             <p>
               結合雙方紫微命盤與 AI
               關係分析，理解感情互動、溝通模式及彼此需求，找出更適合兩人的相處方式。
             </p>
-            <span>開始合盤 <ArrowRight :size="14" /></span>
+            <span class="entry-action">開始合盤 <ArrowRight :size="14" /></span>
           </NuxtLink>
           <NuxtLink to="/qa" class="entry-card glass">
-            <MessageCircle :size="24" />
-            <h3>AI 問答</h3>
+            <div class="entry-heading"><i class="entry-chat-icon" aria-hidden="true" /><h3>AI 問答</h3></div>
             <p>
               根據個人紫微命盤向 AI
               即時提問，針對感情、事業、財運與人生選擇，獲得貼近自身命盤脈絡的解答。
             </p>
-            <span>立即提問 <ArrowRight :size="14" /></span>
+            <span class="entry-action">立即提問 <ArrowRight :size="14" /></span>
           </NuxtLink>
           <NuxtLink to="/learn/" class="entry-card glass">
-            <BookOpen :size="24" />
-            <h3>學習紫微</h3>
+            <div class="entry-heading"><BookOpen :size="24" /><h3>學習紫微</h3></div>
             <p>
               從十四主星、十二宮位到基礎解盤，搭配學習地圖、題庫與測驗，循序建立實用的紫微斗數知識。
             </p>
-            <span>開始學習 <ArrowRight :size="14" /></span>
+            <span class="entry-action">開始學習 <ArrowRight :size="14" /></span>
           </NuxtLink>
           <NuxtLink to="/articles" class="entry-card glass">
-            <Compass :size="24" />
-            <h3>命理專欄</h3>
+            <div class="entry-heading"><Newspaper :size="24" /><h3>命理專欄</h3></div>
             <p>
               閱讀紫微斗數、流年運勢、感情合盤與自我成長文章，以深入淺出的方式理解傳統命理的現代應用。
             </p>
-            <span>前往閱讀 <ArrowRight :size="14" /></span>
+            <span class="entry-action">前往閱讀 <ArrowRight :size="14" /></span>
           </NuxtLink>
         </div>
       </section>
@@ -410,29 +400,45 @@ function scrollToAbout() {
   padding: 58px 18px 0;
 }
 .entry-card {
-  display: grid;
-  grid-template-columns: 36px 1fr auto;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
   padding: 20px;
   border-radius: 24px;
+  text-align: left;
 }
-.entry-card > svg {
-  grid-row: 1/4;
+.entry-heading {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
   color: var(--jade);
+}
+.entry-heading > svg,
+.entry-heading > :deep(.app-material-icon) {
+  flex: none;
+}
+.entry-chat-icon {
+  display: block;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  background: currentColor;
+  -webkit-mask: url("/chat.svg") center / contain no-repeat;
+  mask: url("/chat.svg") center / contain no-repeat;
 }
 .entry-card h3 {
   margin: 0;
+  color: var(--mountain);
   font-size: 17px;
 }
 .entry-card p {
-  grid-column: 2/4;
+  flex: 1;
   margin: 7px 0 13px;
   color: var(--text-soft);
   font-size: 13px;
   line-height: 1.6;
 }
-.entry-card span {
-  grid-column: 2/4;
+.entry-action {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -493,14 +499,7 @@ function scrollToAbout() {
   .entry-grid {
     grid-template-columns: repeat(3, 1fr);
   }
-  .entry-card {
-    display: flex;
-    flex-direction: column;
-  }
-  .entry-card p {
-    flex: 1;
-  }
-  .entry-card span {
+  .entry-action {
     align-self: flex-end;
   }
 }

@@ -82,6 +82,7 @@ export default defineNuxtConfig({
       apiBase: process.env.NUXT_PUBLIC_API_BASE || '/api',
       wsAnalyzeUrl: process.env.NUXT_PUBLIC_WS_ANALYZE_URL || 'ws://localhost:3000/ws/analyze',
       appName: process.env.NUXT_PUBLIC_APP_NAME || '紫微斗數',
+      appVersion: process.env.NUXT_PUBLIC_APP_VERSION || '1.0.0',
       googleWebClientId: process.env.NUXT_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
     },
   },

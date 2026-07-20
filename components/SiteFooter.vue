@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const config = useRuntimeConfig();
 const linkGroups = [
   {
     title: "系統功能",
@@ -30,7 +31,10 @@ const linkGroups = [
   <footer class="site-footer">
     <div class="footer-inner">
       <div class="footer-brand">
-        <NuxtLink to="/" aria-label="回到江映澄紫微首頁">江映澄紫微</NuxtLink>
+        <div class="footer-brand-title">
+          <NuxtLink to="/" aria-label="回到江映澄紫微首頁">江映澄紫微</NuxtLink>
+          <small>ver {{ config.public.appVersion }}</small>
+        </div>
         <p>AI 紫微斗數命盤解析與自我探索</p>
       </div>
 
@@ -94,11 +98,22 @@ const linkGroups = [
   margin: 0 auto;
   padding: 24px 18px calc(20px + env(safe-area-inset-bottom));
 }
-.footer-brand > a {
+.footer-brand-title {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+.footer-brand-title > a {
   font-family: "Noto Serif TC", serif;
   font-size: 20px;
   font-weight: 900;
   letter-spacing: 0.08em;
+}
+.footer-brand-title > small {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
 }
 .footer-brand p,
 .footer-copyright {
