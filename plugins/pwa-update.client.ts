@@ -16,11 +16,7 @@ export default defineNuxtPlugin((nuxtApp) => {
     try {
       // updateViaCache: "none" is important on iOS and prevents the browser's
       // HTTP cache from hiding a newly deployed service worker script.
-      // GitHub Pages controls static-file cache headers, so Nuxt routeRules
-      // cannot guarantee that /sw.js is revalidated immediately. A unique
-      // query string forces its CDN and Safari to request the current file.
-      const serviceWorkerUrl = `/sw.js?update=${now}`
-      const registration = await navigator.serviceWorker.register(serviceWorkerUrl, {
+      const registration = await navigator.serviceWorker.register('/sw.js', {
         scope: '/',
         updateViaCache: 'none',
       })
