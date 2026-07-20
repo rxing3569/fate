@@ -3,6 +3,10 @@ const topics = [
   { to: '/learning/1/', title: '入門', desc: '紫微斗數基礎觀念' },
   { to: '/quiz/', title: '測驗', desc: '題庫與學習進度' },
 ]
+useSeoMeta({
+  title: '紫微斗數學習中心｜江映澄紫微',
+  description: '從紫微斗數入門課程、星曜與宮位知識開始學習，搭配題庫測驗與進度複習，循序建立命盤判讀能力。',
+})
 </script>
 
 <template>

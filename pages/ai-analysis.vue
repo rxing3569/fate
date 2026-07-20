@@ -3,6 +3,12 @@ import { ChevronLeft, Coins } from "@lucide/vue";
 const auth = useAuthStore();
 const chartStore = useChartStore();
 const route = useRoute();
+useSeoMeta({
+  title: "免費紫微斗數排盤與 AI 解盤｜江映澄紫微",
+  description: "輸入出生日期、時間與城市，建立紫微斗數命盤、查看十二宮星曜，並使用 AI 進行本命、時運與合盤解析。",
+  ogTitle: "免費紫微斗數排盤與 AI 解盤｜江映澄紫微",
+  ogDescription: "免費建立紫微斗數命盤，查看十二宮星曜並使用 AI 進行多種解析。",
+});
 const active = ref<string | null>(
   route.query.mode === "chart" ? "chart" : null,
 );

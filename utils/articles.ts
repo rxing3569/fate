@@ -18,7 +18,13 @@ function parseArticle(path: string, raw: string): Article {
     const separator = line.indexOf(':')
     if (separator > 0) metadata[line.slice(0, separator).trim()] = line.slice(separator + 1).trim().replace(/^['"]|['"]$/g, '')
   }
-  return { slug, title:metadata.title || slug, excerpt:metadata.excerpt || '', category:metadata.category || '紫微入門', date:metadata.date || '', readingTime:metadata.readingTime || '5 分鐘', content:(match?.[2] || raw).trim() }
+  const title = metadata.title || slug
+  const markdown = (match?.[2] || raw).trim()
+  const leadingHeading = markdown.match(/^#\s+(.+)\r?\n+/)
+  const content = leadingHeading?.[1]?.trim() === title
+    ? markdown.slice(leadingHeading[0].length).trim()
+    : markdown
+  return { slug, title, excerpt:metadata.excerpt || '', category:metadata.category || '紫微入門', date:metadata.date || '', readingTime:metadata.readingTime || '5 分鐘', content }
 }
 
 export const articles = Object.entries(files).map(([path, raw]) => parseArticle(path, raw)).sort((a, b) => b.date.localeCompare(a.date))

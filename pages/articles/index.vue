@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { ArrowRight, BookOpen } from "@lucide/vue";
 import { articles } from "~/utils/articles";
+
+useSeoMeta({
+  title: "紫微斗數命理專欄｜江映澄紫微",
+  description: "閱讀紫微斗數入門、星曜四化與大限運勢等命理文章，用清楚的觀念與實例建立正確的命盤閱讀方法。",
+  ogTitle: "紫微斗數命理專欄｜江映澄紫微",
+  ogDescription: "從命盤基礎、星曜四化到大限運勢，循序建立紫微斗數的閱讀方法。",
+});
 </script>
 <template>
   <AppPageLayout title="命理專欄" screen-class="articles-screen">

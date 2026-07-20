@@ -5,9 +5,15 @@ const route = useRoute();
 const article = computed(() => getArticle(String(route.params.slug || "")));
 if (!article.value)
   throw createError({ statusCode: 404, statusMessage: "找不到這篇文章" });
+useSeoMeta({
+  title: () => `${article.value?.title}｜江映澄紫微`,
+  description: () => article.value?.excerpt || "",
+  ogTitle: () => `${article.value?.title}｜江映澄紫微`,
+  ogDescription: () => article.value?.excerpt || "",
+  ogType: "article",
+});
 useHead(() => ({
-  title: `${article.value?.title}｜江映澄紫微`,
-  meta: [{ name: "description", content: article.value?.excerpt || "" }],
+  link: [{ rel: "canonical", href: `https://www.fatejyc.com/articles/${article.value?.slug}/` }],
 }));
 </script>
 <template>
@@ -16,7 +22,8 @@ useHead(() => ({
     title="命理專欄"
     screen-class="article-screen"
     show-back
-    ><main class="article-content">
+    ><template #title><div class="app-page-title"><strong>命理專欄</strong></div></template>
+    <main class="article-content">
       <header class="article-heading">
         <small>{{ article.category }}</small>
         <h1>{{ article.title }}</h1>
@@ -75,9 +82,6 @@ useHead(() => ({
 .article-surface :deep(.markdown-content) {
   font-size: 16px;
   line-height: 1.9;
-}
-.article-surface :deep(h1) {
-  display: none;
 }
 .article-surface :deep(h2) {
   margin-top: 34px;

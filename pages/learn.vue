@@ -6,6 +6,12 @@ import {
   stageLabel,
 } from "~/utils/learning";
 const completed = ref<string[]>([]);
+useSeoMeta({
+  title: "紫微斗數學習地圖｜江映澄紫微",
+  description: "從命盤基礎、十二宮、十四主星到四化與大限，依學習地圖循序掌握紫微斗數，並透過測驗複習重點。",
+  ogTitle: "紫微斗數學習地圖｜江映澄紫微",
+  ogDescription: "依學習地圖循序掌握命盤、十二宮、十四主星、四化與大限。",
+});
 const mapScroll = ref<HTMLElement | null>(null);
 const mapReady = ref(false);
 const mapScrollStorageKey = "ziwei:learning-map-scroll-top";

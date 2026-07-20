@@ -6,6 +6,12 @@ const route = useRoute()
 const router = useRouter()
 const id = computed(() => String(route.params.id))
 const stage = computed(() => learningStages.find(item => item.id === id.value))
+useSeoMeta({
+  title: () => `${stage.value ? stageLabel(stage.value) : '紫微斗數課程'}｜江映澄紫微`,
+  description: () => stage.value
+    ? `學習「${stageLabel(stage.value)}」的紫微斗數重點觀念，搭配章節內容與測驗，循序建立命盤判讀能力。`
+    : '循序學習紫微斗數命盤、星曜、宮位、四化與運勢判讀。',
+})
 const source = ref('')
 const selectedStar = ref('')
 const loading = ref(false)
@@ -100,7 +106,7 @@ watch(id, loadLesson, { immediate: true })
     <main v-if="stage && selectedStar" class="lesson-content star-detail-page">
       <section class="star-detail-hero">
         <span class="star-emblem">{{ selectedStarData?.name.slice(0, 1) }}</span>
-        <div><h1>{{ selectedStarData?.name }}</h1><p>{{ selectedStarData?.label || stage.title }}</p></div>
+        <div><h2>{{ selectedStarData?.name }}</h2><p>{{ selectedStarData?.label || stage.title }}</p></div>
       </section>
       <section class="star-focus">
         <strong>星曜重點</strong>
@@ -113,7 +119,7 @@ watch(id, loadLesson, { immediate: true })
     </main>
     <main v-else-if="stage" class="lesson-content">
       <div class="lesson-heading">
-        <h1>{{ stageLabel(stage) }}</h1>
+        <h2>{{ stageLabel(stage) }}</h2>
         <button v-if="stage.kind === 'reference' && sections.length" class="expand-button" type="button" @click="toggleAll">
           <ChevronsUpDown :size="17" />{{ allExpanded ? '全部收合' : '全部展開' }}
         </button>
@@ -171,9 +177,9 @@ watch(id, loadLesson, { immediate: true })
 
 <style scoped>
 .lesson-screen { min-height:100dvh; }
-.quiz-link,.expand-button { display:flex;align-items:center;gap:5px;border:0;background:transparent;color:var(--mountain);font-weight:900; }.quiz-link { justify-self:end;justify-content:flex-end;flex:0 0 88px;width:88px;min-width:88px;height:42px;padding:0;white-space:nowrap; }.lesson-content { box-sizing:border-box;width:100%;max-width:680px;margin:0 auto;padding:8px 18px 110px; }.lesson-heading { display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px 0 14px; }.lesson-heading h1 { margin:0;color:var(--mountain);font-size:20px;line-height:1.35; }.expand-button { flex:none;padding:8px 0;font-size:13px; }
+.quiz-link,.expand-button { display:flex;align-items:center;gap:5px;border:0;background:transparent;color:var(--mountain);font-weight:900; }.quiz-link { justify-self:end;justify-content:flex-end;flex:0 0 88px;width:88px;min-width:88px;height:42px;padding:0;white-space:nowrap; }.lesson-content { box-sizing:border-box;width:100%;max-width:680px;margin:0 auto;padding:8px 18px 110px; }.lesson-heading { display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px 0 14px; }.lesson-heading h2 { margin:0;color:var(--mountain);font-size:20px;line-height:1.35; }.expand-button { flex:none;padding:8px 0;font-size:13px; }
 .course-section { margin-bottom:16px;overflow:hidden;border:1px solid rgba(36,87,90,.08);border-radius:18px;background:rgba(255,255,255,.64); }.course-section.keypoints { border-color:rgba(107,166,160,.3);background:rgba(107,166,160,.12); }.section-toggle { display:flex;align-items:center;justify-content:space-between;width:100%;min-height:50px;padding:13px 16px;border:0;background:transparent;color:var(--mountain);font-size:16px;font-weight:800;text-align:left; }.section-toggle span { display:flex;align-items:center;gap:6px; }.section-toggle svg { transition:transform .2s ease; }.section-toggle svg.rotated { transform:rotate(180deg); }.section-body { padding:0 16px 16px; }
 .lesson-state { display:flex;align-items:center;justify-content:center;gap:10px;min-height:180px;color:var(--text-soft);font-weight:700; }.loading-ring { width:22px;height:22px;border:3px solid rgba(36,87,90,.14);border-top-color:var(--mountain);border-radius:50%;animation:spin .8s linear infinite; }.error-state { color:var(--cinnabar); }.star-intro { margin:2px 0 18px;color:var(--text-soft);font-size:15px;line-height:1.75; }.star-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px; }.star-item { display:grid;grid-template-columns:30px minmax(0,1fr) 18px;align-items:center;gap:9px;min-height:58px;padding:12px;border:1px solid rgba(36,87,90,.09);border-radius:16px;background:rgba(255,255,255,.68);color:var(--mountain);text-align:left; }.star-item span { display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:rgba(107,166,160,.14);font-size:12px;font-weight:900; }.star-item strong { min-width:0;font-size:14px;line-height:1.35; }.star-arrow { transform:rotate(-90deg);opacity:.55; }.quiz-note { margin:20px 2px 0;color:var(--text-soft);font-size:13px;line-height:1.65; }.bottom-quiz { display:flex;align-items:center;justify-content:center;gap:7px;width:100%;margin-top:24px; }
-.star-detail-hero { display:flex;align-items:center;gap:14px;padding:22px;border:1px solid rgba(255,255,255,.58);border-radius:26px;background:rgba(255,255,255,.66);box-shadow:0 12px 24px rgba(36,87,90,.07); }.star-emblem { display:grid;place-items:center;flex:none;width:52px;height:52px;border-radius:14px;background:rgba(200,174,120,.2);color:var(--mountain);font-size:23px;font-weight:900; }.star-detail-hero h1 { margin:0;color:var(--mountain);font-size:25px; }.star-detail-hero p { margin:4px 0 0;color:var(--text-soft);font-size:14px;font-weight:700; }.star-focus { margin-top:14px;padding:18px;border:1px solid rgba(107,166,160,.25);border-radius:18px;background:rgba(107,166,160,.11); }.star-focus strong { color:var(--mountain);font-size:15px; }.star-focus p,.star-description p { margin:7px 0 0;color:var(--text-soft);line-height:1.7; }.detail-heading { margin:22px 4px 10px;color:var(--mountain);font-size:18px; }.star-description { margin-bottom:12px;padding:16px;border:1px solid rgba(36,87,90,.08);border-radius:18px;background:rgba(255,255,255,.62); }.star-description h3 { margin:0;color:var(--mountain);font-size:16px; }
+.star-detail-hero { display:flex;align-items:center;gap:14px;padding:22px;border:1px solid rgba(255,255,255,.58);border-radius:26px;background:rgba(255,255,255,.66);box-shadow:0 12px 24px rgba(36,87,90,.07); }.star-emblem { display:grid;place-items:center;flex:none;width:52px;height:52px;border-radius:14px;background:rgba(200,174,120,.2);color:var(--mountain);font-size:23px;font-weight:900; }.star-detail-hero h2 { margin:0;color:var(--mountain);font-size:25px; }.star-detail-hero p { margin:4px 0 0;color:var(--text-soft);font-size:14px;font-weight:700; }.star-focus { margin-top:14px;padding:18px;border:1px solid rgba(107,166,160,.25);border-radius:18px;background:rgba(107,166,160,.11); }.star-focus strong { color:var(--mountain);font-size:15px; }.star-focus p,.star-description p { margin:7px 0 0;color:var(--text-soft);line-height:1.7; }.detail-heading { margin:22px 4px 10px;color:var(--mountain);font-size:18px; }.star-description { margin-bottom:12px;padding:16px;border:1px solid rgba(36,87,90,.08);border-radius:18px;background:rgba(255,255,255,.62); }.star-description h3 { margin:0;color:var(--mountain);font-size:16px; }
 @keyframes spin { to { transform:rotate(360deg); } } @media (max-width:360px) { .star-grid { grid-template-columns:1fr; } .lesson-heading { align-items:flex-start; } }
 </style>

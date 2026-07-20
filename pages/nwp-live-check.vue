@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { AlertTriangle, CalendarClock, CheckCircle2, CreditCard, LoaderCircle, RefreshCw, ShieldAlert, Square, SquareCheckBig, XCircle } from '@lucide/vue'
 
-definePageMeta({ middleware: 'auth' })
 useHead({
   meta: [
     { name: 'robots', content: 'noindex, nofollow, noarchive, nosnippet' },
