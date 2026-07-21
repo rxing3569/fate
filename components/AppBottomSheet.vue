@@ -1,5 +1,11 @@
 <script setup lang="ts">
+import type { ComputedRef } from "vue";
+
 const emit = defineEmits<{ close: [] }>();
+const primaryNavigationVisible = inject<ComputedRef<boolean>>(
+  "primary-navigation-visible",
+  computed(() => false),
+);
 const sheet = ref<HTMLElement | null>(null);
 const dragging = ref(false);
 const dragOffset = ref(0);
@@ -161,6 +167,7 @@ onBeforeUnmount(() => {
       <div
         v-if="open"
         class="sheet-backdrop app-bottom-sheet-backdrop"
+        :class="{ 'has-primary-navigation': primaryNavigationVisible }"
         :style="{
           '--sheet-viewport-height': viewportHeight
             ? `${viewportHeight}px`
@@ -302,7 +309,7 @@ onBeforeUnmount(() => {
   line-height: 1.6;
 }
 @media (min-width: 760px) {
-  .app-bottom-sheet-backdrop {
+  .app-bottom-sheet-backdrop.has-primary-navigation {
     padding-left: 88px;
   }
   .app-bottom-sheet {
@@ -310,12 +317,14 @@ onBeforeUnmount(() => {
   }
 }
 @media (min-width: 1180px) {
-  .app-bottom-sheet-backdrop {
+  .app-bottom-sheet-backdrop.has-primary-navigation {
     justify-content: flex-start;
     padding-left: 0;
   }
   .app-bottom-sheet {
     width: 644px;
+  }
+  .app-bottom-sheet-backdrop.has-primary-navigation .app-bottom-sheet {
     margin-left: calc(260px + max(24px, (100vw - 940px) / 2 - 80px) + 18px);
   }
 }

@@ -46,12 +46,34 @@ const showTabs = computed(() => {
     return false;
   return true;
 });
+// AppBottomSheet is teleported to <body>, so it cannot infer the navigation
+// layout from its rendered DOM ancestry. Share the actual layout state instead.
+provide("primary-navigation-visible", showTabs);
 const showFooter = computed(
   () =>
     normalizedPath.value === "/" ||
     normalizedPath.value === "/articles" ||
     normalizedPath.value.startsWith("/articles/"),
 );
+const copyProtected = computed(() => {
+  const path = normalizedPath.value;
+  return (
+    path === "/learn" ||
+    path === "/learning" ||
+    path.startsWith("/learning/") ||
+    path === "/review" ||
+    path.startsWith("/review/") ||
+    path === "/quiz" ||
+    path === "/report" ||
+    path === "/report-detail" ||
+    path === "/flow" ||
+    path === "/match"
+  );
+});
+
+function preventProtectedContentAction(event: Event) {
+  if (copyProtected.value) event.preventDefault();
+}
 
 onMounted(async () => {
   window.addEventListener("auth-login-required", openLoginSheet);
@@ -142,7 +164,17 @@ function isTabActive(path: string) {
     <PwaPrompt />
     <ApiErrorSnackbar />
     <OfflineStatusBanner />
-    <main class="app-main" :class="{ 'with-tabs': showTabs }">
+    <main
+      class="app-main"
+      :class="{
+        'with-tabs': showTabs,
+        'copy-protected': copyProtected,
+      }"
+      @selectstart.capture="preventProtectedContentAction"
+      @copy.capture="preventProtectedContentAction"
+      @cut.capture="preventProtectedContentAction"
+      @contextmenu.capture="preventProtectedContentAction"
+    >
       <slot />
       <SiteFooter v-if="showFooter" />
       <AppBottomSheet
@@ -262,4 +294,9 @@ function isTabActive(path: string) {
   margin-top: 18px;
 }
 .learning-sync-actions .app-button { width: 100%; }
+.copy-protected {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
 </style>

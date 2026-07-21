@@ -226,18 +226,6 @@ function scrollToAbout() {
   overflow: visible;
   background: transparent;
 }
-.landing-screen::before {
-  content: "";
-  position: fixed;
-  z-index: -1;
-  inset: 0;
-  width: 100vw;
-  height: 100dvh;
-  background:
-    linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.3)),
-    url("/assets/images/bg_landscape2.png") center / 100% 100% no-repeat;
-  pointer-events: none;
-}
 .landing-content {
   position: relative;
   z-index: 1;
@@ -264,6 +252,12 @@ function scrollToAbout() {
   padding: 72px 20px 150px;
   box-sizing: border-box;
   container-type: inline-size;
+}
+@supports (-webkit-touch-callout: none) {
+  .landing-screen,
+  .hero {
+    min-height: min(100dvh, 960px);
+  }
 }
 .hero > h1 {
   margin: 0;

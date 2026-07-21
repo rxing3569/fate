@@ -47,6 +47,7 @@ const usePointsFallback = ref(false);
 const chatId = ref<string>(createChatId());
 const chatArea = ref<HTMLElement | null>(null);
 const pageReady = ref(false);
+const composingInput = ref(false);
 
 const allSuggestions = [
   "適合自行創業，還是當個穩定的上班族？",
@@ -68,10 +69,7 @@ const allSuggestions = [
 ];
 const suggestions = ref<string[]>([]);
 const askedCount = computed(
-  () =>
-    messages.value.filter(
-      (message, index) => message.role === "user" && !isSkippedPair(index),
-    ).length,
+  () => messages.value.filter((message) => message.role === "user").length,
 );
 const remaining = computed(() => Math.max(0, MAX_QUESTIONS - askedCount.value));
 const canSend = computed(
@@ -204,14 +202,6 @@ function createChatId() {
   return (
     globalThis.crypto?.randomUUID?.() ||
     `chat-${Date.now()}-${Math.random().toString(16).slice(2)}`
-  );
-}
-
-function isSkippedPair(index: number) {
-  return (
-    messages.value[index]?.role === "user" &&
-    messages.value[index + 1]?.role === "assistant" &&
-    messages.value[index + 1]?.content.startsWith("/skip_question")
   );
 }
 
@@ -384,15 +374,7 @@ async function confirmPointsFallback() {
 async function sendQuestion(question: string) {
   if (!question || sending.value) return;
   if (!(await auth.verifyOnlineAccess(true))) return;
-  const history = messages.value.filter(
-    (message, index) =>
-      !isSkippedPair(index) &&
-      !(
-        index > 0 &&
-        messages.value[index - 1]?.role === "user" &&
-        message.content.startsWith("/skip_question")
-      ),
-  );
+  const history = [...messages.value];
   const userMessage: QaMessage = { role: "user", content: question };
   const consumesQuota = history.filter((item) => item.role === "user").length === 0;
   const started = await activeAnalysis.begin("qa", cacheKey.value, {
@@ -474,8 +456,18 @@ function displayAssistant(content: string) {
   return content;
 }
 
+function handleCompositionStart() {
+  composingInput.value = true;
+}
+
+function handleCompositionEnd() {
+  composingInput.value = false;
+}
+
 function handleKeydown(event: KeyboardEvent) {
   if (event.key === "Enter" && !event.shiftKey) {
+    if (composingInput.value || event.isComposing || event.keyCode === 229)
+      return;
     event.preventDefault();
     requestSend();
   }
@@ -529,6 +521,8 @@ function handleKeydown(event: KeyboardEvent) {
               rows="1"
               placeholder="輸入問題..."
               maxlength="500"
+              @compositionstart="handleCompositionStart"
+              @compositionend="handleCompositionEnd"
               @keydown="handleKeydown"
             /><button
               type="button"
@@ -596,6 +590,8 @@ function handleKeydown(event: KeyboardEvent) {
               remaining <= 0 ? '已達提問上限，請重新提問' : '輸入問題...'
             "
             maxlength="500"
+            @compositionstart="handleCompositionStart"
+            @compositionend="handleCompositionEnd"
             @keydown="handleKeydown"
           /><button
             type="button"

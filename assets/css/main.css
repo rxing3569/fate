@@ -883,3 +883,78 @@ pre {
     margin-right: auto;
   }
 }
+
+/* iOS WebKit can corrupt translucent, isolated layers while producing a
+   full-page capture. Keep the glass language without GPU backdrop sampling. */
+@supports (-webkit-touch-callout: none) {
+  .app-shell,
+  .app-main,
+  .screen {
+    min-height: min(100dvh, 960px);
+  }
+  .app-shell::before {
+    position: absolute;
+    height: min(100dvh, 960px);
+  }
+  .app-shell *,
+  .app-shell *::before,
+  .app-shell *::after {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .glass {
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 0.94),
+        rgba(247, 243, 234, 0.9) 58%,
+        rgba(225, 237, 233, 0.92)
+      ),
+      var(--paper);
+  }
+  .glass::before {
+    display: none;
+  }
+  .app-bar {
+    background: rgba(247, 243, 234, 0.96);
+  }
+  .primary-nav {
+    background: rgba(247, 243, 234, 0.96);
+  }
+}
+
+@media print {
+  .app-shell,
+  .app-main,
+  .screen,
+  .report-screen,
+  .report-body,
+  .report-content,
+  .detail-page,
+  .inline-detail-body {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+  .app-shell::before {
+    position: absolute;
+    height: 100% !important;
+  }
+  .app-bar {
+    position: static !important;
+  }
+  .primary-nav,
+  .go-to-top {
+    display: none !important;
+  }
+  .glass,
+  .app-bar,
+  .app-button,
+  .btn {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .glass::before {
+    display: none !important;
+  }
+}

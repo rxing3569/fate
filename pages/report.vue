@@ -65,6 +65,8 @@ const pageUnmounted = ref(false);
 const reportCacheSavedAt = ref(0);
 const reportContent = ref<HTMLElement | null>(null);
 const detailContent = ref<HTMLElement | null>(null);
+const usesDocumentScroll = ref(false);
+const suppressScrollTracking = ref(false);
 const categoryScrollPositions = reactive<Record<CategoryId, number>>({
   general: 0,
   palace_detail: 0,
@@ -212,7 +214,10 @@ const cardSections = computed(() =>
 );
 
 onMounted(async () => {
+  usesDocumentScroll.value = CSS.supports("-webkit-touch-callout", "none");
   window.addEventListener("popstate", handleDetailHistory);
+  if (usesDocumentScroll.value)
+    window.addEventListener("scroll", rememberScroll, { passive: true });
   chartStore.hydrate(auth.profile);
   syncActiveReport();
   restoreReportCache();
@@ -267,6 +272,8 @@ function syncActiveReport() {
 
 onBeforeUnmount(() => {
   window.removeEventListener("popstate", handleDetailHistory);
+  if (usesDocumentScroll.value)
+    window.removeEventListener("scroll", rememberScroll);
   pageUnmounted.value = true;
   persistReportCache();
 });
@@ -480,29 +487,48 @@ async function confirmPointsFallback() {
 }
 
 async function selectCategory(category: CategoryId) {
-  categoryScrollPositions[activeCategory.value] =
-    reportContent.value?.scrollTop || 0;
+  categoryScrollPositions[activeCategory.value] = currentReportScrollTop();
   activeCategory.value = category;
   if (newCategories.value.has(category)) {
     const next = new Set(newCategories.value);
     next.delete(category);
     newCategories.value = next;
   }
-  await nextTick();
-  if (reportContent.value)
-    reportContent.value.scrollTop = categoryScrollPositions[category];
+  await restoreReportScroll(category);
+}
+
+function currentReportScrollTop() {
+  return usesDocumentScroll.value
+    ? window.scrollY
+    : reportContent.value?.scrollTop || 0;
 }
 
 function rememberScroll() {
-  categoryScrollPositions[activeCategory.value] =
-    reportContent.value?.scrollTop || 0;
+  if (selectedDetail.value || suppressScrollTracking.value) return;
+  categoryScrollPositions[activeCategory.value] = currentReportScrollTop();
 }
 
-async function restoreReportScroll() {
+function setReportScrollTop(top: number) {
+  if (usesDocumentScroll.value) window.scrollTo({ top, behavior: "auto" });
+  else if (reportContent.value) reportContent.value.scrollTop = top;
+}
+
+async function waitForReportLayout() {
   await nextTick();
-  if (reportContent.value)
-    reportContent.value.scrollTop =
-      categoryScrollPositions[activeCategory.value] || 0;
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+}
+
+async function restoreReportScroll(category = activeCategory.value) {
+  suppressScrollTracking.value = true;
+  try {
+    await waitForReportLayout();
+    setReportScrollTop(categoryScrollPositions[category] || 0);
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  } finally {
+    suppressScrollTracking.value = false;
+  }
 }
 
 async function start(
@@ -769,7 +795,7 @@ function extractSummary(content: string) {
   );
 }
 
-function openDetail(section: { title: string; content: string }) {
+async function openDetail(section: { title: string; content: string }) {
   rememberScroll();
   const detail = {
     title: section.title || `${currentMeta.value.label}解析`,
@@ -782,6 +808,10 @@ function openDetail(section: { title: string; content: string }) {
     "",
     `${location.pathname}${location.search}#detail`,
   );
+  if (usesDocumentScroll.value) {
+    await waitForReportLayout();
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }
 }
 
 async function handleDetailHistory() {
@@ -1030,7 +1060,13 @@ async function closeDetail() {
     </section>
 
     <AppGoToTop
-      :scroll-target="selectedDetail ? detailContent : reportContent"
+      :scroll-target="
+        usesDocumentScroll
+          ? null
+          : selectedDetail
+            ? detailContent
+            : reportContent
+      "
       :label="selectedDetail ? '回到詳細內容頂端' : '回到命盤解析頂端'"
     />
 
@@ -1767,6 +1803,30 @@ async function closeDetail() {
   font-size: 15px;
   font-weight: 600;
   line-height: 1.6;
+}
+
+@supports (-webkit-touch-callout: none) {
+  .report-screen {
+    display: block;
+    height: auto;
+    min-height: min(100dvh, 960px);
+    overflow: visible;
+  }
+  .report-body,
+  .report-content,
+  .detail-page,
+  .inline-detail-body {
+    display: block;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+  .report-body {
+    padding-bottom: 48px;
+  }
+  .inline-detail-surface {
+    min-height: 0;
+  }
 }
 @media (max-width: 759px) {
   .report-content {
