@@ -29,11 +29,13 @@ definePageMeta({ middleware: "auth" });
 
 interface MatchRecord {
   uuid?: string;
+  client_job_id?: string;
   target_city?: string;
   target_gender?: string;
   target_longitude?: number;
   target_birth_time?: string;
   created_at?: string;
+  updated_at?: string;
   is_complete?: boolean;
   content?: string;
   match_type?: MatchType;
@@ -110,6 +112,9 @@ const records = ref<MatchRecord[]>([]);
 const deletingRecord = ref<MatchRecord | null>(null);
 const deleting = ref(false);
 const notice = ref("");
+const incompleteTasks = ref<MatchRecord[]>([]);
+const recoveryLoading = ref(false);
+const retryRecordUUID = ref("");
 const selectedMatchType = ref<MatchType>("romance");
 const pendingMatchType = ref<MatchType>("romance");
 const matchTypeOpen = ref(false);
@@ -125,6 +130,38 @@ const matchDisconnected = computed(
     activeAnalysis.active.status === "running" &&
     !activeAnalysis.active.connected,
 );
+const {
+  currentTask: currentIncompleteTask,
+  isBackgroundProcessing: incompleteMatchIsBackgroundProcessing,
+  canRecover: canRecoverIncompleteMatch,
+} = useIncompleteAnalysisRecovery(incompleteTasks);
+const matchBackgroundProcessing = computed(
+  () =>
+    !canRecoverIncompleteMatch.value &&
+    (matchDisconnected.value || incompleteMatchIsBackgroundProcessing.value),
+);
+const incompleteMatchDetails = computed(() => {
+  const record = currentIncompleteTask.value;
+  if (!record) return [];
+  return [
+    {
+      label: "合盤類型",
+      value: matchTypeLabel(record.match_type),
+    },
+    {
+      label: "對象",
+      value: `${record.target_gender || "未知"}・${formatDate(record.target_birth_time, true)}`,
+    },
+    {
+      label: "出生地",
+      value: `${record.target_city || "自訂經度"}（${record.target_longitude ?? "未知"}°）`,
+    },
+    {
+      label: "上次執行",
+      value: formatDate(record.updated_at || record.created_at),
+    },
+  ];
+});
 
 function selectMatchType(value: MatchType) {
   selectedMatchType.value = value;
@@ -148,6 +185,7 @@ onMounted(async () => {
     chartStore.hydrate(auth.profile);
     syncActiveMatch();
     await recoverMatchResult();
+    await loadIncompleteMatchTasks();
     await nextTick();
   } finally {
     membershipReady.value = true;
@@ -170,12 +208,6 @@ watch(
   },
   { immediate: true },
 );
-watch(
-  () => activeAnalysis.active?.status,
-  () => {
-    void recoverMatchResult();
-  },
-);
 
 function syncActiveMatch() {
   const job = activeAnalysis.active;
@@ -192,7 +224,7 @@ function syncActiveMatch() {
 
 async function recoverMatchResult() {
   const job = activeAnalysis.active;
-  if (!job || job.kind !== "match" || job.status !== "completed") return;
+  if (!job || job.kind !== "match" || !["running", "completed"].includes(job.status)) return;
   const info = job.metadata.birthInfo as BirthInfo | undefined;
   if (!info) return;
   const matchType = normalizeMatchType(job.metadata.matchType as string | undefined);
@@ -202,6 +234,7 @@ async function recoverMatchResult() {
     const target = list.find(
       (record) =>
         record.is_complete &&
+        Date.parse(record.updated_at || record.created_at || "") >= job.startedAt - 1000 &&
         normalizeMatchType(record.match_type) === matchType &&
         record.target_gender === info.gender &&
         (record.target_birth_time || "")
@@ -211,6 +244,11 @@ async function recoverMatchResult() {
     if (target?.content?.trim()) {
       analysisText.value = target.content;
       analyzing.value = false;
+      if (activeAnalysis.active?.jobId === job.jobId) {
+        activeAnalysis.active.status = "completed";
+        activeAnalysis.active.connected = false;
+        activeAnalysis.persist();
+      }
     }
   } catch {
     /* Keep the streamed snapshot when history is temporarily unavailable. */
@@ -220,17 +258,90 @@ async function recoverMatchResult() {
 async function refreshMatchJob() {
   refreshingJob.value = true;
   try {
-    const status = await activeAnalysis.refreshStatus();
-    if (status === "running") {
-      notify("任務仍在背景處理，請稍後再重新讀取");
-      return;
+    if (
+      activeAnalysis.active?.kind === "match" &&
+      activeAnalysis.active.status === "running"
+    ) {
+      const status = await activeAnalysis.refreshStatus();
+      if (status === "running") {
+        notify("任務仍在背景處理，請稍後再重新讀取");
+      }
     }
+    const recoveryRecord = currentIncompleteTask.value;
+    if (recoveryRecord?.uuid) {
+      const list = normalizeRecords(await ziweiApi.getMatchRecords());
+      const completed = list.find(
+        (record) =>
+          record.uuid === recoveryRecord.uuid &&
+          record.is_complete &&
+          record.content?.trim(),
+      );
+      if (completed?.content) {
+        analysisText.value = completed.content;
+        analyzing.value = false;
+      }
+    }
+    await recoverMatchResult();
+    await loadIncompleteMatchTasks();
   } catch (reason) {
     error.value =
       reason instanceof Error ? reason.message : "目前無法確認任務狀態";
   } finally {
     refreshingJob.value = false;
   }
+}
+
+function birthInfoFromRecord(record: MatchRecord): BirthInfo | null {
+  const match = (record.target_birth_time || "").replace("T", " ").match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);
+  if (!match || (record.target_gender !== "男" && record.target_gender !== "女")) return null;
+  const city = cityData.find((item) => item.name === record.target_city);
+  return {
+    gender: record.target_gender,
+    year: Number(match[1]), month: Number(match[2]), day: Number(match[3]),
+    hour: Number(match[4]), minute: Number(match[5]),
+    cityId: city?.id || "OTHER",
+    longitude: Number(record.target_longitude || city?.lng || 120),
+  };
+}
+async function loadIncompleteMatchTasks() {
+  try {
+    incompleteTasks.value = normalizeRecords(
+      await ziweiApi.getIncompleteAnalyses("match", { notifyError: false }),
+    ).sort((left, right) => {
+      const leftTime = Date.parse(left.updated_at || left.created_at || "");
+      const rightTime = Date.parse(right.updated_at || right.created_at || "");
+      return (Number.isFinite(rightTime) ? rightTime : 0) -
+        (Number.isFinite(leftTime) ? leftTime : 0);
+    });
+  } catch { incompleteTasks.value = []; }
+}
+async function restartIncompleteMatch() {
+  const record = currentIncompleteTask.value;
+  if (!record?.uuid) return;
+  const info = birthInfoFromRecord(record);
+  if (!info) { error.value = "上次合盤輸入資料不完整，請放棄後重新填寫。"; return; }
+  recoveryLoading.value = true;
+  try {
+    await ziweiApi.prepareIncompleteRetry("match", record.uuid);
+    activeAnalysis.dismiss("match");
+    pendingBirthInfo.value = info;
+    pendingMatchType.value = normalizeMatchType(record.match_type);
+    selectedMatchType.value = pendingMatchType.value;
+    retryRecordUUID.value = record.uuid;
+    incompleteTasks.value = [];
+    await startAnalysis();
+  } finally { recoveryLoading.value = false; }
+}
+async function abandonIncompleteMatch() {
+  const record = currentIncompleteTask.value;
+  if (!record?.uuid) return;
+  recoveryLoading.value = true;
+  try {
+    await ziweiApi.abandonIncompleteAnalysis("match", record.uuid);
+    activeAnalysis.dismiss("match");
+    incompleteTasks.value.shift();
+    records.value = records.value.filter((item) => item.uuid !== record.uuid);
+  } finally { recoveryLoading.value = false; }
 }
 
 function notify(message: string) {
@@ -363,7 +474,9 @@ async function startAnalysis() {
       target_gender: info.gender,
       target_longitude: longitude,
       target_birth_time: clockTime,
+      retry_record_uuid: retryRecordUUID.value || undefined,
     });
+    retryRecordUUID.value = "";
     analyzing.value = false;
     await auth.loadBilling();
   } catch (reason) {
@@ -493,7 +606,9 @@ async function deleteRecord() {
   if (!record?.uuid) return;
   deleting.value = true;
   try {
-    await ziweiApi.deleteMatchRecord(record.uuid);
+    if (record.is_complete === false)
+      await ziweiApi.abandonIncompleteAnalysis("match", record.uuid);
+    else await ziweiApi.deleteMatchRecord(record.uuid);
     records.value = records.value.filter((item) => item.uuid !== record.uuid);
     deletingRecord.value = null;
     notify("已成功刪除該筆合盤紀錄");
@@ -563,9 +678,13 @@ function goBack() {
         <History :size="21" />
       </button>
     </template>
-    <AnalysisProgressBar v-if="analyzing && !matchDisconnected" />
+    <AnalysisProgressBar v-if="analyzing && !matchBackgroundProcessing" />
 
-    <main v-if="!analysisText" class="match-body">
+    <main
+      v-if="!analysisText"
+      class="match-body"
+      :class="{ 'background-processing-body': matchBackgroundProcessing }"
+    >
       <section
         v-if="!membershipReady"
         class="membership-loading"
@@ -588,7 +707,7 @@ function goBack() {
       </section>
 
       <AnalysisDisconnectedState
-        v-else-if="matchDisconnected"
+        v-else-if="matchBackgroundProcessing"
         :loading="refreshingJob"
         @refresh="refreshMatchJob"
       />
@@ -654,37 +773,43 @@ function goBack() {
       </section>
     </main>
 
-    <main v-else class="result-body">
+    <main
+      v-else
+      class="result-body"
+      :class="{ 'background-processing-body': matchBackgroundProcessing }"
+    >
       <AnalysisDisconnectedState
-        v-if="matchDisconnected"
+        v-if="matchBackgroundProcessing"
         :loading="refreshingJob"
         @refresh="refreshMatchJob"
       />
-      <details
-        v-for="(section, index) in visibleSections"
-        :key="`${section.title}-${index}`"
-        class="match-card glass"
-        :open="isScoreSection(section) || index === 1"
-      >
-        <summary>
-          <strong>{{ section.title || "合盤解析" }}</strong
-          ><ChevronDown :size="19" />
-        </summary>
-        <div v-if="isScoreSection(section)" class="quick-match">
-          <MatchScoreOverview
-            :dimensions="parseDimensions(section.content)"
+      <template v-else>
+        <details
+          v-for="(section, index) in visibleSections"
+          :key="`${section.title}-${index}`"
+          class="match-card glass"
+          :open="isScoreSection(section) || index === 1"
+        >
+          <summary>
+            <strong>{{ section.title || "合盤解析" }}</strong
+            ><ChevronDown :size="19" />
+          </summary>
+          <div v-if="isScoreSection(section)" class="quick-match">
+            <MatchScoreOverview
+              :dimensions="parseDimensions(section.content)"
+            />
+          </div>
+          <MarkdownContent
+            v-else
+            :source="section.content"
+            :report-formatting="false"
           />
+        </details>
+        <div v-if="analyzing" class="streaming-note">
+          <Sparkles :size="16" />正在整理下一段內容...
         </div>
-        <MarkdownContent
-          v-else
-          :source="section.content"
-          :report-formatting="false"
-        />
-      </details>
-      <div v-if="analyzing && !matchDisconnected" class="streaming-note">
-        <Sparkles :size="16" />正在整理下一段內容...
-      </div>
-      <p v-if="error" class="error-note"><WifiOff :size="17" />{{ error }}</p>
+        <p v-if="error" class="error-note"><WifiOff :size="17" />{{ error }}</p>
+      </template>
     </main>
 
     <AppBottomSheet :open="showConfirm" @close="showConfirm = false">
@@ -804,7 +929,8 @@ function goBack() {
     >
         <template #header><Trash2 :size="24" /><h2>確認刪除</h2></template>
         <div class="analysis-sheet-content delete-sheet">
-          <p>您確定要刪除這筆合盤紀錄嗎？<br />刪除後將無法恢復。</p>
+          <p v-if="deletingRecord?.is_complete === false">放棄後會永久刪除未完成紀錄，已使用的會員額度或點數不會退回，且無法復原。</p>
+          <p v-else>您確定要刪除這筆合盤紀錄嗎？<br />刪除後將無法恢復。</p>
           <div class="sheet-actions">
             <button
               class="app-button outline"
@@ -825,6 +951,16 @@ function goBack() {
         </div>
     </AppBottomSheet>
 
+    <IncompleteAnalysisRecoverySheet
+      :open="canRecoverIncompleteMatch"
+      title="發現未完成的合盤解析"
+      summary=""
+      :details="incompleteMatchDetails"
+      :loading="recoveryLoading"
+      @retry="restartIncompleteMatch"
+      @abandon="abandonIncompleteMatch"
+    />
+
     <Transition name="toast"
       ><div v-if="notice" class="toast">{{ notice }}</div></Transition
     >
@@ -834,6 +970,13 @@ function goBack() {
 <style scoped>
 .match-screen {
   position: relative;
+}
+.match-screen:has(> .background-processing-body) {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 .match-history-button {
   justify-self: end;
@@ -845,6 +988,17 @@ function goBack() {
 .match-body,
 .result-body {
   padding: 14px 18px 72px;
+}
+.match-body.background-processing-body,
+.result-body.background-processing-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 8px 18px 0;
+  overflow: hidden;
+}
+.background-processing-body :deep(.analysis-disconnected) {
+  width: 100%;
 }
 .match-body:has(> .premium-lock) {
   display: flex;

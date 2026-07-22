@@ -381,69 +381,76 @@ const money = (amount: number) => `NT$${amount}`;
       :locked="purchasing"
       @close="selected = null"
     >
-        <template v-if="selected" #header>
-          <div class="sheet-title">
-            <span><Sparkles :size="22" /></span>
-            <div><h2>前往付款</h2><p>{{ selected.name }}</p></div>
-            <button type="button" aria-label="關閉" :disabled="purchasing" @click="selected = null"><X :size="20" /></button>
+      <template v-if="selected" #header>
+        <div class="sheet-title">
+          <span><Sparkles :size="22" /></span>
+          <div>
+            <h2>前往付款</h2>
+            <p>{{ selected.name }}</p>
           </div>
-        </template>
-        <div v-if="selected" class="purchase-sheet">
-          <div class="order-row">
-            <span>商品金額</span
-            ><strong class="checkout-price"
-              ><del v-if="selected.promotion && selected.original_price">{{
-                money(selected.original_price)
-              }}</del
-              ><span>{{ money(selected.price) }}</span></strong
-            >
-          </div>
-          <div
-            v-if="selected.kind === 'subscription'"
-            class="payer-email-field"
+          <button
+            type="button"
+            aria-label="關閉"
+            :disabled="purchasing"
+            @click="selected = null"
           >
-            <label for="payer-email">付款電子信箱</label>
-            <input
-              id="payer-email"
-              v-model.trim="payerEmail"
-              :class="{ invalid: payerEmailError }"
-              type="email"
-              inputmode="email"
-              autocomplete="email"
-              placeholder="name@example.com"
-              @input="payerEmailError = ''"
-            />
-            <small :class="{ visible: payerEmailError }">{{
-              payerEmailError || "請輸入有效的付款電子信箱"
-            }}</small>
-          </div>
-          <p v-if="selected.promotion" class="checkout-promo-copy">
-            <Sparkles :size="15" />目前享有早鳥六折優惠。持續訂閱即維持
-            {{ money(selected.price) }}/月；取消後重新訂閱將依當時售價計費。
-          </p>
-          <p class="mock-copy">
-            下一步將離開本站前往藍新安全付款頁。付款結果會由後端驗證後發放點數或會員權益。
-          </p>
-          <div class="sheet-actions">
-            <button
-              class="app-button outline"
-              type="button"
-              :disabled="purchasing"
-              @click="selected = null"
-            >
-              取消</button
-            ><button
-              class="app-button"
-              type="button"
-              :disabled="purchasing"
-              @click="purchase"
-            >
-              <LoaderCircle v-if="purchasing" class="spin" :size="17" />{{
-                purchasing ? "建立訂單中..." : "前往付款"
-              }}
-            </button>
-          </div>
+            <X :size="20" />
+          </button>
         </div>
+      </template>
+      <div v-if="selected" class="purchase-sheet">
+        <div class="order-row">
+          <span>商品金額</span
+          ><strong class="checkout-price"
+            ><del v-if="selected.promotion && selected.original_price">{{
+              money(selected.original_price)
+            }}</del
+            ><span>{{ money(selected.price) }}</span></strong
+          >
+        </div>
+        <div v-if="selected.kind === 'subscription'" class="payer-email-field">
+          <label for="payer-email">付款電子信箱</label>
+          <input
+            id="payer-email"
+            v-model.trim="payerEmail"
+            :class="{ invalid: payerEmailError }"
+            type="email"
+            inputmode="email"
+            autocomplete="email"
+            placeholder="name@example.com"
+            @input="payerEmailError = ''"
+          />
+          <small :class="{ visible: payerEmailError }">{{
+            payerEmailError || "請輸入有效的付款電子信箱"
+          }}</small>
+        </div>
+        <p v-if="selected.promotion" class="checkout-promo-copy">
+          <Sparkles :size="15" />目前享有早鳥六折優惠。持續訂閱即維持
+          {{ money(selected.price) }}/月；取消後重新訂閱將依當時售價計費。
+        </p>
+        <p class="mock-copy">
+          下一步將離開本站前往藍新安全付款頁。付款結果會由系統驗證後發放點數或會員權益。
+        </p>
+        <div class="sheet-actions">
+          <button
+            class="app-button outline"
+            type="button"
+            :disabled="purchasing"
+            @click="selected = null"
+          >
+            取消</button
+          ><button
+            class="app-button"
+            type="button"
+            :disabled="purchasing"
+            @click="purchase"
+          >
+            <LoaderCircle v-if="purchasing" class="spin" :size="17" />{{
+              purchasing ? "建立訂單中..." : "前往付款"
+            }}
+          </button>
+        </div>
+      </div>
     </AppBottomSheet>
   </AppPageLayout>
 </template>

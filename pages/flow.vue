@@ -27,9 +27,13 @@ interface FlowSection {
   content: string;
 }
 interface FlowRecord {
+  uuid?: string;
+  client_job_id?: string;
+  analysis_date_key?: number;
   content?: string;
   is_complete?: boolean;
   created_at?: string;
+  updated_at?: string;
 }
 interface FlowScore {
   title: string;
@@ -56,6 +60,8 @@ const showFallback = ref(false);
 const recalculate = ref(false);
 const usePointsFallback = ref(false);
 const notice = ref("");
+const incompleteTasks = ref<FlowRecord[]>([]);
+const recoveryLoading = ref(false);
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 
 const days = computed(() =>
@@ -104,6 +110,16 @@ const flowDisconnected = computed(
     activeAnalysis.active.status === "running" &&
     !activeAnalysis.active.connected,
 );
+const {
+  currentTask: currentIncompleteTask,
+  isBackgroundProcessing: incompleteFlowIsBackgroundProcessing,
+  canRecover: canRecoverIncompleteFlow,
+} = useIncompleteAnalysisRecovery(incompleteTasks);
+const flowBackgroundProcessing = computed(
+  () =>
+    !canRecoverIncompleteFlow.value &&
+    (flowDisconnected.value || incompleteFlowIsBackgroundProcessing.value),
+);
 
 watch([year, month], () => {
   if (day.value > days.value.length) day.value = days.value.length;
@@ -112,14 +128,9 @@ onMounted(async () => {
   chartStore.hydrate(auth.profile);
   syncActiveFlow();
   await recoverFlowResult();
+  await loadIncompleteFlowTasks();
 });
 watch(() => activeAnalysis.active, syncActiveFlow, { deep: true });
-watch(
-  () => activeAnalysis.active?.status,
-  () => {
-    void recoverFlowResult();
-  },
-);
 
 function syncActiveFlow() {
   const job = activeAnalysis.active;
@@ -142,18 +153,24 @@ function syncActiveFlow() {
 
 async function recoverFlowResult() {
   const job = activeAnalysis.active;
-  if (!job || job.kind !== "flow" || job.status !== "completed") return;
+  if (!job || job.kind !== "flow" || !["running", "completed"].includes(job.status)) return;
   const key = Number(job.metadata.dateKey || 0);
   if (!key) return;
   try {
     const record = normalizeRecord(
       await ziweiApi.getFlowRecord(key, { notifyError: false }),
     );
-    if (record?.is_complete && record.content?.trim()) {
+    const recordTime = Date.parse(record?.updated_at || record?.created_at || "");
+    if (record?.is_complete && record.content?.trim() && recordTime >= job.startedAt - 1000) {
       content.value = record.content;
       createdAt.value = record.created_at || "";
       stage.value = "result";
       analyzing.value = false;
+      if (activeAnalysis.active?.jobId === job.jobId) {
+        activeAnalysis.active.status = "completed";
+        activeAnalysis.active.connected = false;
+        activeAnalysis.persist();
+      }
     }
   } catch {
     /* The streamed snapshot remains available. */
@@ -163,11 +180,32 @@ async function recoverFlowResult() {
 async function refreshFlowJob() {
   refreshingJob.value = true;
   try {
-    const status = await activeAnalysis.refreshStatus();
-    if (status === "running") {
-      notify("任務仍在背景處理，請稍後再重新讀取");
-      return;
+    if (
+      activeAnalysis.active?.kind === "flow" &&
+      activeAnalysis.active.status === "running"
+    ) {
+      const status = await activeAnalysis.refreshStatus();
+      if (status === "running") {
+        notify("任務仍在背景處理，請稍後再重新讀取");
+      }
     }
+    const recoveryRecord = currentIncompleteTask.value;
+    if (recoveryRecord?.analysis_date_key) {
+      const record = normalizeRecord(
+        await ziweiApi.getFlowRecord(recoveryRecord.analysis_date_key, {
+          notifyError: false,
+        }),
+      );
+      if (record?.is_complete && record.content?.trim()) {
+        content.value = record.content;
+        createdAt.value = record.created_at || "";
+        applyFlowDateKey(record.analysis_date_key || recoveryRecord.analysis_date_key);
+        stage.value = "result";
+        analyzing.value = false;
+      }
+    }
+    await recoverFlowResult();
+    await loadIncompleteFlowTasks(true);
   } catch (reason) {
     error.value =
       reason instanceof Error ? reason.message : "目前無法確認任務狀態";
@@ -214,6 +252,84 @@ function normalizeRecord(data: unknown): FlowRecord | null {
   if (!data || typeof data !== "object") return null;
   const wrapped = data as { data?: FlowRecord };
   return wrapped.data ?? (data as FlowRecord);
+}
+
+function normalizeFlowRecords(data: unknown): FlowRecord[] {
+  const body = data as { data?: unknown } | null;
+  return Array.isArray(body?.data) ? (body.data as FlowRecord[]) : [];
+}
+function applyFlowDateKey(key: number) {
+  year.value = Math.floor(key / 10000);
+  const rest = key % 10000;
+  month.value = Math.floor(rest / 100) || 1;
+  day.value = rest % 100 || 1;
+  flowType.value = rest === 0 ? "流年" : rest % 100 === 0 ? "流月" : "流日";
+}
+function incompleteFlowLabel(record: FlowRecord) {
+  const key = Number(record.analysis_date_key || 0);
+  const rest = key % 10000;
+  const type = rest === 0 ? "流年" : rest % 100 === 0 ? "流月" : "流日";
+  const y = Math.floor(key / 10000);
+  const m = Math.floor(rest / 100);
+  const d = rest % 100;
+  return `${type}・${y}${m ? `/${String(m).padStart(2, "0")}` : ""}${d ? `/${String(d).padStart(2, "0")}` : ""}`;
+}
+function recoveryTime(raw?: string) {
+  if (!raw) return "未知";
+  const value = new Date(raw);
+  return Number.isNaN(value.getTime()) ? raw : value.toLocaleString("zh-TW", { hour12: false });
+}
+async function loadIncompleteFlowTasks(preserveContent = false) {
+  try {
+    incompleteTasks.value = normalizeFlowRecords(
+      await ziweiApi.getIncompleteAnalyses("flow", { notifyError: false }),
+    );
+    const record = currentIncompleteTask.value;
+    if (record?.analysis_date_key && !preserveContent) {
+      applyFlowDateKey(record.analysis_date_key);
+      content.value = "";
+      stage.value = "result";
+    }
+  } catch { incompleteTasks.value = []; }
+}
+const incompleteFlowDetails = computed(() => {
+  const record = currentIncompleteTask.value;
+  if (!record) return [];
+  return [
+    {
+      label: "上次執行",
+      value: recoveryTime(record.updated_at || record.created_at),
+    },
+  ];
+});
+async function restartIncompleteFlow() {
+  const record = currentIncompleteTask.value;
+  if (!record?.uuid || !record.analysis_date_key) return;
+  recoveryLoading.value = true;
+  try {
+    await ziweiApi.prepareIncompleteRetry("flow", record.uuid);
+    activeAnalysis.dismiss("flow");
+    applyFlowDateKey(record.analysis_date_key);
+    incompleteTasks.value = [];
+    recalculate.value = true;
+    await startAnalysis();
+  } finally { recoveryLoading.value = false; }
+}
+async function abandonIncompleteFlow() {
+  const record = currentIncompleteTask.value;
+  if (!record?.uuid) return;
+  recoveryLoading.value = true;
+  try {
+    await ziweiApi.abandonIncompleteAnalysis("flow", record.uuid);
+    activeAnalysis.dismiss("flow");
+    incompleteTasks.value = [];
+    content.value = "";
+    createdAt.value = "";
+    analyzing.value = false;
+    recalculate.value = false;
+    error.value = "";
+    stage.value = "type";
+  } finally { recoveryLoading.value = false; }
 }
 
 async function requestAnalysis(force = false) {
@@ -502,13 +618,17 @@ function goBack() {
       </button>
     </main>
 
-    <main v-else class="result-stage">
+    <main
+      v-else
+      class="result-stage"
+      :class="{ 'background-processing-stage': flowBackgroundProcessing }"
+    >
       <h2>{{ displayDate }} 運勢解析</h2>
       <small v-if="formattedCreatedAt" class="analysis-time"
         >分析時間：{{ formattedCreatedAt }}</small
       >
       <AnalysisDisconnectedState
-        v-if="flowDisconnected"
+        v-if="flowBackgroundProcessing"
         :loading="refreshingJob"
         @refresh="refreshFlowJob"
       />
@@ -542,7 +662,7 @@ function goBack() {
           :source="content"
           :report-formatting="false"
         />
-        <div v-if="analyzing && content && !flowDisconnected" class="streaming-note">
+        <div v-if="analyzing && content && !flowBackgroundProcessing" class="streaming-note">
           <Sparkles :size="16" />正在整理下一段內容...
         </div>
         <div v-if="error" class="result-error">
@@ -617,6 +737,15 @@ function goBack() {
         </button>
       </div></AppBottomSheet
     >
+    <IncompleteAnalysisRecoverySheet
+      :open="canRecoverIncompleteFlow"
+      title="發現未完成的時運解析"
+      :summary="currentIncompleteTask ? incompleteFlowLabel(currentIncompleteTask) : ''"
+      :details="incompleteFlowDetails"
+      :loading="recoveryLoading"
+      @retry="restartIncompleteFlow"
+      @abandon="abandonIncompleteFlow"
+    />
     <Transition name="toast"
       ><div v-if="notice" class="toast">{{ notice }}</div></Transition
     >
@@ -626,6 +755,17 @@ function goBack() {
 <style scoped>
 .flow-screen {
   position: relative;
+}
+.flow-screen:has(> .background-processing-stage) {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.danger {
+  border-color: var(--cinnabar);
+  color: var(--cinnabar);
 }
 .bar-title {
   min-width: 0;
@@ -714,6 +854,18 @@ function goBack() {
 }
 .result-stage {
   padding: 8px 16px 30px;
+}
+.result-stage.background-processing-stage {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+.background-processing-stage :deep(.analysis-disconnected) {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .result-stage > h2 {
   margin: 8px 0 18px;

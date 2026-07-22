@@ -10,6 +10,14 @@ export interface AnalysisRequest {
   signal?: AbortSignal
 }
 
+export interface BatchAnalysisEvent {
+  type: 'chunk' | 'step_completed' | 'step_failed' | 'batch_completed'
+  step_key?: string
+  content?: string
+  message?: string
+  failed_steps?: string[]
+}
+
 export async function streamAnalysis(request: AnalysisRequest) {
   const socket = await connectAnalyzeWebSocket()
   let requestSent = false
@@ -73,6 +81,52 @@ export async function streamAnalysis(request: AnalysisRequest) {
   return completion.finally(() => request.signal?.removeEventListener('abort', abort))
 }
 
+export async function streamBatchAnalysis(options: {
+  payload: Record<string, unknown>
+  onEvent: (event: BatchAnalysisEvent) => void
+  signal?: AbortSignal
+}) {
+  const socket = await connectAnalyzeWebSocket()
+  return await new Promise<void>((resolve, reject) => {
+    let sent = false
+    let finished = false
+    const finish = (error?: Error) => {
+      if (finished) return
+      finished = true
+      options.signal?.removeEventListener('abort', abort)
+      if (socket.readyState === WebSocket.OPEN) socket.close(1000, error ? 'error' : 'complete')
+      if (error) reject(error)
+      else resolve()
+    }
+    const abort = () => finish(new Error('analysis_cancelled'))
+    if (options.signal?.aborted) return abort()
+    options.signal?.addEventListener('abort', abort, { once: true })
+    socket.addEventListener('open', () => {
+      sent = true
+      socket.send(JSON.stringify({ type: 'report', ...options.payload, analysis_type: 'report_batch' }))
+    })
+    socket.addEventListener('message', (message) => {
+      const text = String(message.data)
+      if (text.trim() === '/end') return finish()
+      try {
+        const data = JSON.parse(text) as { type?: string; detail?: string; error?: string; message?: string; step_key?: string; content?: string; failed_steps?: string[] }
+        if (data.type === 'learning_progress') return
+        if (data.type === 'error' || data.error) return finish(new Error(data.detail || data.message || data.error || '分析發生錯誤'))
+        if (data.type && ['chunk', 'step_completed', 'step_failed', 'batch_completed'].includes(data.type)) {
+          options.onEvent(data as BatchAnalysisEvent)
+          if (data.type === 'batch_completed') finish()
+        }
+      } catch {
+        // report_batch only accepts tagged JSON events.
+      }
+    })
+    socket.addEventListener('close', () => {
+      if (!finished) finish(new Error(sent ? 'analysis_connection_lost' : 'analysis_connection_failed'))
+    })
+    socket.addEventListener('error', () => finish(new Error(sent ? 'analysis_connection_lost' : 'analysis_connection_failed')))
+  })
+}
+
 export const ziweiApi = {
   mergeLearningProgress(completedStageIds: string[]) {
     return apiFetch('/users/me/learning-progress', {
@@ -97,6 +151,18 @@ export const ziweiApi = {
   },
   getAnalysisJob(jobId: string, options: { notifyError?: boolean } = {}) {
     return apiFetch(`/ziwei/analysis/jobs/${encodeURIComponent(jobId)}`, options)
+  },
+  finalizeAnalysisTimeout(jobId: string) {
+    return apiFetch(`/ziwei/analysis/jobs/${encodeURIComponent(jobId)}/finalize-timeout`, { method: 'POST' })
+  },
+  getIncompleteAnalyses(kind: 'flow' | 'match', options: { notifyError?: boolean } = {}) {
+    return apiFetch(`/ziwei/analysis/incomplete?kind=${kind}`, options)
+  },
+  prepareIncompleteRetry(kind: 'flow' | 'match', uuid: string) {
+    return apiFetch(`/ziwei/analysis/incomplete/${kind}/${encodeURIComponent(uuid)}/prepare-retry`, { method: 'POST' })
+  },
+  abandonIncompleteAnalysis(kind: 'flow' | 'match', uuid: string) {
+    return apiFetch(`/ziwei/analysis/incomplete/${kind}/${encodeURIComponent(uuid)}`, { method: 'DELETE' })
   },
   getMatchRecords() {
     return apiFetch('/ziwei/match/records')

@@ -27,6 +27,7 @@ interface ReportRecord {
   isComplete?: boolean;
   isCompelte?: boolean;
   created_at?: string;
+  updated_at?: string;
   createdAt?: string;
 }
 
@@ -61,6 +62,7 @@ const reportCacheKey = computed(
 );
 const runLockKey = computed(() => `${reportCacheKey.value}:running`);
 const analysisMarkerKey = computed(() => `${reportCacheKey.value}:streaming`);
+const doneReadKey = computed(() => `${reportCacheKey.value}:done-read`);
 const pageUnmounted = ref(false);
 const reportCacheSavedAt = ref(0);
 const reportContent = ref<HTMLElement | null>(null);
@@ -80,6 +82,25 @@ const streamReceivedAt = reactive<Record<CategoryId, number | null>>({
   ten_year: null,
 });
 const newCategories = ref(new Set<CategoryId>());
+const dismissedDoneCategories = ref(new Set<string>());
+function restoreDoneNotices() {
+  if (!import.meta.client) return;
+  try {
+    const saved = JSON.parse(localStorage.getItem(doneReadKey.value) || "[]");
+    dismissedDoneCategories.value = new Set(
+      Array.isArray(saved)
+        ? saved.filter((item) => typeof item === "string")
+        : [],
+    );
+  } catch {
+    localStorage.removeItem(doneReadKey.value);
+  }
+}
+function persistDoneNotices() {
+  if (!import.meta.client) return;
+  const recent = [...dismissedDoneCategories.value].slice(-100);
+  localStorage.setItem(doneReadKey.value, JSON.stringify(recent));
+}
 const selectedDetail = ref<{ title: string; content: string } | null>(null);
 const detailSummary = computed(
   () =>
@@ -145,34 +166,94 @@ const categories: {
 const currentMeta = computed(
   () => categories.find((item) => item.id === activeCategory.value)!,
 );
+function recordTimestamp(record: ReportRecord) {
+  const value = Date.parse(
+    record.updated_at || record.created_at || record.createdAt || "",
+  );
+  return Number.isFinite(value) ? value : 0;
+}
+function latestRecordForCategory(category: CategoryId) {
+  return records.value
+    .filter((item) => item.category === category)
+    .sort((left, right) => recordTimestamp(right) - recordTimestamp(left))[0];
+}
 const currentRecord = computed(() =>
-  records.value.find((item) => item.category === activeCategory.value),
+  latestRecordForCategory(activeCategory.value),
 );
-const currentIncompleteRecord = computed(() => {
-  const record = currentRecord.value;
-  return record &&
+function recordIsIncomplete(record?: ReportRecord) {
+  return Boolean(
+    record &&
     (record.is_complete === false ||
       record.is_compelte === false ||
       record.isComplete === false ||
-      record.isCompelte === false) &&
-    !record.content?.trim()
-    ? record
-    : null;
-});
-const incompleteIsRecent = computed(() => {
-  const raw =
-    currentIncompleteRecord.value?.created_at ||
-    currentIncompleteRecord.value?.createdAt;
-  if (!raw) return false;
-  const created = new Date(raw).getTime();
-  return (
-    Number.isFinite(created) && Math.abs(Date.now() - created) < 6 * 60 * 1000
+      record.isCompelte === false),
   );
+}
+const currentIncompleteRecord = computed(() => {
+  const record = currentRecord.value;
+  return recordIsIncomplete(record) ? record! : null;
 });
+const currentRetryIsFree = computed(() =>
+  Boolean(currentIncompleteRecord.value),
+);
+const reportJobCategories = computed(() => {
+  const job = activeAnalysis.active;
+  if (job?.kind !== "report") return new Set<CategoryId>();
+  const queue =
+    (job.metadata.queue as CategoryId[] | undefined) ||
+    (job.metadata.categories as CategoryId[] | undefined) ||
+    ((job.metadata.items as Array<{ key?: CategoryId }> | undefined) || [])
+      .map((item) => item.key)
+      .filter((key): key is CategoryId => Boolean(key));
+  return new Set(queue);
+});
+const activeReportCategories = computed(() =>
+  activeAnalysis.active?.status === "running"
+    ? reportJobCategories.value
+    : new Set<CategoryId>(),
+);
+const currentCategoryBelongsToActiveJob = computed(() =>
+  activeReportCategories.value.has(activeCategory.value),
+);
+const activeCompletedCategories = computed(
+  () =>
+    new Set(
+      (activeAnalysis.active?.kind === "report"
+        ? (activeAnalysis.active.metadata.completedCategories as
+            | CategoryId[]
+            | undefined)
+        : undefined) || [],
+    ),
+);
+const activeFailedCategories = computed(
+  () =>
+    new Set(
+      (activeAnalysis.active?.kind === "report"
+        ? (activeAnalysis.active.metadata.failedCategories as
+            | CategoryId[]
+            | undefined)
+        : undefined) || [],
+    ),
+);
+function doneNoticeKey(category: CategoryId) {
+  return `${activeAnalysis.active?.jobId || ""}:${category}`;
+}
+function showDoneNotice(category: CategoryId) {
+  return (
+    activeCompletedCategories.value.has(category) &&
+    !dismissedDoneCategories.value.has(doneNoticeKey(category))
+  );
+}
 const incompleteTime = computed(() => {
+  const job = activeAnalysis.active;
   const raw =
-    currentIncompleteRecord.value?.created_at ||
-    currentIncompleteRecord.value?.createdAt;
+    job?.kind === "report" &&
+    job.status === "running" &&
+    currentCategoryBelongsToActiveJob.value
+      ? job.startedAt
+      : currentIncompleteRecord.value?.updated_at ||
+        currentIncompleteRecord.value?.created_at ||
+        currentIncompleteRecord.value?.createdAt;
   if (!raw) return "未知時間";
   const value = new Date(raw);
   return Number.isNaN(value.getTime())
@@ -180,20 +261,40 @@ const incompleteTime = computed(() => {
     : value.toLocaleString("zh-TW", { hour12: false });
 });
 const currentCategoryIsAnalyzing = computed(
-  () => analyzing.value && analyzingCategory.value === activeCategory.value,
-);
-const reportDisconnected = computed(
   () =>
-    activeAnalysis.active?.kind === "report" &&
-    activeAnalysis.active.status === "running" &&
-    !activeAnalysis.active.connected &&
-    analyzingCategory.value === activeCategory.value,
+    analyzing.value &&
+    currentCategoryBelongsToActiveJob.value &&
+    !activeCompletedCategories.value.has(activeCategory.value) &&
+    !activeFailedCategories.value.has(activeCategory.value),
 );
-const currentContent = computed(() =>
-  currentCategoryIsAnalyzing.value
-    ? outputs[activeCategory.value]
-    : outputs[activeCategory.value] || currentRecord.value?.content || "",
-);
+const reportBackgroundProcessing = computed(() => {
+  const job = activeAnalysis.active;
+  return Boolean(
+    currentCategoryIsAnalyzing.value &&
+    job?.kind === "report" &&
+    job.status === "running" &&
+    !job.connected,
+  );
+});
+const currentOutputIsTrusted = computed(() => {
+  const job = activeAnalysis.active;
+  const category = activeCategory.value;
+  if (
+    job?.kind !== "report" ||
+    !reportJobCategories.value.has(category) ||
+    activeFailedCategories.value.has(category) ||
+    !outputs[category]?.trim()
+  )
+    return false;
+  return (
+    job.status === "running" || activeCompletedCategories.value.has(category)
+  );
+});
+const currentContent = computed(() => {
+  if (currentOutputIsTrusted.value) return outputs[activeCategory.value];
+  if (recordIsIncomplete(currentRecord.value)) return "";
+  return currentRecord.value?.content || "";
+});
 const generatedAt = computed(() => {
   const receivedAt = streamReceivedAt[activeCategory.value];
   const raw =
@@ -219,6 +320,7 @@ onMounted(async () => {
   if (usesDocumentScroll.value)
     window.addEventListener("scroll", rememberScroll, { passive: true });
   chartStore.hydrate(auth.profile);
+  restoreDoneNotices();
   syncActiveReport();
   restoreReportCache();
   const query = useRoute().query;
@@ -251,6 +353,12 @@ function syncActiveReport() {
     const value = job.contents[category.id];
     if (value) outputs[category.id] = value;
   }
+  const completed = new Set(
+    (job.metadata.completedCategories as CategoryId[] | undefined) || [],
+  );
+  for (const category of completed) {
+    if (!streamReceivedAt[category]) streamReceivedAt[category] = Date.now();
+  }
   analyzing.value = job.status === "running";
   fullRunning.value =
     job.status === "running" && job.metadata.fullRunning === true;
@@ -282,26 +390,45 @@ const completedCategories = computed(
   () =>
     new Set(
       records.value
-        .filter((record) => record.content?.trim())
+        .filter(
+          (record) => !recordIsIncomplete(record) && record.content?.trim(),
+        )
         .map((record) => record.category),
+    ),
+);
+const incompleteCategories = computed(
+  () =>
+    new Set(
+      categories
+        .map((category) => category.id)
+        .filter((category) =>
+          recordIsIncomplete(latestRecordForCategory(category)),
+        ),
     ),
 );
 const isFirstFullAnalysis = computed(
   () => !loadingRecords.value && completedCategories.value.size === 0,
 );
+const billableSelectedCount = computed(
+  () =>
+    fullSelected.value.filter(
+      (category) => !incompleteCategories.value.has(category),
+    ).length,
+);
 const quotaCoveredCount = computed(() =>
   auth.premium
-    ? Math.min(auth.membershipQuotaRemaining, fullSelected.value.length)
+    ? Math.min(auth.membershipQuotaRemaining, billableSelectedCount.value)
     : 0,
 );
 const pointsRequiredCount = computed(
-  () => fullSelected.value.length - quotaCoveredCount.value,
+  () => billableSelectedCount.value - quotaCoveredCount.value,
 );
 const fullCost = computed(() => pointsRequiredCount.value * 100);
 const canStartFull = computed(
   () => fullSelected.value.length > 0 && auth.points >= fullCost.value,
 );
 const fullCostLabel = computed(() => {
+  if (billableSelectedCount.value === 0) return "免費重試";
   const quota = quotaCoveredCount.value;
   const points = fullCost.value;
   if (quota && points) return `${quota} 次額度＋${points} P`;
@@ -313,9 +440,17 @@ const waitingCategories = computed(() => {
   if (!job || job.kind !== "report" || job.status !== "running")
     return new Set<CategoryId>();
   const queue = (job.metadata.queue as CategoryId[] | undefined) || [];
-  const current = job.metadata.currentCategory as CategoryId | undefined;
-  const currentIndex = current ? queue.indexOf(current) : -1;
-  return new Set(queue.slice(currentIndex + 1));
+  const completed = new Set(
+    (job.metadata.completedCategories as CategoryId[] | undefined) || [],
+  );
+  const failed = new Set(
+    (job.metadata.failedCategories as CategoryId[] | undefined) || [],
+  );
+  return new Set(
+    queue.filter(
+      (category) => !completed.has(category) && !failed.has(category),
+    ),
+  );
 });
 function toggleFullCategory(category: CategoryId, selected: boolean) {
   fullSelected.value = selected
@@ -323,9 +458,14 @@ function toggleFullCategory(category: CategoryId, selected: boolean) {
     : fullSelected.value.filter((item) => item !== category);
 }
 function categoryCostLabel(category: CategoryId) {
+  if (incompleteCategories.value.has(category)) return "免費重試";
   const selected = categories
     .map((item) => item.id)
-    .filter((item) => fullSelected.value.includes(item));
+    .filter(
+      (item) =>
+        fullSelected.value.includes(item) &&
+        !incompleteCategories.value.has(item),
+    );
   const index = selected.indexOf(category);
   return auth.premium && index >= 0 && index < auth.membershipQuotaRemaining
     ? "1 次"
@@ -373,6 +513,32 @@ async function loadRecords(force = false, notifyResult = false) {
     records.value = (list as ReportRecord[]).filter((item) =>
       categories.some((category) => category.id === item.category),
     );
+    const activeJob = activeAnalysis.active;
+    if (activeJob?.kind === "report" && activeJob.status === "running") {
+      const queue =
+        (activeJob.metadata.queue as CategoryId[] | undefined) || [];
+      const completed = records.value
+        .filter((record) => {
+          const timestamp = Date.parse(
+            record.updated_at || record.created_at || "",
+          );
+          return (
+            record.is_complete !== false &&
+            record.content?.trim() &&
+            timestamp >= activeJob.startedAt - 1000
+          );
+        })
+        .map((record) => record.category);
+      activeJob.metadata.completedCategories = completed;
+      if (
+        queue.length &&
+        queue.every((category) => completed.includes(category))
+      ) {
+        activeJob.status = "completed";
+        activeJob.connected = false;
+      }
+      activeAnalysis.persist();
+    }
     persistReportCache();
     if (notifyResult) showReloadSnackbar("命盤解析已重新讀取最新資料", "info");
   } catch (reason) {
@@ -396,14 +562,12 @@ async function refreshRecords() {
       const status = await activeAnalysis.refreshStatus();
       if (status === "running") {
         showReloadSnackbar("任務仍在背景處理，請稍後再重新讀取。", "info");
-        return;
       }
     } catch (reason) {
       showReloadSnackbar(
         reason instanceof Error ? reason.message : "目前無法確認任務狀態",
         "error",
       );
-      return;
     } finally {
       refreshingJob.value = false;
     }
@@ -414,15 +578,11 @@ async function refreshRecords() {
 function restoreReportCache() {
   const cached = sessionCache.get<{
     records?: ReportRecord[];
-    outputs?: Partial<Record<CategoryId, string>>;
     activeCategory?: CategoryId;
     savedAt?: number;
   }>(reportCacheKey.value);
   if (!cached) return;
   if (Array.isArray(cached.records)) records.value = cached.records;
-  for (const category of categories)
-    if (cached.outputs?.[category.id])
-      outputs[category.id] = cached.outputs[category.id]!;
   if (
     cached.activeCategory &&
     categories.some((category) => category.id === cached.activeCategory)
@@ -434,12 +594,8 @@ function restoreReportCache() {
 
 function persistReportCache() {
   reportCacheSavedAt.value = Date.now();
-  const cacheableOutputs = { ...outputs };
-  if (analyzing.value && analyzingCategory.value)
-    cacheableOutputs[analyzingCategory.value] = "";
   sessionCache.set(reportCacheKey.value, {
     records: records.value,
-    outputs: cacheableOutputs,
     activeCategory: activeCategory.value,
     savedAt: reportCacheSavedAt.value,
   });
@@ -460,6 +616,11 @@ async function requestStart() {
 }
 
 async function confirmSingleAnalysis() {
+  if (currentRetryIsFree.value) {
+    showConfirm.value = false;
+    await start(false, true);
+    return;
+  }
   if (auth.premium) {
     showConfirm.value = false;
     if (auth.membershipQuotaRemaining > 0) {
@@ -489,6 +650,13 @@ async function confirmPointsFallback() {
 async function selectCategory(category: CategoryId) {
   categoryScrollPositions[activeCategory.value] = currentReportScrollTop();
   activeCategory.value = category;
+  if (activeCompletedCategories.value.has(category)) {
+    dismissedDoneCategories.value = new Set([
+      ...dismissedDoneCategories.value,
+      doneNoticeKey(category),
+    ]);
+    persistDoneNotices();
+  }
   if (newCategories.value.has(category)) {
     const next = new Set(newCategories.value);
     next.delete(category);
@@ -525,44 +693,17 @@ async function restoreReportScroll(category = activeCategory.value) {
   try {
     await waitForReportLayout();
     setReportScrollTop(categoryScrollPositions[category] || 0);
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => resolve()),
+    );
   } finally {
     suppressScrollTracking.value = false;
   }
 }
 
-async function start(
-  usePointsOverride?: boolean,
-  retryIncomplete = false,
-  targetCategory: CategoryId = activeCategory.value,
-  reuseJob = false,
-  finalStep = true,
-) {
+function buildNatalAnalysisPayload() {
   const chart = chartStore.chart;
-  if (!chart || (analyzing.value && !reuseJob)) return false;
-  if (!reuseJob) {
-    if (!(await auth.verifyOnlineAccess())) return false;
-    const started = await activeAnalysis.begin("report", reportCacheKey.value, {
-      currentCategory: targetCategory,
-      queue: [targetCategory],
-      fullRunning: false,
-    });
-    if (!started) return false;
-  }
-  showConfirm.value = false;
-  outputs[targetCategory] = "";
-  error.value = "";
-  analyzing.value = true;
-  analyzingCategory.value = targetCategory;
-  streamReceivedAt[targetCategory] = null;
-  sessionCache.set(analysisMarkerKey.value, {
-    category: targetCategory,
-    startedAt: Date.now(),
-  });
-  persistReportCache();
-  receivedStreamData.value = false;
-  const category = targetCategory;
-  activeAnalysis.updateMetadata({ currentCategory: category });
+  if (!chart) return null;
   const palaces = earthlyBranches.map((branch) => {
     let name = palaceNameForBranch(chart, branch);
     if (branch === chart.bodyPalaceBranch) name = `${name}(身宮)`;
@@ -628,60 +769,96 @@ async function start(
       (item) => item.name.replace("(身宮)", "") === expectedName,
     );
     if (!palace?.position) {
-      analyzing.value = false;
-      analyzingCategory.value = null;
       error.value = `本命盤宮位 [${expectedName}] 缺少位置資訊`;
-      return false;
+      return null;
     }
   }
+  return {
+    recalculate: true,
+    ...natalChart,
+    chart,
+    natal_chart: natalChart,
+  };
+}
+
+async function runReportBatch(
+  queue: CategoryId[],
+  usePointsOverride?: boolean,
+) {
+  const payload = buildNatalAnalysisPayload();
+  if (!payload || !queue.length) return false;
+  for (const category of queue) {
+    outputs[category] = "";
+    streamReceivedAt[category] = null;
+  }
+  analyzing.value = true;
+  fullRunning.value = queue.length > 1;
+  analyzingCategory.value = queue[0] || null;
+  error.value = "";
+  receivedStreamData.value = false;
+  persistReportCache();
   try {
-    outputs[category] = await activeAnalysis.runStep(
+    await activeAnalysis.runBatch(
       {
-        analysis_type: category,
-        recalculate: true,
-        retry_incomplete: retryIncomplete,
+        ...payload,
         use_points_fallback:
           typeof usePointsOverride === "boolean"
             ? usePointsOverride
-            : !auth.premium || auth.membershipQuotaRemaining < 1,
-        ...natalChart,
-        chart,
-        natal_chart: natalChart,
+            : !auth.premium || auth.membershipQuotaRemaining < queue.length,
       },
-      category,
-      finalStep,
+      queue,
     );
-    streamReceivedAt[category] = Date.now();
+    for (const category of queue) streamReceivedAt[category] = Date.now();
     receivedStreamData.value = true;
     analyzing.value = false;
+    fullRunning.value = false;
     analyzingCategory.value = null;
-    if (activeCategory.value !== category)
-      newCategories.value = new Set([...newCategories.value, category]);
-    if (finalStep) sessionCache.remove(analysisMarkerKey.value);
+    const failed =
+      (activeAnalysis.active?.metadata.failedCategories as
+        | CategoryId[]
+        | undefined) || [];
+    if (failed.length)
+      error.value = `部分解析未完成：${failed.map((id) => categories.find((item) => item.id === id)?.label || id).join("、")}`;
     await auth.loadBilling();
     await loadRecords(true);
     persistReportCache();
-    return true;
+    return failed.length === 0;
   } catch (reason) {
     if (
       reason instanceof Error &&
       reason.message === "analysis_connection_lost"
     ) {
       analyzing.value = true;
-      analyzingCategory.value = category;
+      fullRunning.value = queue.length > 1;
       error.value = "";
       persistReportCache();
       return false;
     }
     analyzing.value = false;
+    fullRunning.value = false;
     analyzingCategory.value = null;
-    outputs[category] = "";
     error.value = reason instanceof Error ? reason.message : "分析連線失敗";
     await loadRecords(true);
     sessionCache.remove(analysisMarkerKey.value);
     persistReportCache();
     return false;
   }
+}
+
+async function start(
+  usePointsOverride?: boolean,
+  _retryIncomplete = false,
+  targetCategory: CategoryId = activeCategory.value,
+) {
+  if (analyzing.value || !(await auth.verifyOnlineAccess())) return false;
+  const started = await activeAnalysis.begin("report", reportCacheKey.value, {
+    currentCategory: targetCategory,
+    queue: [targetCategory],
+    fullRunning: false,
+  });
+  if (!started) return false;
+  showConfirm.value = false;
+  return runReportBatch([targetCategory], usePointsOverride);
 }
 
 async function startFullAnalysis() {
@@ -701,22 +878,10 @@ async function startFullAnalysis() {
     startedAt: Date.now(),
   });
   showFullConfirm.value = false;
-  fullRunning.value = true;
-  receivedStreamData.value = false;
-  error.value = "";
-  for (const [index, category] of queue.entries()) {
-    const usePointsFallback =
-      !auth.premium || auth.membershipQuotaRemaining < 1;
-    const completed = await start(
-      usePointsFallback,
-      false,
-      category,
-      true,
-      index === queue.length - 1,
-    );
-    if (!completed || error.value) break;
-  }
-  fullRunning.value = false;
+  await runReportBatch(
+    queue,
+    !auth.premium || auth.membershipQuotaRemaining < queue.length,
+  );
   sessionCache.remove(runLockKey.value);
   await loadRecords(true);
   persistReportCache();
@@ -878,6 +1043,7 @@ async function closeDetail() {
       >
         <span>{{ category.label }}</span
         ><em v-if="waitingCategories.has(category.id)" class="wait">wait</em
+        ><em v-else-if="showDoneNotice(category.id)">done</em
         ><em v-else-if="newCategories.has(category.id)">new</em>
       </button>
     </div>
@@ -885,16 +1051,14 @@ async function closeDetail() {
       v-if="
         !selectedDetail &&
         currentCategoryIsAnalyzing &&
-        (receivedStreamData || reportDisconnected)
+        (receivedStreamData || reportBackgroundProcessing)
       "
     />
     <div
-      v-if="!selectedDetail && fullRunning && !reportDisconnected"
+      v-if="!selectedDetail && fullRunning && !reportBackgroundProcessing"
       class="full-running"
     >
-      <Sparkles
-        :size="15"
-      />正在依序生成「先天命格」、「宮位詳解」與「十年大運」解析；輪到該項開始時才會扣除額度或點數
+      <Sparkles :size="15" />正在同時生成所選的命盤解析；完成的項目會立即顯示
     </div>
 
     <main v-if="!selectedDetail" class="report-body">
@@ -903,58 +1067,27 @@ async function closeDetail() {
       </div>
 
       <AnalysisDisconnectedState
-        v-else-if="reportDisconnected"
+        v-else-if="reportBackgroundProcessing"
         :loading="refreshingRecords || refreshingJob"
         @refresh="refreshRecords"
       />
 
-      <AstrologyLoader
-        v-else-if="currentCategoryIsAnalyzing && !receivedStreamData"
-      />
-
       <section
-        v-else-if="currentIncompleteRecord && !analyzing"
+        v-else-if="
+          currentIncompleteRecord &&
+          !currentCategoryBelongsToActiveJob &&
+          !currentOutputIsTrusted
+        "
         class="incomplete-state"
-        :class="{ recent: incompleteIsRecent }"
       >
-        <span class="incomplete-icon"
-          ><RefreshCw v-if="incompleteIsRecent" :size="42" /><span v-else
-            >!</span
-          ></span
-        >
-        <h2>
-          {{
-            incompleteIsRecent
-              ? `${currentMeta.label}解析中`
-              : `${currentMeta.label}解盤發生錯誤`
-          }}
-        </h2>
+        <span class="incomplete-icon"><span>!</span></span>
+        <h2>{{ currentMeta.label }}解盤發生錯誤</h2>
         <div class="incomplete-info">
-          <p>
-            {{ incompleteIsRecent ? "請求發起時間" : "上次執行解盤時間" }}：{{
-              incompleteTime
-            }}
-          </p>
-          <strong>{{
-            incompleteIsRecent ? "系統仍在處理這份報告" : "請重新解盤"
-          }}</strong
-          ><small>{{
-            incompleteIsRecent
-              ? "完成後會自動保存；您也可以重新讀取最新狀態。"
-              : "重新解盤將不會扣除點數或額度"
-          }}</small>
+          <p>上次執行解盤時間：{{ incompleteTime }}</p>
+          <strong>請重新解盤</strong>
+          <small>重新解盤將不會扣除點數或額度</small>
         </div>
         <button
-          v-if="incompleteIsRecent"
-          class="app-button"
-          type="button"
-          :disabled="refreshingRecords"
-          @click="refreshRecords"
-        >
-          <RefreshCw :size="17" />重新讀取資料
-        </button>
-        <button
-          v-else
           class="app-button"
           type="button"
           :disabled="analyzing"
@@ -963,6 +1096,10 @@ async function closeDetail() {
           <RefreshCw :size="17" />重新解盤
         </button>
       </section>
+
+      <AstrologyLoader
+        v-else-if="currentCategoryIsAnalyzing && !receivedStreamData"
+      />
 
       <section v-else-if="error && !currentContent" class="report-empty">
         <WifiOff :size="52" />
@@ -1076,7 +1213,14 @@ async function closeDetail() {
           {{ isRecalculate ? "確認重新解盤" : `開始${currentMeta.label}解析` }}
         </h2></template
       >
-      <template v-if="isRecalculate"
+      <template v-if="currentRetryIsFree"
+        ><strong class="confirm-summary"
+          >這是未完成任務，本次重新執行不會扣除額度或點數。</strong
+        >
+        <p>
+          系統會重新執行「{{ currentMeta.label }}解析」，完成後覆寫未完成紀錄。
+        </p></template
+      ><template v-else-if="isRecalculate"
         ><strong class="confirm-summary">{{
           auth.premium
             ? "重新解盤將消耗會員額度 1 次。"
@@ -1109,12 +1253,19 @@ async function closeDetail() {
         }}</b>
       </div>
       <p
-        v-if="auth.premium && auth.membershipQuotaRemaining < 1"
+        v-if="
+          !currentRetryIsFree &&
+          auth.premium &&
+          auth.membershipQuotaRemaining < 1
+        "
         class="balance-warning"
       >
         本月會員額度不足，您可以稍後再使用，或改用點數繼續本次解析。
       </p>
-      <p v-else-if="!auth.premium && auth.points < 100" class="balance-warning">
+      <p
+        v-else-if="!currentRetryIsFree && !auth.premium && auth.points < 100"
+        class="balance-warning"
+      >
         您的點數餘額不足，請購買點數或升級 Premium。
       </p>
       <div class="sheet-actions">
@@ -1130,17 +1281,19 @@ async function closeDetail() {
           @click="confirmSingleAnalysis"
         >
           {{
-            auth.premium
-              ? auth.membershipQuotaRemaining > 0
-                ? isRecalculate
-                  ? "確認重新解盤"
-                  : "確認使用"
-                : "改用點數"
-              : auth.points >= 100
-                ? isRecalculate
-                  ? "確認重新解盤"
-                  : "確認"
-                : "前往購買"
+            currentRetryIsFree
+              ? "免費重新執行"
+              : auth.premium
+                ? auth.membershipQuotaRemaining > 0
+                  ? isRecalculate
+                    ? "確認重新解盤"
+                    : "確認使用"
+                  : "改用點數"
+                : auth.points >= 100
+                  ? isRecalculate
+                    ? "確認重新解盤"
+                    : "確認"
+                  : "前往購買"
           }}
         </button>
       </div>
@@ -1194,8 +1347,7 @@ async function closeDetail() {
       </p>
       <p v-else>選擇要生成或重新解盤的解析項目，每個項目會建立一份獨立報告。</p>
       <p class="sequential-note">
-        系統會依照本命、宮位、大運依序執行；執行到該項時才扣除該項額度或 100
-        P，仍在等待的項目不會預先扣除。
+        系統會同時執行所選項目並扣除相對應額度或點數；未完成項目可免費重新執行，不會再次扣除。
       </p>
       <div class="billing-summary">
         <span>{{ auth.premium ? "會員剩餘額度" : "目前點數" }}</span
@@ -1753,6 +1905,7 @@ async function closeDetail() {
   line-height: 1.4;
 }
 .incomplete-state > .app-button {
+  gap: 8px;
   width: min(100%, 430px);
   margin-top: 28px;
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RefreshCw, WifiOff } from "@lucide/vue";
+import { LoaderCircle, RefreshCw } from "@lucide/vue";
 
 defineProps<{ loading?: boolean }>();
 defineEmits<{ refresh: [] }>();
@@ -7,9 +7,9 @@ defineEmits<{ refresh: [] }>();
 
 <template>
   <section class="analysis-disconnected" role="status">
-    <span><WifiOff :size="34" /></span>
-    <h2>即時連線已中斷</h2>
-    <p>任務可能仍在背景處理，請過約五分鐘後再重新讀取任務。</p>
+    <span><LoaderCircle :size="34" class="background-spin" /></span>
+    <h2>正在背景作業</h2>
+    <p>系統仍在背景處理中，請稍後手動重新讀取結果。</p>
     <button
       class="app-button"
       type="button"
@@ -17,7 +17,7 @@ defineEmits<{ refresh: [] }>();
       @click="$emit('refresh')"
     >
       <RefreshCw :size="17" :class="{ spinning: loading }" />
-      {{ loading ? "正在確認..." : "重新讀取任務狀態" }}
+      {{ loading ? "正在讀取..." : "重新讀取結果" }}
     </button>
   </section>
 </template>
@@ -55,11 +55,15 @@ defineEmits<{ refresh: [] }>();
   font-size: 14px;
 }
 .analysis-disconnected .app-button {
+  gap: 8px;
   width: min(100%, 280px);
   margin-top: 8px;
 }
 .spinning {
   animation: spin 0.8s linear infinite;
+}
+.background-spin {
+  animation: spin 1.4s linear infinite;
 }
 @keyframes spin {
   to {
