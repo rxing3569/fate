@@ -965,6 +965,13 @@ function handleKeydown(event: KeyboardEvent) {
   font-weight: 600;
   line-height: 1.4;
 }
+@supports (-webkit-touch-callout: none) {
+  @media (hover: none) and (pointer: coarse) {
+    .composer-field textarea {
+      font-size: 16px;
+    }
+  }
+}
 .composer-field > button {
   display: grid;
   place-items: center;
