@@ -365,9 +365,4 @@ async function editChart() {
   font-weight: 800;
 }
 
-@media (max-width: 759px) {
-  .chart-screen {
-    height: calc(100dvh - 72px - env(safe-area-inset-bottom));
-  }
-}
 </style>

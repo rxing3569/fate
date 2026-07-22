@@ -915,11 +915,6 @@ function handleKeydown(event: KeyboardEvent) {
   flex: none;
   padding: 4px 16px calc(14px + env(safe-area-inset-bottom));
 }
-@media (max-width: 759px) {
-  .qa-composer {
-    padding-bottom: calc(88px + env(safe-area-inset-bottom));
-  }
-}
 .composer-actions {
   display: flex;
   justify-content: flex-end;
