@@ -8,16 +8,23 @@ const loginRedirect = ref("/");
 const learningSyncing = ref(false);
 
 const tabs = [
-  { to: "/", label: "首頁", icon: Home },
-  { to: "/learn/", label: "學習紫微", icon: BookOpen },
+  { to: "/", label: "首頁", mobileLabel: "首頁", icon: Home },
+  { to: "/learn/", label: "學習紫微", mobileLabel: "學習", icon: BookOpen },
   {
     to: "/ai-analysis",
     label: "排盤解盤",
+    mobileLabel: "解盤",
     materialIcon: "grid_view_rounded" as const,
     featured: true,
   },
-  { to: "/articles", label: "命理專欄", icon: Newspaper },
-  { to: "/member", label: "會員中心", icon: UserRound, gated: true },
+  { to: "/articles", label: "命理專欄", mobileLabel: "專欄", icon: Newspaper },
+  {
+    to: "/member",
+    label: "會員中心",
+    mobileLabel: "會員",
+    icon: UserRound,
+    gated: true,
+  },
 ];
 
 const navigationHiddenRoutes = new Set([
@@ -33,10 +40,7 @@ const normalizedPath = computed(() =>
 );
 const showTabs = computed(() => {
   if (navigationHiddenRoutes.has(normalizedPath.value)) return false;
-  if (
-    normalizedPath.value === "/profile/edit" &&
-    route.query.from === "chart"
-  )
+  if (normalizedPath.value === "/profile/edit" && route.query.from === "chart")
     return false;
   if (
     normalizedPath.value === "/ai-analysis" &&
@@ -101,7 +105,9 @@ async function acceptLearningProgressSync() {
 }
 
 function handleOfflineSnapshot(event: Event) {
-  const updatedAt = Number((event as CustomEvent<{ updatedAt?: number }>).detail?.updatedAt || 0);
+  const updatedAt = Number(
+    (event as CustomEvent<{ updatedAt?: number }>).detail?.updatedAt || 0,
+  );
   auth.activateOfflineFallback(updatedAt);
 }
 
@@ -152,9 +158,14 @@ function isTabActive(path: string) {
       route.path === "/nwp-live-check"
     );
   if (path === "/ai-analysis")
-    return ["/ai-analysis", "/chart", "/report", "/flow", "/match", "/qa"].includes(
-      route.path,
-    );
+    return [
+      "/ai-analysis",
+      "/chart",
+      "/report",
+      "/flow",
+      "/match",
+      "/qa",
+    ].includes(route.path);
   return route.path === path;
 }
 </script>
@@ -184,8 +195,12 @@ function isTabActive(path: string) {
         :close-on-backdrop="false"
         locked
       >
-        <template #header><h2 id="learning-sync-title">同步學習進度？</h2></template>
-        <p>偵測到登入前已完成的學習關卡。是否將這些進度合併到目前帳號？同步後只會增加，不會覆蓋帳號原有進度。</p>
+        <template #header
+          ><h2 id="learning-sync-title">同步學習進度？</h2></template
+        >
+        <p>
+          偵測到登入前已完成的學習關卡。是否將這些進度合併到目前帳號？同步後只會增加，不會覆蓋帳號原有進度。
+        </p>
         <div class="learning-sync-actions">
           <button
             class="app-button outline"
@@ -246,7 +261,8 @@ function isTabActive(path: string) {
               >P</b
             >
           </span>
-          <span>{{ tab.label }}</span>
+          <span class="nav-label nav-label-full">{{ tab.label }}</span>
+          <span class="nav-label nav-label-mobile">{{ tab.mobileLabel }}</span>
         </button>
       </div>
       <div class="nav-footer"><span>AI 打造的紫微解析與學習平台</span></div>
@@ -258,30 +274,30 @@ function isTabActive(path: string) {
       labelledby="login-sheet-title"
       @close="showLoginSheet = false"
     >
-          <template #header><img class="sheet-logo" src="/remove-background-logo.png" alt="" /><h2 id="login-sheet-title">開始探索紫微</h2></template>
-          <p>
-            命盤解析盤等 AI 功能需要登入帳號後方可使用。<br />立即註冊領取 300P
-          </p>
-          <div class="sheet-actions">
-            <button
-              class="app-button outline"
-              type="button"
-              @click="showLoginSheet = false"
-            >
-              先逛逛看
-            </button>
-            <NuxtLink
-              class="app-button"
-              :to="{
-                path: '/login',
-                query: { redirect: loginRedirect },
-              }"
-              @click="showLoginSheet = false"
-              >前往登入 / 註冊</NuxtLink
-            >
-          </div>
+      <template #header
+        ><img class="sheet-logo" src="/remove-background-logo.png" alt="" />
+        <h2 id="login-sheet-title">開始探索紫微</h2></template
+      >
+      <p>命盤解析盤等 AI 功能需要登入帳號後方可使用。<br />立即註冊領取 300P</p>
+      <div class="sheet-actions">
+        <button
+          class="app-button outline"
+          type="button"
+          @click="showLoginSheet = false"
+        >
+          先逛逛看
+        </button>
+        <NuxtLink
+          class="app-button"
+          :to="{
+            path: '/login',
+            query: { redirect: loginRedirect },
+          }"
+          @click="showLoginSheet = false"
+          >前往登入 / 註冊</NuxtLink
+        >
+      </div>
     </AppBottomSheet>
-
   </div>
 </template>
 
@@ -293,7 +309,9 @@ function isTabActive(path: string) {
   width: 100%;
   margin-top: 18px;
 }
-.learning-sync-actions .app-button { width: 100%; }
+.learning-sync-actions .app-button {
+  width: 100%;
+}
 .copy-protected {
   -webkit-user-select: none;
   user-select: none;

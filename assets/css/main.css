@@ -181,8 +181,8 @@ button {
   left: 50%;
   bottom: calc(10px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
-  width: min(calc(100% - 32px), 330px);
-  height: 62px;
+  width: min(calc(100% - 24px), 390px);
+  height: 72px;
   padding: 2px;
   border: 1px solid rgba(255, 255, 255, 0.74);
   border-radius: 999px;
@@ -218,18 +218,28 @@ button {
   border-radius: 50%;
   background: transparent;
   color: rgba(36, 87, 90, 0.48);
-  font-size: 10.5px;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto;
+  font-size: 11px;
   font-weight: 700;
 }
-.primary-nav-item > span:last-child {
+.nav-label {
+  line-height: 13px;
+  white-space: nowrap;
+}
+.nav-label-full {
   display: none;
+}
+.nav-label-mobile {
+  display: block;
 }
 .nav-icon-bubble {
   position: relative;
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   transition:
     background 0.2s ease,
@@ -260,23 +270,25 @@ button {
   line-height: 1;
 }
 .primary-nav-item.active {
+  border-radius: 50%;
+  background: rgba(107, 166, 160, 0.2);
   color: var(--mountain);
 }
 .primary-nav-item.active .nav-icon-bubble {
-  width: 48px;
-  height: 48px;
+  width: 42px;
+  height: 42px;
   border: 0;
-  background: rgba(107, 166, 160, 0.24);
+  background: transparent;
   box-shadow: none;
 }
 .primary-nav-item.featured {
   z-index: 1;
-  color: #fff;
+  color: var(--mountain);
 }
 .primary-nav-item.featured .nav-icon-bubble {
-  width: 62px;
-  height: 62px;
-  margin-top: -8px;
+  width: 44px;
+  height: 44px;
+  margin-top: -1px;
   border: 1px solid rgba(255, 255, 255, 0.62);
   background: linear-gradient(
     145deg,
@@ -286,9 +298,10 @@ button {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.34),
     0 8px 18px rgba(36, 87, 90, 0.25);
+  color: #fff;
 }
 .primary-nav-item.featured.active {
-  color: #fff;
+  color: var(--mountain);
 }
 .primary-nav-item.featured .primary-nav-icon {
   width: 27px;
@@ -618,6 +631,32 @@ pre {
 }
 
 @media (max-width: 759px) {
+  .primary-nav-item {
+    align-self: center;
+  }
+  .primary-nav-item .nav-icon-bubble,
+  .primary-nav-item.active .nav-icon-bubble,
+  .primary-nav-item.featured .nav-icon-bubble,
+  .primary-nav-item.featured.active .nav-icon-bubble {
+    width: 36px;
+    height: 36px;
+    margin: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    color: inherit;
+  }
+  .primary-nav-item.featured {
+    color: rgba(36, 87, 90, 0.48);
+  }
+  .primary-nav-item.featured.active {
+    color: var(--mountain);
+  }
+  .primary-nav-item.featured .primary-nav-icon {
+    width: 24px;
+    height: 24px;
+    font-size: 23px !important;
+  }
   .premium-nav-badge {
     top: 0;
     right: 0;
@@ -651,7 +690,7 @@ pre {
     transform: none;
     display: flex;
     flex-direction: column;
-    width: 68px;
+    width: 72px;
     height: calc(100dvh - 24px);
     padding: 14px 5px calc(14px + env(safe-area-inset-bottom));
     border: 1px solid rgba(255, 255, 255, 0.6);
@@ -693,19 +732,25 @@ pre {
     height: auto;
   }
   .primary-nav-item {
-    width: 54px;
-    height: 54px;
+    width: 62px;
+    height: 68px;
     margin: 0 auto;
     padding: 0;
-    border-radius: 50%;
+    border-radius: 18px;
+    font-size: 12px;
   }
-  .primary-nav-item > span:last-child {
+  .nav-label-mobile {
     display: none;
   }
+  .nav-label-full {
+    display: block;
+    line-height: 14px;
+    white-space: nowrap;
+  }
   .primary-nav-item.active {
-    width: 54px;
-    height: 54px;
-    border-radius: 50%;
+    width: 62px;
+    height: 68px;
+    border-radius: 18px;
     background: transparent;
   }
   .primary-nav-item.active .nav-icon-bubble {
@@ -714,10 +759,10 @@ pre {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88);
   }
   .primary-nav-item.featured {
-    width: 54px;
-    height: 54px;
+    width: 62px;
+    height: 68px;
     margin: 0 auto;
-    border-radius: 50%;
+    border-radius: 18px;
     color: rgba(36, 87, 90, 0.48);
     transform: none;
   }
@@ -728,10 +773,11 @@ pre {
     border: 0;
     background: transparent;
     box-shadow: none;
+    color: inherit;
   }
   .primary-nav-item.featured.active {
-    width: 54px;
-    height: 54px;
+    width: 62px;
+    height: 68px;
     align-self: center;
     color: var(--mountain);
   }
@@ -813,8 +859,11 @@ pre {
     height: 52px;
     border-radius: 999px;
   }
-  .primary-nav-item > span:last-child {
+  .primary-nav-item .nav-label-full {
     display: block;
+  }
+  .primary-nav-item .nav-label-mobile {
+    display: none;
   }
   .primary-nav-item .nav-icon-bubble {
     display: grid;
