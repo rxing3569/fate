@@ -382,11 +382,12 @@ export const useActiveAnalysisStore = defineStore("active-analysis", {
             this.active.error = "";
             activeController = undefined;
             this.persist();
-            snackbar(
-              "任務可能仍在背景處理，請使用畫面上的「重新讀取」確認最新結果。",
-              "info",
-              { title: `${labels[job.kind]}正在背景作業` },
-            );
+            if (job.kind !== "qa")
+              snackbar(
+                "任務可能仍在背景處理，請使用畫面上的「重新讀取」確認最新結果。",
+                "info",
+                { title: `${labels[job.kind]}正在背景作業` },
+              );
           }
           throw reason;
         }

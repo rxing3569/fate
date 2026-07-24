@@ -36,6 +36,8 @@ const messages = ref<QaMessage[]>([]);
 const reports = ref<ReportRecord[]>([]);
 const input = ref("");
 const sending = ref(false);
+const requestingSend = ref(false);
+const startingSend = ref(false);
 const error = ref("");
 const showQuotaConfirm = ref(false);
 const showPointsFallback = ref(false);
@@ -76,6 +78,8 @@ const canSend = computed(
   () =>
     Boolean(input.value.trim()) &&
     !sending.value &&
+    !requestingSend.value &&
+    !startingSend.value &&
     remaining.value > 0 &&
     Boolean(chartStore.chart),
 );
@@ -183,13 +187,20 @@ async function recoverQaHistory() {
 }
 
 async function refreshQaJob() {
+  if (refreshingJob.value) return;
   refreshingJob.value = true;
+  error.value = "";
   try {
     const status = await activeAnalysis.refreshStatus();
     if (status === "running") {
-      error.value = "任務仍在背景處理，請稍後再重新讀取。";
       return;
     }
+    if (status === "completed") {
+      await recoverQaHistory();
+      return;
+    }
+    error.value =
+      activeAnalysis.active?.error || "目前無法讀取完整回覆，請稍後再試。";
   } catch (reason) {
     error.value =
       reason instanceof Error ? reason.message : "目前無法確認任務狀態";
@@ -300,18 +311,24 @@ function chooseSuggestion(question: string) {
 }
 
 async function requestSend() {
+  if (requestingSend.value || startingSend.value) return;
   const question = input.value.trim();
   if (!question || sending.value || !chartStore.chart) return;
-  if (remaining.value <= 0) {
-    error.value =
-      "AI 問答功能每份命盤最多可提問 10 次。請重新提問開啟新的問答。";
-    return;
+  requestingSend.value = true;
+  try {
+    if (remaining.value <= 0) {
+      error.value =
+        "AI 問答功能每份命盤最多可提問 10 次。請重新提問開啟新的問答。";
+      return;
+    }
+    if (!(await activeAnalysis.ensureAvailable("qa"))) return;
+    pendingQuestion.value = question;
+    if (askedCount.value === 0 && !usePointsFallback.value) {
+      showQuotaConfirm.value = true;
+    } else await sendQuestion(question);
+  } finally {
+    requestingSend.value = false;
   }
-  if (!(await activeAnalysis.ensureAvailable("qa"))) return;
-  pendingQuestion.value = question;
-  if (askedCount.value === 0 && !usePointsFallback.value) {
-    showQuotaConfirm.value = true;
-  } else sendQuestion(question);
 }
 
 function buildNatalPayload() {
@@ -372,24 +389,26 @@ async function confirmPointsFallback() {
 }
 
 async function sendQuestion(question: string) {
-  if (!question || sending.value) return;
-  if (!(await auth.verifyOnlineAccess(true))) return;
-  const history = [...messages.value];
-  const userMessage: QaMessage = { role: "user", content: question };
-  const consumesQuota = history.filter((item) => item.role === "user").length === 0;
-  const started = await activeAnalysis.begin("qa", cacheKey.value, {
-    chatId: chatId.value,
-    question,
-  });
-  if (!started) return;
-  messages.value.push(userMessage, { role: "assistant", content: "" });
-  input.value = "";
-  sending.value = true;
-  error.value = "";
-  persistConversation();
-  scrollBottom();
-  const natal = buildNatalPayload();
+  if (!question || sending.value || startingSend.value) return;
+  startingSend.value = true;
   try {
+    if (!(await auth.verifyOnlineAccess(true))) return;
+    const history = [...messages.value];
+    const userMessage: QaMessage = { role: "user", content: question };
+    const consumesQuota =
+      history.filter((item) => item.role === "user").length === 0;
+    const started = await activeAnalysis.begin("qa", cacheKey.value, {
+      chatId: chatId.value,
+      question,
+    });
+    if (!started) return;
+    messages.value.push(userMessage, { role: "assistant", content: "" });
+    input.value = "";
+    sending.value = true;
+    error.value = "";
+    persistConversation();
+    scrollBottom();
+    const natal = buildNatalPayload();
     const answer = await activeAnalysis.runStep({
       ...natal,
       analysis_type: "qa",
@@ -446,6 +465,8 @@ async function sendQuestion(question: string) {
       error.value = "點數餘額不足，請先購買點數後再繼續。";
     else error.value = message;
     persistConversation();
+  } finally {
+    startingSend.value = false;
   }
 }
 
@@ -502,11 +523,6 @@ function handleKeydown(event: KeyboardEvent) {
     </main>
 
     <main v-else key="chat" class="chat-layout">
-      <AnalysisDisconnectedState
-        v-if="qaDisconnected"
-        :loading="refreshingJob"
-        @refresh="refreshQaJob"
-      />
       <section ref="chatArea" class="chat-area" aria-live="polite">
         <div v-if="!messages.length" class="qa-welcome">
           <span class="welcome-icon"><MessageCircle :size="28" /></span>
@@ -566,6 +582,22 @@ function handleKeydown(event: KeyboardEvent) {
             </div>
           </div>
         </template>
+        <aside v-if="qaDisconnected" class="qa-reload-notice" role="status">
+          <p>如果出現回覆不完整，或者中斷情況，請重新讀取</p>
+          <button
+            class="app-button outline"
+            type="button"
+            :disabled="refreshingJob"
+            @click="refreshQaJob"
+          >
+            <RefreshCw
+              :size="17"
+              :class="{ spinning: refreshingJob }"
+              aria-hidden="true"
+            />
+            {{ refreshingJob ? "正在讀取…" : "重新讀取" }}
+          </button>
+        </aside>
       </section>
 
       <footer v-if="messages.length" class="qa-composer">
@@ -653,8 +685,13 @@ function handleKeydown(event: KeyboardEvent) {
           @click="showQuotaConfirm = false"
         >
           取消</button
-        ><button class="app-button" type="button" @click="confirmQuota">
-          確認使用
+        ><button
+          class="app-button"
+          type="button"
+          :disabled="startingSend"
+          @click="confirmQuota"
+        >
+          {{ startingSend ? "正在送出…" : "確認使用" }}
         </button>
       </div>
     </AppBottomSheet>
@@ -674,7 +711,7 @@ function handleKeydown(event: KeyboardEvent) {
         ><button
           class="app-button"
           type="button"
-          :disabled="auth.points < 100"
+          :disabled="auth.points < 100 || startingSend"
           @click="confirmPointsFallback"
         >
           使用點數
@@ -876,6 +913,38 @@ function handleKeydown(event: KeyboardEvent) {
 }
 .assistant-bubble :deep(p:last-child) {
   margin-bottom: 0;
+}
+.qa-reload-notice {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: min(100%, 440px);
+  margin: 18px auto 0;
+  padding: 14px 12px 4px;
+  border-top: 1px solid rgba(36, 87, 90, 0.14);
+  text-align: center;
+}
+.qa-reload-notice p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+.qa-reload-notice .app-button {
+  min-height: 42px;
+  padding: 8px 18px;
+  gap: 7px;
+  border-radius: 15px;
+  font-size: 13px;
+}
+.qa-reload-notice .spinning {
+  animation: qa-refresh-spin 0.8s linear infinite;
+}
+@keyframes qa-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .typing {
   display: flex;
