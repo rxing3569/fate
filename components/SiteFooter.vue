@@ -174,8 +174,8 @@ const linkGroups = [
 }
 @media (max-width: 759px) {
   .site-footer {
-    margin-bottom: calc(-90px - env(safe-area-inset-bottom));
-    padding-bottom: calc(90px + env(safe-area-inset-bottom));
+    margin-bottom: calc(-80px - env(safe-area-inset-bottom));
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
   }
 }
 @media (min-width: 600px) {

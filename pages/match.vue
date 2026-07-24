@@ -637,17 +637,8 @@ function formatDate(raw?: string, utc = false) {
   });
 }
 
-function goBack() {
-  if (analyzing.value) {
-    useRouter().back();
-    return;
-  }
-  if (analysisText.value) {
-    analysisText.value = "";
-    error.value = "";
-    return;
-  }
-  useRouter().back();
+async function goBack() {
+  await navigateTo("/ai-analysis");
 }
 </script>
 
@@ -661,7 +652,7 @@ function goBack() {
       <button
         class="icon-button"
         type="button"
-        aria-label="返回"
+        aria-label="返回排盤解盤"
         @click="goBack"
       >
         <ChevronLeft :size="23" />

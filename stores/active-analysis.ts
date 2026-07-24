@@ -494,6 +494,15 @@ export const useActiveAnalysisStore = defineStore("active-analysis", {
               this.active.metadata.failedCategories = [...failed];
               this.active.error =
                 event.message || "部分解析未完成，可免費重新執行。";
+            } else if (event.type === "analysis_service_busy") {
+              const message =
+                event.message ||
+                "目前解析服務使用人數較多，暫時無法開始分析。請稍候幾分鐘後再試，本次不會重複扣除額度。";
+              this.active.error = message;
+              snackbar(message, "error", {
+                title: "解析服務暫時繁忙",
+                duration: 12000,
+              });
             } else if (event.type === "batch_completed") {
               const failed = event.failed_steps || [];
               this.active.metadata.failedCategories = failed;

@@ -529,11 +529,7 @@ function withoutFlowScores(source: string) {
     .trim();
 }
 
-function goBack() {
-  if (analyzing.value) {
-    useRouter().back();
-    return;
-  }
+async function goBack() {
   if (stage.value === "result") {
     stage.value = "date";
     content.value = "";
@@ -544,7 +540,7 @@ function goBack() {
     stage.value = "type";
     return;
   }
-  useRouter().back();
+  await navigateTo("/ai-analysis");
 }
 </script>
 
@@ -558,7 +554,7 @@ function goBack() {
       ><button
         class="icon-button"
         type="button"
-        aria-label="返回"
+        aria-label="返回排盤解盤"
         @click="goBack"
       >
         <ChevronLeft :size="23" /></button
@@ -798,7 +794,12 @@ function goBack() {
   font-weight: 800;
 }
 .flow-body {
-  padding: 14px 24px 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: calc(100dvh - 58px - env(safe-area-inset-top));
+  padding: 24px 24px calc(24px + env(safe-area-inset-bottom));
 }
 .stage-copy {
   margin: 4px 0 28px;

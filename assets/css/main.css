@@ -103,7 +103,7 @@ button {
   background-image: none !important;
 }
 .app-main.with-tabs {
-  padding-bottom: calc(90px + env(safe-area-inset-bottom));
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
 .screen {
   width: min(100%, 680px);
@@ -179,10 +179,10 @@ button {
   position: fixed;
   z-index: var(--layer-navigation);
   left: 50%;
-  bottom: calc(10px + env(safe-area-inset-bottom));
+  bottom: calc(8px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
-  width: min(calc(100% - 24px), 390px);
-  height: 72px;
+  width: min(calc(100% - 28px), 360px);
+  height: 64px;
   padding: 2px;
   border: 1px solid rgba(255, 255, 255, 0.74);
   border-radius: 999px;
@@ -218,8 +218,8 @@ button {
   border-radius: 50%;
   background: transparent;
   color: rgba(36, 87, 90, 0.48);
-  width: 60px;
-  height: 60px;
+  width: 52px;
+  height: 52px;
   margin: 0 auto;
   font-size: 11px;
   font-weight: 700;
@@ -631,6 +631,12 @@ pre {
 }
 
 @media (max-width: 759px) {
+  .app-main.with-tabs.mobile-navigation-hidden {
+    padding-bottom: 0;
+  }
+  .primary-nav.mobile-navigation-hidden {
+    display: none;
+  }
   .app-main.with-tabs .feedback {
     bottom: 0;
   }
@@ -641,8 +647,8 @@ pre {
   .primary-nav-item.active .nav-icon-bubble,
   .primary-nav-item.featured .nav-icon-bubble,
   .primary-nav-item.featured.active .nav-icon-bubble {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     margin: 0;
     border: 0;
     background: transparent;
@@ -656,9 +662,20 @@ pre {
     color: var(--mountain);
   }
   .primary-nav-item.featured .primary-nav-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 23px !important;
+    width: 21px;
+    height: 21px;
+    font-size: 21px !important;
+  }
+  .primary-nav-icon {
+    width: 21px;
+    height: 21px;
+    font-size: 21px;
+  }
+  .primary-nav-item {
+    font-size: 10px;
+  }
+  .nav-label {
+    line-height: 12px;
   }
   .premium-nav-badge {
     top: 0;

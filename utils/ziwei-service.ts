@@ -11,10 +11,13 @@ export interface AnalysisRequest {
 }
 
 export interface BatchAnalysisEvent {
-  type: 'chunk' | 'step_completed' | 'step_failed' | 'batch_completed'
+  type: 'chunk' | 'step_completed' | 'step_failed' | 'analysis_service_busy' | 'batch_completed'
   step_key?: string
   content?: string
+  code?: string
   message?: string
+  retryable?: boolean
+  retry_after_seconds?: number
   failed_steps?: string[]
 }
 
@@ -67,6 +70,10 @@ export async function streamAnalysis(request: AnalysisRequest) {
         for (const stageId of normalizeCompletedStages(data.completed_stage_ids)) markStageCompleted(stageId)
         return
       }
+      if (data.type === 'analysis_service_busy') {
+        fail(String(data.message || '目前解析服務使用人數較多，請稍候幾分鐘後再試。'))
+        return
+      }
       if (data.error || data.type === 'error') { fail(String(data.detail || data.error || data.message || '分析發生錯誤')); return }
       if (data.content) request.onMessage(String(data.content))
       if (data.done || data.type === 'done' || data.type === 'complete') finish()
@@ -109,10 +116,21 @@ export async function streamBatchAnalysis(options: {
       const text = String(message.data)
       if (text.trim() === '/end') return finish()
       try {
-        const data = JSON.parse(text) as { type?: string; detail?: string; error?: string; message?: string; step_key?: string; content?: string; failed_steps?: string[] }
+        const data = JSON.parse(text) as {
+          type?: string
+          detail?: string
+          error?: string
+          message?: string
+          step_key?: string
+          content?: string
+          code?: string
+          retryable?: boolean
+          retry_after_seconds?: number
+          failed_steps?: string[]
+        }
         if (data.type === 'learning_progress') return
         if (data.type === 'error' || data.error) return finish(new Error(data.detail || data.message || data.error || '分析發生錯誤'))
-        if (data.type && ['chunk', 'step_completed', 'step_failed', 'batch_completed'].includes(data.type)) {
+        if (data.type && ['chunk', 'step_completed', 'step_failed', 'analysis_service_busy', 'batch_completed'].includes(data.type)) {
           options.onEvent(data as BatchAnalysisEvent)
           if (data.type === 'batch_completed') finish()
         }

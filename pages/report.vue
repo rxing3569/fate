@@ -903,7 +903,12 @@ function parseSections(content: string) {
   const result: { title: string; content: string }[] = [];
   let title = "";
   let lines: string[] = [];
+  let hasHeading = false;
   const commit = () => {
+    if (!hasHeading) {
+      lines = [];
+      return;
+    }
     const body = lines.join("\n").trim();
     if (title || body)
       result.push({
@@ -919,8 +924,11 @@ function parseSections(content: string) {
     const heading = line.trim().match(/^#{3,4}\s*(.+)$/);
     if (heading) {
       commit();
+      hasHeading = true;
       title = heading[1]?.trim() || "";
-    } else lines.push(line);
+    } else if (hasHeading) {
+      lines.push(line);
+    }
   }
   commit();
   return result;
@@ -1005,8 +1013,8 @@ async function closeDetail() {
       <button
         class="icon-button"
         type="button"
-        :aria-label="selectedDetail ? '返回命盤解析' : '返回'"
-        @click="selectedDetail ? closeDetail() : $router.back()"
+        aria-label="返回排盤解盤"
+        @click="navigateTo('/ai-analysis')"
       >
         <ChevronLeft :size="23" />
       </button>

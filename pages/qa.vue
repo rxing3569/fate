@@ -501,6 +501,8 @@ function handleKeydown(event: KeyboardEvent) {
     screen-class="qa-screen"
     content-mode="flush"
     show-back
+    back-to="/ai-analysis"
+    back-label="返回排盤解盤"
   >
     <main v-if="!pageReady" key="loading" class="qa-loading" aria-busy="true" />
 

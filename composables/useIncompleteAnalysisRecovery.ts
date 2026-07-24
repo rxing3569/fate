@@ -1,6 +1,6 @@
 import type { Ref } from "vue";
 
-export const ANALYSIS_TIMEOUT_MS = 6 * 60 * 1000;
+export const ANALYSIS_TIMEOUT_MS = 9 * 60 * 1000;
 
 export interface RecoverableAnalysisRecord {
   created_at?: string;

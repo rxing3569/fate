@@ -27,7 +27,7 @@ const tabs = [
   },
 ];
 
-const navigationHiddenRoutes = new Set([
+const mobileNavigationHiddenRoutes = new Set([
   "/chart",
   "/report",
   "/report-detail",
@@ -38,15 +38,15 @@ const navigationHiddenRoutes = new Set([
 const normalizedPath = computed(() =>
   route.path === "/" ? "/" : route.path.replace(/\/+$/, ""),
 );
+const mobileNavigationHidden = computed(
+  () =>
+    mobileNavigationHiddenRoutes.has(normalizedPath.value) ||
+    (normalizedPath.value === "/ai-analysis" &&
+      typeof route.query.mode === "string" &&
+      route.query.mode.length > 0),
+);
 const showTabs = computed(() => {
-  if (navigationHiddenRoutes.has(normalizedPath.value)) return false;
   if (normalizedPath.value === "/profile/edit" && route.query.from === "chart")
-    return false;
-  if (
-    normalizedPath.value === "/ai-analysis" &&
-    typeof route.query.mode === "string" &&
-    route.query.mode.length > 0
-  )
     return false;
   return true;
 });
@@ -180,6 +180,7 @@ function isTabActive(path: string) {
       class="app-main"
       :class="{
         'with-tabs': showTabs,
+        'mobile-navigation-hidden': mobileNavigationHidden,
         'copy-protected': copyProtected,
       }"
       @selectstart.capture="preventProtectedContentAction"
@@ -227,7 +228,12 @@ function isTabActive(path: string) {
       v-if="showTabs && !['/report', '/report/'].includes(route.path)"
     />
 
-    <nav v-if="showTabs" class="primary-nav" aria-label="主要功能">
+    <nav
+      v-if="showTabs"
+      class="primary-nav"
+      :class="{ 'mobile-navigation-hidden': mobileNavigationHidden }"
+      aria-label="主要功能"
+    >
       <NuxtLink class="nav-brand" to="/" aria-label="江映澄紫微首頁">
         <img src="/remove-background-logo.png" alt="" />
         <strong>江映澄紫微</strong>
