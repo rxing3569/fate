@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ArrowDown, ArrowRight, BookOpen, Newspaper } from "@lucide/vue";
-const auth = useAuthStore();
-const chartStore = useChartStore();
+const { openChartEntry, openReportEntry } = useChartEntryNavigation();
 useSeoMeta({
   title: "AI 紫微斗數命盤解析｜江映澄紫微",
   description:
@@ -10,33 +9,6 @@ useSeoMeta({
   ogDescription:
     "免費線上排盤，使用 AI 探索紫微命盤、流年時運、感情合盤與人生方向。",
 });
-async function hydrateNavigationState() {
-  if (!auth.sessionReady) await auth.hydrate();
-  chartStore.hydrate(auth.profile);
-}
-
-async function openChartEntry() {
-  await hydrateNavigationState();
-  await navigateTo(
-    chartStore.chart ? "/chart" : "/ai-analysis?mode=chart&redirect=/chart",
-  );
-}
-
-async function openReportEntry() {
-  await hydrateNavigationState();
-  const destination = chartStore.chart
-    ? "/report"
-    : "/ai-analysis?mode=chart&redirect=/report";
-  if (!auth.isAuthenticated) {
-    window.dispatchEvent(
-      new CustomEvent("auth-login-required", {
-        detail: { redirect: destination },
-      }),
-    );
-    return;
-  }
-  await navigateTo(destination);
-}
 function scrollToAbout() {
   document.querySelector("#about")?.scrollIntoView({ behavior: "smooth" });
 }

@@ -251,6 +251,9 @@ function starDescription(star: string, palaceName: string) {
 
     <AppBottomSheet
       :open="Boolean(selectedPalace && showPalaceDetail)"
+      height-mode="viewport"
+      scroll-mode="nested"
+      sheet-class="palace-detail-sheet"
       content-class="palace-sheet-content"
       @close="showPalaceDetail = false"
     >
@@ -376,7 +379,7 @@ function starDescription(star: string, palaceName: string) {
   min-height: 0;
   overflow: hidden;
   padding: 3px;
-  border: none;
+  border: 1.5px solid transparent;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.84);
   color: var(--mountain);
@@ -535,9 +538,10 @@ function starDescription(star: string, palaceName: string) {
 .palace-sheet {
   box-sizing: border-box;
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   width: 100%;
-  height: calc(60dvh - 42px);
+  min-height: 0;
   overflow: hidden;
   padding: 0;
   background: transparent;
@@ -548,7 +552,7 @@ function starDescription(star: string, palaceName: string) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 20px 10px;
+  padding: 0 4px 10px;
 }
 .palace-sheet-header h2 {
   min-width: 0;
@@ -645,23 +649,6 @@ function starDescription(star: string, palaceName: string) {
   margin-top: 18px;
 }
 
-/* Sheet transition */
-.sheet-enter-active,
-.sheet-leave-active {
-  transition: opacity 0.2s ease;
-}
-.sheet-enter-active .palace-sheet,
-.sheet-leave-active .palace-sheet {
-  transition: transform 0.25s ease;
-}
-.sheet-enter-from,
-.sheet-leave-to {
-  opacity: 0;
-}
-.sheet-enter-from .palace-sheet,
-.sheet-leave-to .palace-sheet {
-  transform: translateY(100%);
-}
 .description-card {
   margin-bottom: 10px;
   padding: 14px;
@@ -733,7 +720,7 @@ function starDescription(star: string, palaceName: string) {
 .sheet-scroll {
   flex: 1 1 auto;
   min-height: 0;
-  padding: 0 20px calc(32px + env(safe-area-inset-bottom));
+  padding: 0 4px 12px;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
@@ -810,9 +797,6 @@ function starDescription(star: string, palaceName: string) {
   }
 }
 @media (max-width: 380px) {
-  .palace-sheet header {
-    padding-inline: 14px;
-  }
   .palace-sheet h2 {
     font-size: 18px;
   }
@@ -820,9 +804,6 @@ function starDescription(star: string, palaceName: string) {
     min-width: 108px;
     padding-inline: 9px;
     font-size: 11px;
-  }
-  .sheet-scroll {
-    padding-inline: 14px;
   }
 }
 @media (max-width: 350px) {
@@ -850,5 +831,17 @@ function starDescription(star: string, palaceName: string) {
     max-width: 680px;
     margin: 0 auto;
   }
+}
+
+:global(.palace-detail-sheet.app-bottom-sheet.is-viewport-height) {
+  height: min(65%, 680px);
+  padding: 12px 12px 0;
+}
+:global(.palace-sheet-content.app-bottom-sheet-content) {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  text-align: left;
 }
 </style>

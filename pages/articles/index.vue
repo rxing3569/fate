@@ -12,6 +12,7 @@ useSeoMeta({
 <template>
   <AppPageLayout title="命理專欄" screen-class="articles-screen">
     <main class="articles-content">
+      <ArticleBreadcrumb />
       <section class="article-list">
         <NuxtLink
           v-for="article in articles"
@@ -39,6 +40,7 @@ useSeoMeta({
 .article-list {
   display: grid;
   gap: 16px;
+  margin-top: 18px;
 }
 .article-card {
   display: grid;

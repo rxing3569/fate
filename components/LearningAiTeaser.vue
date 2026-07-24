@@ -20,7 +20,6 @@ import { ArrowRight, Sparkles } from "@lucide/vue";
   box-sizing: border-box;
   width: min(calc(100% - 36px), 644px);
   height: 54px;
-  margin: 8px auto 6px;
 }
 .learning-ai-teaser {
   position: relative;

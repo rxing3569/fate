@@ -298,9 +298,24 @@ watch(
 
 <template>
   <LearningHubLayout
+    :title="view === 'quiz' ? (stage ? stageLabel(stage) : '測驗挑戰') : '學習紫微'"
     screen-class="quiz-screen"
+    :show-header="view === 'dashboard' || view === 'quiz'"
     :show-navigation="view === 'dashboard'"
   >
+    <template v-if="view === 'quiz'" #leading>
+      <button
+        class="icon-button"
+        type="button"
+        aria-label="返回並退出測驗"
+        @click="requestExit"
+      >
+        <ChevronLeft :size="23" />
+      </button>
+    </template>
+    <template v-if="view === 'quiz'" #actions>
+      <b class="quiz-count">{{ current + 1 }} / {{ questions.length }}</b>
+    </template>
     <main v-if="view === 'dashboard'" class="dashboard learning-hub-content">
       <template v-if="mode === 'exam'">
         <button
@@ -395,16 +410,7 @@ watch(
     </main>
 
     <main v-else-if="view === 'quiz'" class="active-quiz">
-      <header class="quiz-progress">
-        <button
-          class="icon-button"
-          type="button"
-          aria-label="返回並退出測驗"
-          @click="requestExit"
-        >
-          <ChevronLeft :size="23" />
-        </button>
-        <h1>{{ stage ? stageLabel(stage) : "測驗挑戰" }}</h1>
+      <div class="quiz-progress" aria-label="測驗進度">
         <div class="progress-track">
           <span
             :style="{
@@ -412,8 +418,7 @@ watch(
             }"
           />
         </div>
-        <b>{{ current + 1 }} / {{ questions.length }}</b>
-      </header>
+      </div>
       <section class="question-area">
         <h2>{{ current + 1 }}. {{ questions[current]?.text }}</h2>
         <button
@@ -827,45 +832,26 @@ watch(
 .active-quiz {
   position: relative;
   min-height: 100dvh;
-  padding-top: 130px;
+  padding-top: 0;
   padding-bottom: 220px;
 }
-.quiz-progress {
-  position: fixed;
-  z-index: 20;
-  top: 0;
-  left: 50%;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 56px;
-  grid-template-rows: 44px 8px;
-  column-gap: 10px;
-  row-gap: 48px;
-  align-items: center;
-  width: min(100%, 680px);
-  height: 130px;
-  padding: 0 12px 30px;
-  background: rgba(247, 243, 234, 0.94);
-  transform: translateX(-50%);
-}
-.quiz-progress > .icon-button {
-  grid-column: 1;
-  grid-row: 1;
-  justify-self: start;
-}
-.quiz-progress h1 {
-  grid-column: 1 / -1;
-  grid-row: 1;
-  justify-self: center;
-  overflow: hidden;
-  margin: 0;
-  font-size: 17px;
-  text-align: center;
-  text-overflow: ellipsis;
+.quiz-count {
+  justify-self: end;
+  padding-right: 4px;
+  font-size: 12px;
   white-space: nowrap;
 }
+.quiz-progress {
+  position: sticky;
+  z-index: 11;
+  top: calc(58px + env(safe-area-inset-top));
+  width: 100%;
+  padding: 12px 20px;
+  background: rgba(247, 243, 234, 0.94);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  backdrop-filter: blur(18px);
+}
 .quiz-progress .progress-track {
-  grid-column: 1;
-  grid-row: 2;
   height: 8px;
   overflow: hidden;
   border-radius: 99px;
@@ -875,13 +861,6 @@ watch(
   display: block;
   height: 100%;
   background: var(--jade);
-}
-.quiz-progress b {
-  grid-column: 2;
-  grid-row: 2;
-  align-self: center;
-  text-align: right;
-  font-size: 13px;
 }
 .question-area {
   padding: 22px 20px;

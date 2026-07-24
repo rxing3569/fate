@@ -32,6 +32,7 @@ const props = withDefaults(
     sheetClass?: string;
     contentClass?: string;
     heightMode?: "content" | "viewport";
+    scrollMode?: "content" | "nested";
   }>(),
   {
     role: "dialog",
@@ -41,6 +42,7 @@ const props = withDefaults(
     sheetClass: "",
     contentClass: "",
     heightMode: "content",
+    scrollMode: "content",
   },
 );
 
@@ -208,8 +210,8 @@ onBeforeUnmount(() => {
           </div>
           <div
             class="app-bottom-sheet-content"
-            :class="contentClass"
-            data-sheet-scroll
+            :class="[contentClass, { 'has-nested-scroll': scrollMode === 'nested' }]"
+            :data-sheet-scroll="scrollMode === 'content' ? '' : undefined"
           >
             <slot />
           </div>
@@ -235,7 +237,7 @@ onBeforeUnmount(() => {
   width: min(100%, 680px);
   max-height: var(--sheet-content-max-height, 65dvh);
   overflow: hidden;
-  padding: 12px 22px max(26px, env(safe-area-inset-bottom));
+  padding: 12px 22px 0;
   border-radius: 30px 30px 0 0;
   background: var(--paper);
   box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.08);
@@ -249,7 +251,7 @@ onBeforeUnmount(() => {
   flex: 0 1 auto;
   height: min(75%, 720px);
   max-height: calc(100% - max(16px, env(safe-area-inset-top)));
-  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  padding-bottom: 0;
 }
 .app-bottom-sheet-drag-region {
   flex: 0 0 auto;
@@ -282,9 +284,19 @@ onBeforeUnmount(() => {
   flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
+  padding-bottom: max(26px, env(safe-area-inset-bottom));
   overscroll-behavior-y: contain;
   scrollbar-color: rgba(36, 87, 90, 0.28) transparent;
   text-align: center;
+}
+.app-bottom-sheet.is-viewport-height .app-bottom-sheet-content {
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+.app-bottom-sheet-content.has-nested-scroll {
+  padding-bottom: 0;
+}
+.app-bottom-sheet-content.has-nested-scroll :deep([data-sheet-scroll]) {
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
 .app-bottom-sheet-content::-webkit-scrollbar {
   width: 5px;

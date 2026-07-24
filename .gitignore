@@ -5,4 +5,4 @@ dist
 .env
 npm-debug.log*
 *.local
-ref_images
+ref

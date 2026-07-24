@@ -75,16 +75,13 @@ useSeoMeta({
 </script>
 
 <template>
-  <AppPageLayout
+  <LearningHubLayout
     :title="level?.title || '題庫複習'"
     screen-class="review-detail-screen"
     show-back
     back-to="/review/"
     back-label="返回題庫分類"
   >
-    <LearningSectionTabs />
-    <LearningAiTeaser />
-
     <main class="review-detail-content">
       <nav
         v-if="level"
@@ -139,18 +136,20 @@ useSeoMeta({
         </article>
       </div>
     </main>
-  </AppPageLayout>
+  </LearningHubLayout>
 </template>
 
 <style scoped>
 .review-detail-content {
-  padding: 10px 18px 52px;
+  padding: 10px 18px calc(122px + env(safe-area-inset-bottom));
+  overflow-x: hidden;
 }
 .course-scroll {
   display: flex;
   gap: 9px;
-  margin: 0 -18px;
-  padding: 8px 18px 14px;
+  width: 100%;
+  margin: 0;
+  padding: 8px 0 14px;
   overflow-x: auto;
   scrollbar-width: none;
   scroll-snap-type: x proximity;
@@ -209,6 +208,8 @@ useSeoMeta({
   gap: 13px;
 }
 .question-card {
+  min-width: 0;
+  overflow: hidden;
   padding: 17px;
   border-radius: 20px;
 }
@@ -221,6 +222,7 @@ useSeoMeta({
   margin: 7px 0 13px;
   font-size: 16px;
   line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 .question-card ul {
   display: grid;
@@ -238,6 +240,11 @@ useSeoMeta({
   border-radius: 11px;
   color: var(--text-soft);
   font-size: 13px;
+}
+.question-card li > span,
+.explanation > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .question-card li b {
   display: grid;

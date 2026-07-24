@@ -2,6 +2,7 @@
 import { ChevronLeft, Clock } from "@lucide/vue";
 import { getArticle } from "~/utils/articles";
 const route = useRoute();
+const { openChartEntry, openReportEntry } = useChartEntryNavigation();
 const article = computed(() => getArticle(String(route.params.slug || "")));
 if (!article.value)
   throw createError({ statusCode: 404, statusMessage: "找不到這篇文章" });
@@ -22,8 +23,9 @@ useHead(() => ({
     title="命理專欄"
     screen-class="article-screen"
     show-back
-    ><template #title><div class="app-page-title"><strong>命理專欄</strong></div></template>
+  >
     <main class="article-content">
+      <ArticleBreadcrumb :current="article.title" />
       <header class="article-heading">
         <small>{{ article.category }}</small>
         <h1>{{ article.title }}</h1>
@@ -36,6 +38,20 @@ useHead(() => ({
       <article class="article-surface glass">
         <MarkdownContent :source="article.content" :report-formatting="false" />
       </article>
+      <section class="article-actions" aria-label="命盤服務">
+        <div>
+          <button class="app-button" type="button" @click="openChartEntry">
+            免費線上排盤
+          </button>
+          <button
+            class="app-button outline"
+            type="button"
+            @click="openReportEntry"
+          >
+            馬上解析命盤
+          </button>
+        </div>
+      </section>
       <NuxtLink class="back-link" to="/articles"
         ><ChevronLeft :size="15" />返回所有文章</NuxtLink
       >
@@ -47,7 +63,7 @@ useHead(() => ({
   padding: 22px 18px 120px;
 }
 .article-heading {
-  padding: 12px 6px 25px;
+  padding: 22px 6px 25px;
 }
 .article-heading > small {
   color: var(--cinnabar);
@@ -87,14 +103,33 @@ useHead(() => ({
   margin-top: 34px;
   font-family: "Noto Serif TC", serif;
 }
+.article-actions {
+  padding: 38px 12px 4px;
+  text-align: center;
+}
+.article-actions > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.article-actions .app-button {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  box-shadow: 0 8px 20px rgba(36, 87, 90, 0.14);
+}
 .back-link {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
-  margin: 28px auto 0;
+  width: fit-content;
+  margin: 24px auto 0;
+  color: var(--mountain);
   font-size: 13px;
   font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 @media (min-width: 760px) {
   .article-content {

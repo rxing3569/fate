@@ -344,7 +344,7 @@ button {
 }
 .login-sheet {
   width: min(100%, 680px);
-  padding: 12px 24px max(30px, env(safe-area-inset-bottom));
+  padding: 12px 24px 0;
   border-radius: 32px 32px 0 0;
   background: var(--paper);
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.07);
@@ -631,6 +631,9 @@ pre {
 }
 
 @media (max-width: 759px) {
+  .app-main.with-tabs .feedback {
+    bottom: 0;
+  }
   .primary-nav-item {
     align-self: center;
   }
@@ -676,7 +679,6 @@ pre {
     left: calc(88px + (100vw - 88px) / 2);
     width: min(644px, calc(100vw - 124px));
   }
-  .app-main.with-tabs .quiz-progress,
   .app-main.with-tabs .feedback {
     left: calc(88px + (100vw - 88px) / 2);
   }
@@ -809,7 +811,6 @@ pre {
     left: calc(260px + max(24px, (100vw - 940px) / 2 - 80px) + 340px);
     width: 644px;
   }
-  .app-main.with-tabs .quiz-progress,
   .app-main.with-tabs .feedback {
     left: calc(260px + max(24px, (100vw - 940px) / 2 - 80px) + 340px);
   }

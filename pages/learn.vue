@@ -15,7 +15,6 @@ useSeoMeta({
 const mapScroll = ref<HTMLElement | null>(null);
 const mapReady = ref(false);
 const mapScrollStorageKey = "ziwei:learning-map-scroll-top";
-let revealFrame = 0;
 let saveFrame = 0;
 const xPositions = [18, 79, 25, 72, 38, 66, 17, 82, 31, 70, 20, 78, 36, 64, 24];
 const pathPoints = stages.map((_, index) => ({
@@ -47,15 +46,12 @@ onMounted(async () => {
       : defaultPosition;
   }
   window.addEventListener("pagehide", saveMapPosition);
-  revealFrame = requestAnimationFrame(() => {
-    mapReady.value = true;
-  });
+  mapReady.value = true;
 });
 onBeforeUnmount(() => {
   saveMapPosition();
   window.removeEventListener("pagehide", saveMapPosition);
   window.removeEventListener("learning-progress-updated", refreshProgress);
-  cancelAnimationFrame(revealFrame);
   cancelAnimationFrame(saveFrame);
 });
 
@@ -87,10 +83,7 @@ function openStage(stage: (typeof stages)[number]) {
 
 <template>
   <LearningHubLayout screen-class="learn-screen">
-    <div
-      class="learn-top learning-hub-content learn-hydrated-content"
-      :class="{ ready: mapReady }"
-    >
+    <div class="learn-top learning-hub-content">
       <section class="progress-block">
         <div class="progress-heading">
           <Route :size="22" /><strong>學習進度</strong

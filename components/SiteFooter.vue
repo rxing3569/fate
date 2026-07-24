@@ -40,7 +40,7 @@ const linkGroups = [
 
       <nav class="footer-links" aria-label="網站頁尾導覽">
         <section v-for="group in linkGroups" :key="group.title">
-          <h2>{{ group.title }}</h2>
+          <span class="footer-group-title">{{ group.title }}</span>
           <ul>
             <li v-for="link in group.links" :key="link.to">
               <NuxtLink :to="link.to">{{ link.label }}</NuxtLink>
@@ -143,10 +143,12 @@ const linkGroups = [
   padding: 16px 0 0;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
-.footer-links h2 {
+.footer-group-title {
+  display: block;
   margin: 0 0 9px;
   color: #fff;
   font-size: 17px;
+  font-weight: 700;
   letter-spacing: 0.08em;
 }
 .footer-links ul {

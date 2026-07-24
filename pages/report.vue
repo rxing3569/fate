@@ -1099,6 +1099,8 @@ async function closeDetail() {
 
       <AstrologyLoader
         v-else-if="currentCategoryIsAnalyzing && !receivedStreamData"
+        class="report-analysis-loader"
+        layout="viewport"
       />
 
       <section v-else-if="error && !currentContent" class="report-empty">
@@ -1193,6 +1195,14 @@ async function closeDetail() {
           </aside>
           <MarkdownContent v-if="detailAfter" :source="detailAfter" />
         </section>
+        <button
+          class="app-button outline detail-back-cta"
+          type="button"
+          @click="closeDetail"
+        >
+          <ChevronLeft :size="17" aria-hidden="true" />
+          返回上一頁
+        </button>
       </main>
     </section>
 
@@ -1812,6 +1822,12 @@ async function closeDetail() {
   padding: 8px 18px 0;
   overflow: hidden;
 }
+.report-analysis-loader {
+  --astrology-loader-viewport-offset: calc(
+    130px + 90px + env(safe-area-inset-bottom)
+  );
+  max-height: 100%;
+}
 .report-content {
   width: 100%;
   height: 100%;
@@ -1937,6 +1953,12 @@ async function closeDetail() {
   padding: 22px 18px;
   border-radius: 30px;
 }
+.detail-back-cta {
+  display: flex;
+  width: min(100%, 320px);
+  margin: 24px auto 48px;
+  gap: 5px;
+}
 .inline-summary-box {
   margin: 18px 0 22px;
   padding: 16px 18px;
@@ -1976,6 +1998,11 @@ async function closeDetail() {
   }
   .report-body {
     padding-bottom: 48px;
+  }
+  .report-analysis-loader {
+    /* The iOS fallback changes report-body from flex to block, so the loader
+       must retain its own content-area height instead of inheriting 100%. */
+    max-height: none;
   }
   .inline-detail-surface {
     min-height: 0;

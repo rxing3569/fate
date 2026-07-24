@@ -632,9 +632,11 @@ function goBack() {
         :loading="refreshingJob"
         @refresh="refreshFlowJob"
       />
-      <div v-else-if="analyzing && !content" class="flow-loading">
-        <AstrologyLoader />
-      </div>
+      <AstrologyLoader
+        v-else-if="analyzing && !content"
+        class="flow-loading"
+        layout="viewport"
+      />
       <section v-else class="flow-result">
         <details
           v-for="(section, index) in visibleSections"
@@ -1030,12 +1032,9 @@ function goBack() {
   text-align: center;
 }
 .flow-loading {
-  display: grid;
-  place-items: center;
-  min-height: calc(100dvh - 180px);
-}
-.flow-loading :deep(> *) {
-  width: 100%;
+  --astrology-loader-viewport-offset: calc(
+    180px + env(safe-area-inset-bottom)
+  );
 }
 @media (max-width: 420px) {
   .flow-body {

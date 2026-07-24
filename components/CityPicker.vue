@@ -41,6 +41,7 @@ function choose(city: CityOption) {
     <AppBottomSheet
       :open="open"
       height-mode="viewport"
+      scroll-mode="nested"
       sheet-class="city-sheet"
       content-class="city-sheet-content"
       labelledby="city-picker-title"

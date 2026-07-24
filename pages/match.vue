@@ -712,9 +712,12 @@ function goBack() {
         @refresh="refreshMatchJob"
       />
 
-      <div v-else-if="analyzing" class="match-loading">
-        <AstrologyLoader message="正在為您與對象排定合相星曜，請稍候..." />
-      </div>
+      <AstrologyLoader
+        v-else-if="analyzing"
+        class="match-loading"
+        layout="viewport"
+        message="正在為您與對象排定合相星曜，請稍候..."
+      />
 
       <section v-else class="partner-form">
         <div ref="matchTypePicker" class="match-type-field">
@@ -1088,12 +1091,9 @@ function goBack() {
   text-align: left;
 }
 .match-loading {
-  display: grid;
-  place-items: center;
-  min-height: calc(100dvh - 150px);
-}
-.match-loading :deep(> *) {
-  width: 100%;
+  --astrology-loader-viewport-offset: calc(
+    150px + env(safe-area-inset-bottom)
+  );
 }
 .match-type-field {
   position: relative;

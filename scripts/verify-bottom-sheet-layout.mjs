@@ -9,10 +9,20 @@ const layout = await readFile(
   new URL("../layouts/default.vue", import.meta.url),
   "utf8",
 );
+const chartGrid = await readFile(
+  new URL("../components/ChartGrid.vue", import.meta.url),
+  "utf8",
+);
 
 assert.match(layout, /provide\("primary-navigation-visible", showTabs\)/);
 assert.match(component, /inject<ComputedRef<boolean>>/);
 assert.match(component, /'has-primary-navigation': primaryNavigationVisible/);
+assert.match(component, /scrollMode\?: "content" \| "nested"/);
+assert.match(component, /padding:\s*12px 22px 0;/);
+assert.match(
+  component,
+  /\.app-bottom-sheet-content\.has-nested-scroll :deep\(\[data-sheet-scroll\]\)\s*\{[^}]*padding-bottom:\s*max\(12px, env\(safe-area-inset-bottom\)\);/s,
+);
 
 const desktopRules = component.slice(component.indexOf("@media (min-width: 760px)"));
 assert.doesNotMatch(
@@ -20,6 +30,20 @@ assert.doesNotMatch(
   /\.app-bottom-sheet-backdrop\s*\{[^}]*padding-left/s,
   "Desktop navigation padding must never apply without the navigation-state class",
 );
+
+assert.match(chartGrid, /height-mode="viewport"/);
+assert.match(chartGrid, /scroll-mode="nested"/);
+assert.match(chartGrid, /sheet-class="palace-detail-sheet"/);
+assert.match(
+  chartGrid,
+  /\.palace-detail-sheet\.app-bottom-sheet\.is-viewport-height\)\s*\{[^}]*height:\s*min\(65%, 680px\);[^}]*padding:\s*12px 12px 0;/s,
+);
+assert.match(
+  chartGrid,
+  /\.sheet-scroll\s*\{[^}]*padding:\s*0 4px 12px;/s,
+);
+assert.doesNotMatch(chartGrid, /height:\s*calc\(60dvh - 42px\)/);
+assert.doesNotMatch(chartGrid, /\.sheet-enter-active[\s\S]*\.palace-sheet/);
 assert.doesNotMatch(
   desktopRules,
   /(?<!navigation )\.app-bottom-sheet\s*\{[^}]*margin-left/s,

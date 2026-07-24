@@ -108,7 +108,6 @@ watch(
 }
 :deep(.analysis-recovery-sheet) {
   padding-top: 10px;
-  padding-bottom: max(20px, env(safe-area-inset-bottom));
 }
 .recovery-summary {
   display: grid;

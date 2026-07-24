@@ -137,25 +137,26 @@ function openTab(tab: (typeof tabs)[number]) {
 }
 
 function isTabActive(path: string) {
-  if (path === "/") return route.path === "/";
+  const currentPath = normalizedPath.value;
+  if (path === "/") return currentPath === "/";
   if (path === "/learn/")
     return (
-      route.path === "/learn/" ||
-      route.path === "/quiz" ||
-      route.path.startsWith("/learning/") ||
-      route.path.startsWith("/review")
+      currentPath === "/learn" ||
+      currentPath === "/quiz" ||
+      currentPath.startsWith("/learning/") ||
+      currentPath.startsWith("/review")
     );
-  if (path === "/articles") return route.path.startsWith("/articles");
+  if (path === "/articles") return currentPath.startsWith("/articles");
   if (path === "/member")
     return (
-      route.path === "/member" ||
-      route.path === "/store" ||
-      route.path === "/purchase-history" ||
-      route.path === "/point-history" ||
-      route.path.startsWith("/profile/") ||
-      route.path === "/issue-report" ||
-      route.path === "/privacy-pwa" ||
-      route.path === "/nwp-live-check"
+      currentPath === "/member" ||
+      currentPath === "/store" ||
+      currentPath === "/purchase-history" ||
+      currentPath === "/point-history" ||
+      currentPath.startsWith("/profile/") ||
+      currentPath === "/issue-report" ||
+      currentPath === "/privacy-pwa" ||
+      currentPath === "/nwp-live-check"
     );
   if (path === "/ai-analysis")
     return [
@@ -165,8 +166,8 @@ function isTabActive(path: string) {
       "/flow",
       "/match",
       "/qa",
-    ].includes(route.path);
-  return route.path === path;
+    ].includes(currentPath);
+  return currentPath === path.replace(/\/+$/, "");
 }
 </script>
 
