@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { CmsApiError, cmsApi } from "~/utils/cms-api";
+import type { ChartConfiguration } from "chart.js";
 
 const props = withDefaults(defineProps<{ page?: "dashboard" | "premium" }>(), {
   page: "dashboard",
@@ -20,6 +21,7 @@ type UserStatus = {
 };
 type Dashboard = {
   days: number;
+  range?: { start_date: string; end_date: string; days: number };
   summary: {
     total_users: number;
     premium_users: number;
@@ -34,17 +36,11 @@ type Dashboard = {
     all_time_revenue: number;
     paid_transactions: number;
     failed_transactions: number;
+    refunded_transactions: number;
     average_order_value: number;
-    trend: { date: string; amount: number }[];
+    trend: { date: string; amount: number; transactions: number }[];
+    subscription_health: Record<string, number>;
   };
-  recent_grants: {
-    operation_id: string;
-    email: string;
-    days: number;
-    expires_at: string;
-    created_at: string;
-  }[];
-  recent_users: { email: string; name: string; created_at: string }[];
 };
 
 const checking = ref(true),
@@ -57,7 +53,12 @@ const adminEmail = ref(""),
   error = ref(""),
   notice = ref("");
 const dashboard = ref<Dashboard | null>(null),
+  dashboardFormatError = ref(""),
+  todayRevenue = ref(0),
   period = ref(30),
+  rangeMode = ref<"7" | "30" | "custom">("30"),
+  startDate = ref(""),
+  endDate = ref(""),
   lookupEmail = ref(""),
   user = ref<UserStatus | null>(null);
 const days = ref(7),
@@ -86,70 +87,156 @@ const usageName: Record<string, string> = {
   ten_year: "十年大運",
   other: "其他",
 };
-const chartWidth = 680,
-  chartHeight = 250,
-  chartLeft = 48,
-  chartTop = 18,
-  chartBottom = 34;
-const registrationMax = computed(() =>
-  Math.max(
-    0,
-    ...(dashboard.value?.registration_trend.map((x) => x.count) || [0]),
-  ),
-);
-const registrationUnit = computed(() =>
-  registrationMax.value <= 100
-    ? 10
-    : registrationMax.value <= 1000
-      ? 100
-      : 1000,
-);
-const registrationScaleMax = computed(() =>
-  Math.max(
-    registrationUnit.value,
-    Math.ceil(registrationMax.value / registrationUnit.value) *
-      registrationUnit.value,
-  ),
-);
-const registrationTicks = computed(() =>
-  Array.from(
-    { length: registrationScaleMax.value / registrationUnit.value + 1 },
-    (_, index) => index * registrationUnit.value,
-  ),
-);
-const registrationPoints = computed(() => {
-  const values = dashboard.value?.registration_trend || [];
-  const usableHeight = chartHeight - chartTop - chartBottom;
-  return values
-    .map(
-      (item, index) =>
-        `${chartLeft + (values.length === 1 ? 0 : (index * (chartWidth - chartLeft - 14)) / (values.length - 1))},${chartTop + usableHeight - (item.count / registrationScaleMax.value) * usableHeight}`,
-    )
-    .join(" ");
-});
-const registrationLabels = computed(() => {
-  const values = dashboard.value?.registration_trend || [];
-  if (!values.length) return [];
-  return [
-    ...new Set([0, Math.floor((values.length - 1) / 2), values.length - 1]),
-  ].map((index) => ({
-    date: values[index].date.slice(5),
-    x:
-      chartLeft +
-      (values.length === 1
-        ? 0
-        : (index * (chartWidth - chartLeft - 14)) / (values.length - 1)),
-  }));
-});
-const usageMax = computed(() =>
-  Math.max(1, ...(dashboard.value?.usage.map((x) => x.count) || [1])),
-);
 const currency = (value: number) =>
   new Intl.NumberFormat("zh-TW", {
     style: "currency",
     currency: "TWD",
     maximumFractionDigits: 0,
   }).format(value);
+let dashboardRequest = 0;
+
+function niceAxisMax(values: number[], minimum: number) {
+  const maximum = Math.max(0, ...values);
+  if (maximum <= 0) return minimum;
+  const target = Math.max(minimum, maximum * 1.25);
+  const magnitude = 10 ** Math.floor(Math.log10(maximum));
+  const step = Math.max(1, magnitude / 2);
+  return Math.max(minimum, Math.ceil(target / step) * step);
+}
+function normalizeDashboard(value: Dashboard): Dashboard {
+  const missing: string[] = [];
+  if (!Array.isArray(value.registration_trend)) missing.push("registration_trend");
+  if (!Array.isArray(value.usage)) missing.push("usage");
+  if (!Array.isArray(value.web_revenue?.trend)) missing.push("web_revenue.trend");
+  if (!value.web_revenue?.subscription_health) missing.push("web_revenue.subscription_health");
+  dashboardFormatError.value = missing.length
+    ? `Dashboard API 回應格式不完整：${missing.join("、")}`
+    : "";
+  const todayRevenueEntry = value.web_revenue?.trend?.find(
+    (entry) => entry.date === isoDate(new Date()),
+  );
+  if (todayRevenueEntry) todayRevenue.value = todayRevenueEntry.amount;
+  return {
+    ...value,
+    registration_trend: Array.isArray(value.registration_trend) ? value.registration_trend : [],
+    usage: Array.isArray(value.usage) ? value.usage : [],
+    web_revenue: {
+      ...value.web_revenue,
+      trend: Array.isArray(value.web_revenue?.trend) ? value.web_revenue.trend : [],
+      subscription_health: value.web_revenue?.subscription_health || {},
+    },
+  };
+}
+const chartBase = {
+  responsive: true,
+  maintainAspectRatio: false,
+  interaction: { intersect: false, mode: "index" as const },
+  plugins: { legend: { position: "bottom" as const } },
+  scales: {
+    x: { grid: { display: false }, ticks: { maxTicksLimit: 9 } },
+    y: { beginAtZero: true, ticks: { precision: 0 } },
+  },
+};
+const registrationChart = computed<ChartConfiguration<"line">>(() => ({
+  type: "line",
+  data: {
+    labels: dashboard.value?.registration_trend.map((x) => x.date.slice(5)) || [],
+    datasets: [{
+      label: "註冊人數",
+      data: dashboard.value?.registration_trend.map((x) => x.count) || [],
+      borderColor: "#176b5b",
+      backgroundColor: "#176b5b22",
+      fill: true,
+      tension: 0.32,
+      pointRadius: 2,
+    }],
+  },
+  options: {
+    ...chartBase,
+    scales: {
+      ...chartBase.scales,
+      y: {
+        ...chartBase.scales.y,
+        max: niceAxisMax(dashboard.value?.registration_trend.map((x) => x.count) || [], 5),
+      },
+    },
+  },
+}));
+const revenueChart = computed<ChartConfiguration>(() => ({
+  type: "bar",
+  data: {
+    labels: dashboard.value?.web_revenue.trend.map((x) => x.date.slice(5)) || [],
+    datasets: [
+      {
+        type: "bar",
+        label: "營收（TWD）",
+        data: dashboard.value?.web_revenue.trend.map((x) => x.amount) || [],
+        backgroundColor: "#2b927bcc",
+        borderRadius: 5,
+        yAxisID: "revenue",
+      },
+      {
+        type: "line",
+        label: "成功付款筆數",
+        data: dashboard.value?.web_revenue.trend.map((x) => x.transactions) || [],
+        borderColor: "#d68b3c",
+        backgroundColor: "#d68b3c",
+        tension: 0.3,
+        yAxisID: "transactions",
+      },
+    ],
+  },
+  options: {
+    ...chartBase,
+    scales: {
+      x: chartBase.scales.x,
+      revenue: {
+        beginAtZero: true,
+        max: niceAxisMax(dashboard.value?.web_revenue.trend.map((x) => x.amount) || [], 500),
+        position: "left",
+        ticks: { callback: (v) => `NT$${Number(v).toLocaleString()}` },
+      },
+      transactions: {
+        beginAtZero: true,
+        max: niceAxisMax(dashboard.value?.web_revenue.trend.map((x) => x.transactions) || [], 5),
+        position: "right",
+        grid: { drawOnChartArea: false },
+        ticks: { precision: 0 },
+      },
+    },
+  },
+}));
+const usageChart = computed<ChartConfiguration<"bar">>(() => ({
+  type: "bar",
+  data: {
+    labels: dashboard.value?.usage.map((x) => usageName[x.type] || x.type) || [],
+    datasets: [{ label: "啟動次數", data: dashboard.value?.usage.map((x) => x.count) || [], backgroundColor: "#5d8f85", borderRadius: 6 }],
+  },
+  options: {
+    ...chartBase,
+    indexAxis: "y",
+    scales: {
+      y: { grid: { display: false } },
+      x: { beginAtZero: true, max: niceAxisMax(dashboard.value?.usage.map((x) => x.count) || [], 5), ticks: { precision: 0 } },
+    },
+  },
+}));
+function isoDate(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei" }).format(date);
+}
+function markCustomRange() {
+  rangeMode.value = "custom";
+}
+async function selectRange(value: "7" | "30") {
+  rangeMode.value = value;
+  period.value = Number(value);
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - period.value + 1);
+  startDate.value = isoDate(start);
+  endDate.value = isoDate(end);
+  await loadDashboard();
+}
 
 async function restore() {
   try {
@@ -197,16 +284,22 @@ async function logout() {
   }
 }
 async function loadDashboard() {
+  const request = ++dashboardRequest;
   loading.value = true;
   error.value = "";
   try {
-    dashboard.value = await cmsApi<Dashboard>(
-      `/dashboard?days=${period.value}`,
-    );
+    let query = `days=${period.value}`;
+    if (startDate.value && endDate.value) {
+      const daysBetween = Math.floor((new Date(endDate.value).getTime() - new Date(startDate.value).getTime()) / 86400000) + 1;
+      if (daysBetween < 1 || daysBetween > 366) throw new Error("日期區間必須介於 1 到 366 天");
+      query = `start_date=${startDate.value}&end_date=${endDate.value}`;
+    }
+    const response = await cmsApi<Dashboard>(`/dashboard?${query}`);
+    if (request === dashboardRequest) dashboard.value = normalizeDashboard(response);
   } catch (e) {
-    handleError(e);
+    if (request === dashboardRequest) handleError(e);
   } finally {
-    loading.value = false;
+    if (request === dashboardRequest) loading.value = false;
   }
 }
 async function lookup() {
@@ -270,6 +363,11 @@ function handleError(e: unknown) {
   } else error.value = e instanceof Error ? e.message : "操作失敗";
 }
 onMounted(() => {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - 29);
+  startDate.value = isoDate(start);
+  endDate.value = isoDate(end);
   if (sessionStorage.getItem(cmsSessionHintKey) === "1") restore();
   else checking.value = false;
 });
@@ -313,193 +411,65 @@ watch(lookupEmail, () => {
     </section>
   </div>
   <div v-else class="app-shell">
-    <aside>
-      <div>
-        <p class="eyebrow">FATEJYC</p>
-        <h2>CMS</h2>
-      </div>
-      <nav>
-        <NuxtLink to="/cms/" :class="{ active: props.page === 'dashboard' }"
-          >數據總覽</NuxtLink
-        ><NuxtLink to="/cms/members/">會員管理</NuxtLink
-        ><NuxtLink to="/cms/orders/">訂單管理</NuxtLink
-        ><NuxtLink to="/cms/issues/">問題回報</NuxtLink>
-      </nav>
-      <div class="admin">
-        <small>目前登入</small><span>{{ adminEmail }}</span
-        ><button class="text-btn" @click="logout">登出</button>
-      </div>
-    </aside>
+    <CmsNavigation page="dashboard" @logout="logout" />
     <div class="content">
-      <header>
-        <div>
-          <p class="eyebrow">管理中心</p>
-          <h1>
-            {{ props.page === "dashboard" ? "營運儀表板" : "Premium 管理" }}
-          </h1>
-        </div>
-        <button
-          v-if="props.page === 'dashboard'"
-          class="secondary"
-          :disabled="loading"
-          @click="loadDashboard"
-        >
-          重新整理
-        </button>
-      </header>
+      <CmsPageHeader
+        :title="props.page === 'dashboard' ? '營運儀表板' : 'Premium 管理'"
+        :loading="loading"
+        @refresh="loadDashboard"
+      />
       <p v-if="error" class="alert error">{{ error }}</p>
+      <p v-if="dashboardFormatError" class="alert error">{{ dashboardFormatError }}</p>
       <p v-if="notice" class="alert success">{{ notice }}</p>
-      <section v-if="props.page === 'dashboard' && dashboard">
+      <section v-if="props.page === 'dashboard' && dashboard" class="dashboard">
         <div class="metrics">
-          <article>
-            <span>註冊總人數</span
-            ><strong>{{ dashboard.summary.total_users }}</strong>
-          </article>
-          <article>
-            <span>Premium 人數</span
-            ><strong>{{ dashboard.summary.premium_users }}</strong
-            ><small>{{ dashboard.summary.premium_rate.toFixed(1) }}%</small>
-          </article>
-          <article>
-            <span>今日註冊</span
-            ><strong>{{ dashboard.summary.registrations.today }}</strong>
-          </article>
-          <article>
-            <span>近 30 日註冊</span
-            ><strong>{{ dashboard.summary.registrations.thirty_days }}</strong>
-          </article>
+          <article><span>總註冊人數</span><strong>{{ dashboard.summary.total_users.toLocaleString() }}</strong></article>
+          <article><span>Premium</span><strong>{{ dashboard.summary.premium_users.toLocaleString() }}</strong><small>{{ dashboard.summary.premium_rate.toFixed(1) }}%</small></article>
+          <article><span>今日註冊人數</span><strong>{{ dashboard.summary.registrations.today.toLocaleString() }}</strong></article>
+          <article><span>今日營收</span><strong>{{ currency(todayRevenue) }}</strong></article>
         </div>
-        <article class="panel chart-panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">REGISTRATIONS</p>
-              <h3>註冊趨勢</h3>
-              <small class="axis-note"
-                >X 軸：日期　Y 軸：註冊人數（每格
-                {{ registrationUnit }} 人）</small
-              >
-            </div>
-            <select v-model="period" @change="loadDashboard">
-              <option :value="7">近 7 日</option>
-              <option :value="30">近 30 日</option>
-            </select>
+        <form class="range-toolbar" @submit.prevent="loadDashboard">
+          <div class="range-title">
+            <p class="eyebrow">REPORTING PERIOD</p>
+            <h2>數據區間</h2>
           </div>
-          <div class="line-chart">
-            <svg
-              :viewBox="`0 0 ${chartWidth} ${chartHeight}`"
-              role="img"
-              aria-label="每日註冊人數折線圖"
-            >
-              <g class="grid-lines">
-                <line
-                  v-for="tick in registrationTicks"
-                  :key="tick"
-                  :x1="chartLeft"
-                  :x2="chartWidth - 14"
-                  :y1="
-                    chartTop +
-                    (chartHeight - chartTop - chartBottom) *
-                      (1 - tick / registrationScaleMax)
-                  "
-                  :y2="
-                    chartTop +
-                    (chartHeight - chartTop - chartBottom) *
-                      (1 - tick / registrationScaleMax)
-                  "
-                />
-                <text
-                  v-for="tick in registrationTicks"
-                  :key="`y${tick}`"
-                  x="40"
-                  :y="
-                    chartTop +
-                    (chartHeight - chartTop - chartBottom) *
-                      (1 - tick / registrationScaleMax) +
-                    4
-                  "
-                  text-anchor="end"
-                >
-                  {{ tick }}
-                </text>
-              </g>
-              <polyline
-                class="trend-area"
-                :points="`${chartLeft},${chartHeight - chartBottom} ${registrationPoints} ${chartWidth - 14},${chartHeight - chartBottom}`"
-              />
-              <polyline class="trend-line" :points="registrationPoints" />
-              <g v-for="label in registrationLabels" :key="label.date">
-                <line
-                  :x1="label.x"
-                  :x2="label.x"
-                  :y1="chartHeight - chartBottom"
-                  :y2="chartHeight - chartBottom + 5"
-                />
-                <text :x="label.x" :y="chartHeight - 8" text-anchor="middle">
-                  {{ label.date }}
-                </text>
-              </g>
-            </svg>
+          <div class="range-presets" role="group" aria-label="選擇數據區間">
+            <button type="button" :disabled="loading" :class="{ active: rangeMode === '7' }" @click="selectRange('7')">近 7 日</button>
+            <button type="button" :disabled="loading" :class="{ active: rangeMode === '30' }" @click="selectRange('30')">近 30 日</button>
           </div>
-        </article>
-        <div class="grid">
-          <article class="panel">
-            <p class="eyebrow">ANALYSIS USAGE</p>
-            <h3>解析使用統計</h3>
-            <small class="axis-note">近 {{ period }} 日啟動次數</small>
-            <div class="usage-chart">
-              <div
-                v-for="item in dashboard.usage"
-                :key="item.type"
-                class="usage-column"
-              >
-                <b>{{ item.count }}</b
-                ><i
-                  :style="{
-                    height: `${Math.max(4, (item.count / usageMax) * 150)}px`,
-                  }"
-                /><span>{{ usageName[item.type] || item.type }}</span>
-              </div>
-              <p v-if="!dashboard.usage.length" class="muted">
-                此期間尚無解析紀錄
-              </p>
-            </div>
+          <div class="custom-range">
+            <label aria-label="起日"><input v-model="startDate" type="date" :max="endDate || isoDate(new Date())" @input="markCustomRange"></label>
+            <span class="date-separator" aria-hidden="true">—</span>
+            <label aria-label="迄日"><input v-model="endDate" type="date" :min="startDate" :max="isoDate(new Date())" @input="markCustomRange"></label>
+            <button class="primary" :disabled="loading">套用</button>
+          </div>
+        </form>
+        <div class="dashboard-grid">
+          <article class="panel chart-wide">
+            <div class="panel-header"><div><p class="eyebrow">REGISTRATIONS</p><h3>每日註冊人數</h3></div><span class="period-label">{{ dashboard.range?.start_date }} — {{ dashboard.range?.end_date }}</span></div>
+            <CmsChart :config="registrationChart" label="每日註冊人數折線圖" :empty="!dashboard.registration_trend.some(x => x.count)" />
+          </article>
+          <article class="panel chart-wide">
+            <div class="panel-header"><div><p class="eyebrow">WEB TWD FINANCE</p><h3>營收與成功付款</h3></div><span class="period-label">{{ dashboard.range?.start_date }} — {{ dashboard.range?.end_date }}</span></div>
+            <CmsChart :config="revenueChart" label="每日 Web TWD 營收與成功付款筆數" :empty="!dashboard.web_revenue.trend.some(x => x.amount || x.transactions)" />
           </article>
           <article class="panel">
-            <p class="eyebrow">WEB REVENUE</p>
-            <h3>Web 消費金額</h3>
-            <div class="revenue-metrics">
-              <p>
-                <span>近 {{ period }} 日營收</span
-                ><strong>{{
-                  currency(dashboard.web_revenue.period_revenue)
-                }}</strong>
-              </p>
-              <p>
-                <span>累積營收</span
-                ><strong>{{
-                  currency(dashboard.web_revenue.all_time_revenue)
-                }}</strong>
-              </p>
-              <p>
-                <span>成功交易</span
-                ><strong
-                  >{{ dashboard.web_revenue.paid_transactions }} 筆</strong
-                >
-              </p>
-              <p>
-                <span>平均客單價</span
-                ><strong>{{
-                  currency(dashboard.web_revenue.average_order_value)
-                }}</strong>
-              </p>
-              <p>
-                <span>失敗交易</span
-                ><strong
-                  >{{ dashboard.web_revenue.failed_transactions }} 筆</strong
-                >
-              </p>
+            <div class="panel-header"><div><p class="eyebrow">FINANCE SUMMARY</p><h3>財務摘要</h3></div></div>
+            <div class="finance-list">
+              <p><span>區間營收</span><b>{{ currency(dashboard.web_revenue.period_revenue) }}</b></p>
+              <p><span>平均客單價</span><b>{{ currency(dashboard.web_revenue.average_order_value) }}</b></p>
+              <p><span>累積營收</span><b>{{ currency(dashboard.web_revenue.all_time_revenue) }}</b></p>
+              <p><span>成功交易</span><b>{{ dashboard.web_revenue.paid_transactions }} 筆</b></p>
+              <p><span>失敗交易</span><b>{{ dashboard.web_revenue.failed_transactions }} 筆</b></p>
+              <p><span>退款交易</span><b>{{ dashboard.web_revenue.refunded_transactions }} 筆</b></p>
+              <p><span>付款成功率</span><b>{{ ((dashboard.web_revenue.paid_transactions / Math.max(1, dashboard.web_revenue.paid_transactions + dashboard.web_revenue.failed_transactions)) * 100).toFixed(1) }}%</b></p>
             </div>
           </article>
+          <article class="panel subscription-health">
+            <div class="panel-header"><div><p class="eyebrow">SUBSCRIPTIONS</p><h3>訂閱健康度</h3></div></div>
+            <div class="subscription-health-grid"><p><span>續訂中</span><b>{{ dashboard.web_revenue.subscription_health.active || 0 }}</b></p><p><span>已取消仍有效</span><b>{{ dashboard.web_revenue.subscription_health.cancelled || 0 }}</b></p><p><span>扣款異常</span><b>{{ dashboard.web_revenue.subscription_health.past_due || 0 }}</b></p></div>
+          </article>
+          <article class="panel chart-wide"><div class="panel-header"><div><p class="eyebrow">ANALYSIS USAGE</p><h3>解析功能使用量</h3></div></div><CmsChart :config="usageChart" label="解析功能使用量" :empty="!dashboard.usage.length" /></article>
         </div>
       </section>
       <section v-if="props.page === 'premium'" class="panel premium-panel">
@@ -587,58 +557,6 @@ watch(lookupEmail, () => {
               ><button class="primary">增加 {{ days }} 天 Premium</button>
             </form>
           </div>
-        </div>
-      </section>
-      <section
-        v-if="props.page === 'dashboard' && dashboard?.recent_grants.length"
-        class="panel"
-      >
-        <p class="eyebrow">AUDIT</p>
-        <h2>近期手動開通</h2>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>增加天數</th>
-                <th>開通時間</th>
-                <th>到期時間</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="g in dashboard.recent_grants" :key="g.operation_id">
-                <td>{{ g.email }}</td>
-                <td>{{ g.days }} 天</td>
-                <td>{{ format(g.created_at) }}</td>
-                <td>{{ format(g.expires_at) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-      <section
-        v-if="props.page === 'dashboard' && dashboard?.recent_users.length"
-        class="panel"
-      >
-        <p class="eyebrow">NEW USERS</p>
-        <h2>近期註冊會員</h2>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>名稱</th>
-                <th>註冊時間</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in dashboard.recent_users" :key="item.email">
-                <td>{{ item.email }}</td>
-                <td>{{ item.name || "—" }}</td>
-                <td>{{ format(item.created_at) }}</td>
-              </tr>
-            </tbody>
-          </table>
         </div>
       </section>
     </div>
@@ -776,42 +694,110 @@ button {
   display: grid;
   grid-template-columns: 240px 1fr;
 }
-aside {
-  position: sticky;
-  top: 0;
-  height: 100dvh;
-  padding: 30px 24px;
-  background: #123e37;
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-}
-aside h2 {
-  margin: 0;
-  font-size: 28px;
-}
-nav {
+.range-toolbar {
   display: grid;
-  gap: 8px;
-  margin-top: 55px;
+  grid-template-columns: minmax(150px, 1fr) auto minmax(390px, auto);
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 18px 20px;
+  background: #edf4f1;
+  border: 1px solid #d8e5e0;
+  border-radius: 16px;
 }
-nav a {
-  padding: 11px 12px;
-  color: #d8ebe6;
-  text-decoration: none;
-  border-radius: 9px;
+.range-title .eyebrow,
+.range-title h2 {
+  margin: 0;
 }
-nav a:hover {
-  background: #ffffff12;
-}
-.admin {
-  margin-top: auto;
+.range-title {
   display: grid;
   gap: 5px;
-  overflow-wrap: anywhere;
+  align-self: center;
 }
-.admin small {
-  color: #9cc1b8;
+.range-presets {
+  display: flex;
+  gap: 6px;
+}
+.range-presets button {
+  padding: 9px 13px;
+  background: #fff;
+  color: #28544c;
+  border: 1px solid #cedbd7;
+}
+.range-presets button.active {
+  background: #176b5b;
+  border-color: #176b5b;
+  color: #fff;
+}
+.custom-range {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) auto minmax(140px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.custom-range label {
+  margin: 0;
+}
+.date-separator {
+  color: #71827f;
+  font-weight: 700;
+}
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.panel-header {
+  min-height: 45px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.panel-header > div {
+  display: grid;
+  gap: 5px;
+}
+.panel-header .eyebrow,
+.panel-header h3 {
+  margin: 0;
+}
+.chart-wide {
+  grid-column: span 2;
+  min-width: 0;
+}
+.period-label {
+  color: #71827f;
+  font-size: 12px;
+}
+.finance-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.finance-list p,
+.subscription-health-grid p {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 14px;
+  background: #f3f7f5;
+  border-radius: 10px;
+}
+.finance-list span,
+.subscription-health-grid span {
+  color: #71827f;
+  font-size: 12px;
+}
+.subscription-health-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.subscription-health-grid b {
+  font-size: 24px;
 }
 .content {
   padding: 42px clamp(24px, 4vw, 64px);
@@ -829,6 +815,7 @@ nav a:hover {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
+  margin-bottom: 16px;
 }
 .metrics article,
 .panel {
@@ -851,13 +838,6 @@ nav a:hover {
   margin-left: 8px;
   color: #16806c;
 }
-.grid {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 16px;
-  margin-top: 16px;
-}
-.panel-head,
 .user-head,
 .grant-row,
 .actions {
@@ -866,42 +846,6 @@ nav a:hover {
   justify-content: space-between;
   gap: 16px;
 }
-.panel-head select {
-  width: auto;
-}
-.bars {
-  display: grid;
-  gap: 8px;
-  margin-top: 20px;
-}
-.bar-row {
-  display: grid;
-  grid-template-columns: 42px 1fr 26px;
-  gap: 8px;
-  align-items: center;
-}
-.bar-row i {
-  height: 8px;
-  background: #29a287;
-  border-radius: 5px;
-}
-.bar-row b {
-  text-align: right;
-  font-size: 12px;
-}
-.source-list p {
-  display: flex;
-  justify-content: space-between;
-  border-bottom: 1px solid #edf1ef;
-  padding: 10px 0;
-  margin: 0;
-}
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-.chips span,
 .badge {
   padding: 6px 9px;
   border-radius: 99px;
@@ -1016,108 +960,6 @@ button:disabled {
   opacity: 0.55;
   cursor: wait;
 }
-nav a.active {
-  background: #ffffff18;
-  color: #fff;
-}
-.axis-note {
-  color: #81908d;
-}
-.chart-panel {
-  margin-top: 16px;
-}
-.line-chart {
-  width: 100%;
-  overflow-x: auto;
-  margin-top: 14px;
-}
-.line-chart svg {
-  display: block;
-  width: 100%;
-  min-width: 500px;
-}
-.grid-lines line {
-  stroke: #dfe8e5;
-  stroke-width: 1;
-}
-.grid-lines text,
-.line-chart g text {
-  fill: #738480;
-  font-size: 11px;
-}
-.trend-area {
-  fill: #36a58a18;
-  stroke: none;
-}
-.trend-line {
-  fill: none;
-  stroke: #16806c;
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.line-chart g > line {
-  stroke: #aebdb9;
-}
-.usage-chart {
-  height: 210px;
-  display: flex;
-  align-items: flex-end;
-  gap: clamp(8px, 2vw, 24px);
-  padding: 18px 4px 0;
-  border-bottom: 1px solid #cad8d4;
-  overflow-x: auto;
-}
-.usage-column {
-  height: 100%;
-  min-width: 58px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 6px;
-}
-.usage-column i {
-  display: block;
-  width: min(48px, 70%);
-  background: linear-gradient(#34a98d, #176b5b);
-  border-radius: 7px 7px 0 0;
-}
-.usage-column b {
-  font-size: 12px;
-}
-.usage-column span {
-  min-height: 34px;
-  font-size: 11px;
-  text-align: center;
-  color: #657873;
-}
-.revenue-metrics {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-top: 18px;
-}
-.revenue-metrics p {
-  margin: 0;
-  padding: 13px;
-  background: #f3f7f5;
-  border-radius: 10px;
-}
-.revenue-metrics p:first-child {
-  grid-column: 1/-1;
-  background: #e2f2ed;
-}
-.revenue-metrics span {
-  display: block;
-  color: #71827e;
-  font-size: 12px;
-}
-.revenue-metrics strong {
-  display: block;
-  margin-top: 5px;
-  font-size: 19px;
-}
 .step-title {
   display: flex;
   align-items: center;
@@ -1176,38 +1018,51 @@ nav a.active {
   .app-shell {
     display: block;
   }
-  aside {
-    position: static;
-    height: auto;
-    flex-wrap: wrap;
-    flex-direction: row;
-    align-items: center;
-    gap: 14px;
-    padding: 16px 20px;
-  }
-  aside nav {
-    order: 3;
-    width: 100%;
-    display: flex;
-    margin: 0;
-  }
-  aside nav a {
-    flex: 1;
-    text-align: center;
-  }
-  .admin {
-    margin: 0 0 0 auto;
-    max-width: 55%;
-    font-size: 12px;
-  }
   .metrics {
     grid-template-columns: repeat(2, 1fr);
   }
-  .grid {
-    grid-template-columns: 1fr;
-  }
   .user-card dl {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 1200px) {
+  .range-toolbar {
+    grid-template-columns: 1fr auto;
+  }
+  .custom-range {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 760px) {
+  .content {
+    padding: 22px 14px;
+  }
+  .content > header {
+    align-items: flex-start;
+  }
+  .range-toolbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .custom-range {
+    grid-column: auto;
+  }
+  .range-presets {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  .chart-wide {
+    grid-column: auto;
+  }
+  .finance-list,
+  .subscription-health-grid {
+    grid-template-columns: 1fr;
+  }
+  .period-label {
+    display: block;
   }
 }
 @media (max-width: 560px) {
@@ -1239,20 +1094,14 @@ nav a.active {
   .duration-form {
     grid-template-columns: 1fr;
   }
-  .revenue-metrics {
-    grid-template-columns: 1fr;
-  }
-  .revenue-metrics p:first-child {
-    grid-column: auto;
-  }
   .panel {
     padding: 17px;
   }
-  aside h2 {
-    font-size: 20px;
+  .custom-range {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   }
-  .admin small {
-    display: none;
+  .custom-range button {
+    grid-column: 1 / -1;
   }
 }
 </style>
