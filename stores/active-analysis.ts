@@ -112,7 +112,17 @@ function notifyConflict(
 function failureText(error: string) {
   if (error === "analysis_interrupted" || error === "analysis_timeout")
     return "系統服務中斷，本次分析已停止，請重新執行。";
+  if (error === "analysis_recovery_metadata_missing")
+    return "任務逾時且無法恢復，本次問答已停止，請重新提問。";
   return error || "工作未完成，請稍後重新執行。";
+}
+
+function apiErrorCode(reason: unknown) {
+  if (!(reason instanceof ApiError)) return "";
+  const payload = reason.payload;
+  if (!payload || typeof payload !== "object") return "";
+  const error = (payload as { error?: unknown }).error;
+  return typeof error === "string" ? error : "";
 }
 
 function normalizeMetadata(value: unknown): Record<string, unknown> {
@@ -559,7 +569,31 @@ export const useActiveAnalysisStore = defineStore("active-analysis", {
         await useAuthStore().loadBilling();
         return true;
       } catch (reason) {
-        if (reason instanceof ApiError && reason.status === 409) return false;
+        const errorCode = apiErrorCode(reason);
+        if (
+          reason instanceof ApiError &&
+          reason.status === 409 &&
+          errorCode === "analysis_still_within_timeout"
+        )
+          return false;
+        if (
+          reason instanceof ApiError &&
+          reason.status === 409 &&
+          errorCode === "analysis_recovery_metadata_missing"
+        ) {
+          // Older servers required record-recovery metadata for every analysis
+          // type. QA jobs only carry chat metadata, so leaving them as running
+          // here permanently blocks refresh and every future question.
+          job.status = "timed_out";
+          job.connected = false;
+          job.error = failureText(errorCode);
+          activeController = undefined;
+          this.persist();
+          snackbar(job.error, "error", {
+            title: `${labels[job.kind]}已停止`,
+          });
+          return true;
+        }
         return false;
       }
     },
