@@ -193,7 +193,7 @@ footer span {
 @media (max-width: 420px) {
   article {
     min-height: 245px;
-    padding: 32px 40px;
+    padding: 32px 20px;
   }
   blockquote {
     font-size: 14px;

@@ -27,6 +27,8 @@ const articlePrerenderRoutes = [
   "ten-year-fortune",
 ].map((slug) => `/articles/${slug}/`);
 
+const cmsPrerenderRoutes = ["/cms/"];
+
 export default defineNuxtConfig({
   compatibilityDate: "2025-01-01",
   ssr: true,
@@ -47,7 +49,11 @@ export default defineNuxtConfig({
         .flatMap(([level, courseIds]) =>
           courseIds.map((courseId) => `/review/${level}/${courseId}/`),
         )
-        .concat(learningPrerenderRoutes, articlePrerenderRoutes),
+        .concat(
+          learningPrerenderRoutes,
+          articlePrerenderRoutes,
+          cmsPrerenderRoutes,
+        ),
     },
   },
   routeRules: {
@@ -77,12 +83,12 @@ export default defineNuxtConfig({
     "/report-detail": { ssr: false, prerender: false },
     "/cms": {
       ssr: false,
-      prerender: false,
+      prerender: true,
       headers: { "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet" },
     },
     "/cms/**": {
       ssr: false,
-      prerender: false,
+      prerender: true,
       headers: { "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet" },
     },
   },
@@ -124,7 +130,7 @@ export default defineNuxtConfig({
         process.env.NUXT_PUBLIC_WS_ANALYZE_URL ||
         "ws://localhost:3000/ws/analyze",
       appName: process.env.NUXT_PUBLIC_APP_NAME || "紫微斗數",
-      appVersion: process.env.NUXT_PUBLIC_APP_VERSION || "1.2.7",
+      appVersion: process.env.NUXT_PUBLIC_APP_VERSION || "1.2.8",
       googleWebClientId: process.env.NUXT_PUBLIC_GOOGLE_WEB_CLIENT_ID || "",
     },
   },

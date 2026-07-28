@@ -195,7 +195,7 @@ function scrollToAbout() {
   min-height: 100dvh;
   position: relative;
   isolation: isolate;
-  overflow: visible;
+  overflow-x: clip;
   background: transparent;
 }
 .landing-content {
@@ -479,6 +479,31 @@ function scrollToAbout() {
   min-width: 168px;
   margin: 0;
   box-shadow: 0 8px 20px rgba(36, 87, 90, 0.14);
+}
+@media (max-width: 420px) {
+  .hero {
+    padding: 60px 16px 140px;
+    gap: 32px;
+  }
+  .stats {
+    font-size: 12px;
+    letter-spacing: -0.01em;
+  }
+  .stats div + div::before {
+    margin: 0 4px;
+  }
+  .hero-actions .app-button,
+  .final-actions .app-button {
+    min-width: 140px;
+    flex: 1 1 140px;
+  }
+}
+@media (max-width: 380px) {
+  .hero-aside blockquote {
+    font-size: 19px;
+    gap: 8px;
+    letter-spacing: 0.18em;
+  }
 }
 @media (min-width: 600px) {
   .belief,
