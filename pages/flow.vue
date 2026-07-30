@@ -22,6 +22,7 @@ import { calculateFlowData } from "~/utils/ziwei/calculator";
 definePageMeta({ middleware: "auth" });
 
 type FlowType = "流年" | "流月" | "流日";
+type FlowStage = "type" | "date" | "result";
 interface FlowSection {
   title: string;
   content: string;
@@ -44,7 +45,7 @@ const auth = useAuthStore();
 const chartStore = useChartStore();
 const activeAnalysis = useActiveAnalysisStore();
 const now = new Date();
-const stage = ref<"type" | "date" | "result">("type");
+const stage = ref<FlowStage>("type");
 const flowType = ref<FlowType>("流年");
 const year = ref(now.getFullYear());
 const month = ref(now.getMonth() + 1);
@@ -62,6 +63,8 @@ const usePointsFallback = ref(false);
 const notice = ref("");
 const incompleteTasks = ref<FlowRecord[]>([]);
 const recoveryLoading = ref(false);
+const allowActiveFlowResult = ref(false);
+const flowUiStateKey = "ziwei:flow-ui-state";
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 
 const days = computed(() =>
@@ -92,11 +95,7 @@ const displayDate = computed(() =>
       : `${year.value}/${String(month.value).padStart(2, "0")}/${String(day.value).padStart(2, "0")}`,
 );
 const sections = computed(() => parseSections(content.value));
-const visibleSections = computed(() =>
-  analyzing.value && sections.value.length
-    ? sections.value.slice(0, -1)
-    : sections.value,
-);
+const visibleSections = computed(() => sections.value);
 const formattedCreatedAt = computed(() => {
   if (!createdAt.value) return "";
   const value = new Date(createdAt.value);
@@ -124,17 +123,42 @@ const flowBackgroundProcessing = computed(
 watch([year, month], () => {
   if (day.value > days.value.length) day.value = days.value.length;
 });
+watch(
+  [stage, flowType, year, month, day, content, createdAt],
+  persistFlowUiState,
+);
 onMounted(async () => {
   chartStore.hydrate(auth.profile);
-  syncActiveFlow();
-  await recoverFlowResult();
-  await loadIncompleteFlowTasks();
+  const restoredStage = restoreFlowUiState();
+  await activeAnalysis.hydrate();
+  const activeFlow =
+    activeAnalysis.active?.kind === "flow" ? activeAnalysis.active : null;
+  allowActiveFlowResult.value =
+    restoredStage === "result" ||
+    (restoredStage === null &&
+      (activeFlow?.status === "running" ||
+        Boolean(activeFlow?.contents.main?.trim())));
+  if (allowActiveFlowResult.value) {
+    syncActiveFlow();
+    await recoverFlowResult();
+  }
+  await loadIncompleteFlowTasks(true, allowActiveFlowResult.value);
 });
+onBeforeRouteLeave(() => {
+  if (analyzing.value) {
+    showAnalysisRunningSnackbar();
+    return false;
+  }
+  if (import.meta.client) sessionStorage.removeItem(flowUiStateKey);
+  return true;
+});
+onBeforeUnmount(() => clearTimeout(noticeTimer));
 watch(() => activeAnalysis.active, syncActiveFlow, { deep: true });
 
 function syncActiveFlow() {
   const job = activeAnalysis.active;
   if (!job || job.kind !== "flow") return;
+  if (!allowActiveFlowResult.value) return;
   const meta = job.metadata as {
     flowType?: FlowType;
     year?: number;
@@ -161,12 +185,17 @@ async function recoverFlowResult() {
       await ziweiApi.getFlowRecord(key, { notifyError: false }),
     );
     const recordTime = Date.parse(record?.updated_at || record?.created_at || "");
-    if (record?.is_complete && record.content?.trim() && recordTime >= job.startedAt - 1000) {
+    const belongsToCurrentJob =
+      Boolean(record?.client_job_id) && record?.client_job_id === job.jobId;
+    const isFreshSnapshot =
+      belongsToCurrentJob ||
+      (Number.isFinite(recordTime) && recordTime >= job.startedAt - 1000);
+    if (record?.content?.trim() && isFreshSnapshot) {
       content.value = record.content;
       createdAt.value = record.created_at || "";
       stage.value = "result";
-      analyzing.value = false;
-      if (activeAnalysis.active?.jobId === job.jobId) {
+      analyzing.value = !record.is_complete;
+      if (record.is_complete && activeAnalysis.active?.jobId === job.jobId) {
         activeAnalysis.active.status = "completed";
         activeAnalysis.active.connected = false;
         activeAnalysis.persist();
@@ -197,6 +226,7 @@ async function refreshFlowJob() {
         }),
       );
       if (record?.is_complete && record.content?.trim()) {
+        allowActiveFlowResult.value = true;
         content.value = record.content;
         createdAt.value = record.created_at || "";
         applyFlowDateKey(record.analysis_date_key || recoveryRecord.analysis_date_key);
@@ -237,6 +267,7 @@ const typeOptions = [
 
 function selectType(type: FlowType) {
   flowType.value = type;
+  allowActiveFlowResult.value = false;
   stage.value = "date";
   error.value = "";
 }
@@ -246,6 +277,71 @@ function notify(message: string) {
   noticeTimer = setTimeout(() => {
     notice.value = "";
   }, 3000);
+}
+
+function showAnalysisRunningSnackbar() {
+  window.dispatchEvent(
+    new CustomEvent("api-error-snackbar", {
+      detail: {
+        type: "info",
+        title: "時運解析進行中",
+        message: "為避免中斷目前的解析，完成前請留在此頁。",
+        duration: 4000,
+      },
+    }),
+  );
+}
+
+function persistFlowUiState() {
+  if (!import.meta.client) return;
+  sessionStorage.setItem(
+    flowUiStateKey,
+    JSON.stringify({
+      stage: stage.value,
+      flowType: flowType.value,
+      year: year.value,
+      month: month.value,
+      day: day.value,
+      content: stage.value === "result" ? content.value : "",
+      createdAt: stage.value === "result" ? createdAt.value : "",
+    }),
+  );
+}
+
+function restoreFlowUiState(): FlowStage | null {
+  if (!import.meta.client) return null;
+  try {
+    const value = JSON.parse(
+      sessionStorage.getItem(flowUiStateKey) || "null",
+    ) as {
+      stage?: FlowStage;
+      flowType?: FlowType;
+      year?: number;
+      month?: number;
+      day?: number;
+      content?: string;
+      createdAt?: string;
+    } | null;
+    if (!value) return null;
+    if (["流年", "流月", "流日"].includes(value.flowType || "")) {
+      flowType.value = value.flowType!;
+    }
+    if (Number.isInteger(value.year)) year.value = value.year!;
+    if (Number.isInteger(value.month)) month.value = value.month!;
+    if (Number.isInteger(value.day)) day.value = value.day!;
+    if (["type", "date", "result"].includes(value.stage || "")) {
+      stage.value = value.stage!;
+      if (value.stage === "result") {
+        content.value = typeof value.content === "string" ? value.content : "";
+        createdAt.value =
+          typeof value.createdAt === "string" ? value.createdAt : "";
+      }
+      return value.stage!;
+    }
+  } catch {
+    sessionStorage.removeItem(flowUiStateKey);
+  }
+  return null;
 }
 
 function normalizeRecord(data: unknown): FlowRecord | null {
@@ -279,16 +375,25 @@ function recoveryTime(raw?: string) {
   const value = new Date(raw);
   return Number.isNaN(value.getTime()) ? raw : value.toLocaleString("zh-TW", { hour12: false });
 }
-async function loadIncompleteFlowTasks(preserveContent = false) {
+async function loadIncompleteFlowTasks(
+  preserveContent = false,
+  revealResult = true,
+) {
   try {
     incompleteTasks.value = normalizeFlowRecords(
       await ziweiApi.getIncompleteAnalyses("flow", { notifyError: false }),
     );
     const record = currentIncompleteTask.value;
-    if (record?.analysis_date_key && !preserveContent) {
+    if (record?.analysis_date_key && revealResult) {
+      allowActiveFlowResult.value = true;
       applyFlowDateKey(record.analysis_date_key);
-      content.value = "";
       stage.value = "result";
+      if (!content.value.trim() && record.content?.trim()) {
+        content.value = record.content;
+        createdAt.value = record.created_at || "";
+      } else if (!preserveContent) {
+        content.value = "";
+      }
     }
   } catch { incompleteTasks.value = []; }
 }
@@ -328,6 +433,7 @@ async function abandonIncompleteFlow() {
     analyzing.value = false;
     recalculate.value = false;
     error.value = "";
+    allowActiveFlowResult.value = false;
     stage.value = "type";
   } finally { recoveryLoading.value = false; }
 }
@@ -345,6 +451,7 @@ async function requestAnalysis(force = false) {
         await ziweiApi.getFlowRecord(dateKey.value, { notifyError: false }),
       );
       if (record?.is_complete && record.content?.trim()) {
+        allowActiveFlowResult.value = true;
         content.value = record.content;
         createdAt.value = record.created_at || "";
         stage.value = "result";
@@ -444,6 +551,7 @@ async function startAnalysis() {
     dateKey: dateKey.value,
   });
   if (!started) return;
+  allowActiveFlowResult.value = true;
   stage.value = "result";
   content.value = "";
   createdAt.value = "";
@@ -530,13 +638,20 @@ function withoutFlowScores(source: string) {
 }
 
 async function goBack() {
+  if (analyzing.value) {
+    showAnalysisRunningSnackbar();
+    return;
+  }
   if (stage.value === "result") {
+    allowActiveFlowResult.value = false;
+    activeAnalysis.dismiss("flow");
     stage.value = "date";
     content.value = "";
     error.value = "";
     return;
   }
   if (stage.value === "date") {
+    allowActiveFlowResult.value = false;
     stage.value = "type";
     return;
   }
@@ -624,7 +739,7 @@ async function goBack() {
         >分析時間：{{ formattedCreatedAt }}</small
       >
       <AnalysisDisconnectedState
-        v-if="flowBackgroundProcessing"
+        v-if="flowBackgroundProcessing && !content"
         :loading="refreshingJob"
         @refresh="refreshFlowJob"
       />
@@ -736,7 +851,7 @@ async function goBack() {
       </div></AppBottomSheet
     >
     <IncompleteAnalysisRecoverySheet
-      :open="canRecoverIncompleteFlow"
+      :open="stage === 'result' && canRecoverIncompleteFlow"
       title="發現未完成的時運解析"
       :summary="currentIncompleteTask ? incompleteFlowLabel(currentIncompleteTask) : ''"
       :details="incompleteFlowDetails"

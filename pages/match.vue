@@ -102,6 +102,7 @@ const activeAnalysis = useActiveAnalysisStore();
 const membershipReady = ref(false);
 const analyzing = ref(false);
 const analysisText = ref("");
+const showResult = ref(false);
 const error = ref("");
 const showConfirm = ref(false);
 const showHistory = ref(false);
@@ -119,6 +120,7 @@ const selectedMatchType = ref<MatchType>("romance");
 const pendingMatchType = ref<MatchType>("romance");
 const matchTypeOpen = ref(false);
 const matchTypePicker = ref<HTMLElement | null>(null);
+const matchUiStateKey = "ziwei:match-ui-state";
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 
 const selectedMatchTypeOption = computed(
@@ -183,13 +185,33 @@ onMounted(async () => {
   document.addEventListener("click", closeMatchTypePicker);
   try {
     chartStore.hydrate(auth.profile);
-    syncActiveMatch();
-    await recoverMatchResult();
+    const restored = restoreMatchUiState();
+    await activeAnalysis.hydrate();
+    if (
+      restored === null &&
+      activeAnalysis.active?.kind === "match" &&
+      (activeAnalysis.active.status === "running" ||
+        Boolean(activeAnalysis.active.contents.main?.trim()))
+    ) {
+      showResult.value = true;
+    }
+    if (showResult.value) {
+      syncActiveMatch();
+      await recoverMatchResult();
+    }
     await loadIncompleteMatchTasks();
     await nextTick();
   } finally {
     membershipReady.value = true;
   }
+});
+onBeforeRouteLeave(() => {
+  if (analyzing.value) {
+    showAnalysisRunningSnackbar();
+    return false;
+  }
+  if (import.meta.client) sessionStorage.removeItem(matchUiStateKey);
+  return true;
 });
 onBeforeUnmount(() => {
   document.removeEventListener("click", closeMatchTypePicker);
@@ -197,21 +219,13 @@ onBeforeUnmount(() => {
 });
 watch(() => activeAnalysis.active, syncActiveMatch, { deep: true });
 watch(
-  () => activeAnalysis.active?.contents.main,
-  (streamedContent) => {
-    if (
-      activeAnalysis.active?.kind === "match" &&
-      typeof streamedContent === "string"
-    ) {
-      analysisText.value = streamedContent;
-    }
-  },
-  { immediate: true },
+  [showResult, analysisText, selectedMatchType],
+  persistMatchUiState,
 );
 
 function syncActiveMatch() {
   const job = activeAnalysis.active;
-  if (!job || job.kind !== "match") return;
+  if (!showResult.value || !job || job.kind !== "match") return;
   const info = job.metadata.birthInfo as BirthInfo | undefined;
   if (info) pendingBirthInfo.value = info;
   const matchType = normalizeMatchType(job.metadata.matchType as string | undefined);
@@ -242,6 +256,7 @@ async function recoverMatchResult() {
           .startsWith(targetTime),
     );
     if (target?.content?.trim()) {
+      showResult.value = true;
       analysisText.value = target.content;
       analyzing.value = false;
       if (activeAnalysis.active?.jobId === job.jobId) {
@@ -277,6 +292,7 @@ async function refreshMatchJob() {
           record.content?.trim(),
       );
       if (completed?.content) {
+        showResult.value = true;
         analysisText.value = completed.content;
         analyzing.value = false;
       }
@@ -352,6 +368,54 @@ function notify(message: string) {
   }, 3000);
 }
 
+function showAnalysisRunningSnackbar() {
+  window.dispatchEvent(
+    new CustomEvent("api-error-snackbar", {
+      detail: {
+        type: "info",
+        title: "合盤解析進行中",
+        message: "為避免中斷目前的解析，完成前請留在此頁。",
+        duration: 4000,
+      },
+    }),
+  );
+}
+
+function persistMatchUiState() {
+  if (!import.meta.client) return;
+  sessionStorage.setItem(
+    matchUiStateKey,
+    JSON.stringify({
+      showResult: showResult.value,
+      analysisText: showResult.value ? analysisText.value : "",
+      selectedMatchType: selectedMatchType.value,
+    }),
+  );
+}
+
+function restoreMatchUiState(): boolean | null {
+  if (!import.meta.client) return null;
+  try {
+    const value = JSON.parse(
+      sessionStorage.getItem(matchUiStateKey) || "null",
+    ) as {
+      showResult?: boolean;
+      analysisText?: string;
+      selectedMatchType?: string;
+    } | null;
+    if (!value) return null;
+    showResult.value = value.showResult === true;
+    if (showResult.value && typeof value.analysisText === "string") {
+      analysisText.value = value.analysisText;
+    }
+    selectedMatchType.value = normalizeMatchType(value.selectedMatchType);
+    return showResult.value;
+  } catch {
+    sessionStorage.removeItem(matchUiStateKey);
+    return null;
+  }
+}
+
 function cityName(info: BirthInfo) {
   if (info.cityId === "OTHER") return "自訂經度";
   return cityData.find((city) => city.id === info.cityId)?.name || info.cityId;
@@ -425,6 +489,7 @@ async function requestStart(info: BirthInfo) {
       );
     });
     if (cached?.content) {
+      showResult.value = true;
       analysisText.value = cached.content;
       error.value = "";
       notify("已載入歷史合盤紀錄，此操作不花費點數。");
@@ -459,6 +524,7 @@ async function startAnalysis() {
   );
   if (!started) return;
 
+  showResult.value = true;
   analysisText.value = "";
   error.value = "";
   analyzing.value = true;
@@ -512,6 +578,42 @@ function parseSections(content: string): MatchSection[] {
 }
 
 function parseDimensions(content: string): MatchDimension[] {
+  const listedDimensions = content
+    .split("\n")
+    .map((line) =>
+      line
+        .trim()
+        .match(
+          /^[-*+]\s+(.+?)\s*[（(]\s*(\d{1,3})\s*[\/／]\s*100\s*[）)]\s*$/,
+        ),
+    )
+    .filter((match): match is RegExpMatchArray => Boolean(match))
+    .map((match) => ({
+      title: match[1]!.trim(),
+      score: Math.max(0, Math.min(100, Number(match[2]))),
+      description: "",
+    }));
+
+  if (listedDimensions.length) {
+    let current: MatchDimension | undefined;
+    for (const line of content.split("\n")) {
+      const heading = line.trim().match(/^###\s+(.+?)\s*$/);
+      if (heading) {
+        current = listedDimensions.find(
+          (dimension) => dimension.title === heading[1]!.trim(),
+        );
+      } else if (/^##\s+/.test(line.trim())) {
+        current = undefined;
+      } else if (current) {
+        current.description += `${current.description ? "\n" : ""}${line}`;
+      }
+    }
+    return listedDimensions.map((dimension) => ({
+      ...dimension,
+      description: dimension.description.trim(),
+    }));
+  }
+
   const result: MatchDimension[] = [];
   let current: MatchDimension | null = null;
   const commit = () => {
@@ -590,6 +692,7 @@ async function openRecord(record: MatchRecord) {
       content = normalized?.content?.trim() || "";
     }
     if (!content) throw new Error("此紀錄尚無可顯示的內容");
+    showResult.value = true;
     analysisText.value = content;
     selectedMatchType.value = normalizeMatchType(record.match_type);
     pendingMatchType.value = selectedMatchType.value;
@@ -638,6 +741,17 @@ function formatDate(raw?: string, utc = false) {
 }
 
 async function goBack() {
+  if (analyzing.value) {
+    showAnalysisRunningSnackbar();
+    return;
+  }
+  if (showResult.value) {
+    showResult.value = false;
+    analysisText.value = "";
+    error.value = "";
+    activeAnalysis.dismiss("match");
+    return;
+  }
   await navigateTo("/ai-analysis");
 }
 </script>
@@ -672,7 +786,7 @@ async function goBack() {
     <AnalysisProgressBar v-if="analyzing && !matchBackgroundProcessing" />
 
     <main
-      v-if="!analysisText"
+      v-if="!showResult"
       class="match-body"
       :class="{ 'background-processing-body': matchBackgroundProcessing }"
     >
@@ -696,12 +810,6 @@ async function goBack() {
         </p>
         <NuxtLink class="app-button" to="/store">成為 Premium 解鎖</NuxtLink>
       </section>
-
-      <AnalysisDisconnectedState
-        v-else-if="matchBackgroundProcessing"
-        :loading="refreshingJob"
-        @refresh="refreshMatchJob"
-      />
 
       <AstrologyLoader
         v-else-if="analyzing"
@@ -776,6 +884,12 @@ async function goBack() {
         v-if="matchBackgroundProcessing"
         :loading="refreshingJob"
         @refresh="refreshMatchJob"
+      />
+      <AstrologyLoader
+        v-else-if="analyzing && !analysisText"
+        class="match-loading"
+        layout="viewport"
+        message="正在為您與對象排定合相星曜，請稍候..."
       />
       <template v-else>
         <details

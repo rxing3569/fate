@@ -66,6 +66,12 @@ export async function streamAnalysis(request: AnalysisRequest) {
     try {
       const data = JSON.parse(text)
       if (data === '/end') { finish(); return }
+      // AI token chunks are sent as raw WebSocket text. A token such as "3",
+      // "5", "true", or "null" is valid JSON but is still report content.
+      if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        request.onMessage(text)
+        return
+      }
       if (data.type === 'learning_progress') {
         for (const stageId of normalizeCompletedStages(data.completed_stage_ids)) markStageCompleted(stageId)
         return
