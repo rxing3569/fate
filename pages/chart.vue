@@ -53,6 +53,7 @@ function toggleCategory(category: CategoryId, selected: boolean) {
 }
 onMounted(async () => {
   chartStore.hydrate(auth.profile);
+  trackNextStepArrival("chart");
   if (chartStore.chart || auth.sessionReady) chartHydrated.value = true;
 });
 watch(

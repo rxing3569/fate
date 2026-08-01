@@ -1,4 +1,5 @@
 import { defineStore } from "pinia";
+import { showAppSnackbar } from "~/utils/app-snackbar";
 import {
   ApiError,
   getValidAccessToken,
@@ -52,12 +53,7 @@ function snackbar(
   type: "info" | "error",
   options: SnackbarOptions = {},
 ) {
-  if (!import.meta.client) return;
-  window.dispatchEvent(
-    new CustomEvent("api-error-snackbar", {
-      detail: { message, type, ...options },
-    }),
-  );
+  showAppSnackbar({ message, type, ...options });
 }
 
 const labels: Record<AnalysisKind, string> = {

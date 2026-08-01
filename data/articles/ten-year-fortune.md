@@ -2,6 +2,7 @@
 title: 十年大限怎麼看？它不是十年的命運預言
 excerpt: 大限呈現某十年的人生主題與資源配置，而不是不可改變的劇本。學會分辨本命、大限與流年，才能避免過度焦慮。
 category: 運勢解析
+nextStepVariant: fortune
 date: 2026-07-08
 readingTime: 6 分鐘
 ---

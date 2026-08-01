@@ -6,6 +6,7 @@ export interface Article {
   date: string
   readingTime: string
   content: string
+  nextStepVariant: 'intro' | 'stars' | 'fortune' | 'generic'
 }
 
 const files = import.meta.glob('../data/articles/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
@@ -24,7 +25,10 @@ function parseArticle(path: string, raw: string): Article {
   const content = leadingHeading?.[1]?.trim() === title
     ? markdown.slice(leadingHeading[0].length).trim()
     : markdown
-  return { slug, title, excerpt:metadata.excerpt || '', category:metadata.category || '紫微入門', date:metadata.date || '', readingTime:metadata.readingTime || '5 分鐘', content }
+  const nextStepVariant = ['intro', 'stars', 'fortune'].includes(metadata.nextStepVariant)
+    ? metadata.nextStepVariant as Article['nextStepVariant']
+    : 'generic'
+  return { slug, title, excerpt:metadata.excerpt || '', category:metadata.category || '紫微入門', date:metadata.date || '', readingTime:metadata.readingTime || '5 分鐘', content, nextStepVariant }
 }
 
 export const articles = Object.entries(files).map(([path, raw]) => parseArticle(path, raw)).sort((a, b) => b.date.localeCompare(a.date))

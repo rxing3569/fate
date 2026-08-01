@@ -2,6 +2,7 @@
 title: 一張紫微命盤，究竟要從哪裡開始看？
 excerpt: 初學者常被十二宮與滿盤星曜嚇到。其實只要先掌握命宮、身宮與三方四正，就能建立清楚的閱讀順序。
 category: 紫微入門
+nextStepVariant: intro
 date: 2026-07-15
 readingTime: 6 分鐘
 ---

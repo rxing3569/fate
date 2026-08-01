@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ChevronLeft, Clock } from "@lucide/vue";
 import { getArticle } from "~/utils/articles";
+import type { NextStepAction } from "~/types/next-step";
 const route = useRoute();
-const { openChartEntry, openReportEntry } = useChartEntryNavigation();
 const article = computed(() => getArticle(String(route.params.slug || "")));
 if (!article.value)
   throw createError({ statusCode: 404, statusMessage: "找不到這篇文章" });
@@ -16,6 +16,71 @@ useSeoMeta({
 useHead(() => ({
   link: [{ rel: "canonical", href: `https://www.fatejyc.com/articles/${article.value?.slug}/` }],
 }));
+const articleNextSteps = computed<NextStepAction[]>(() => {
+  const current = article.value!;
+  if (current.nextStepVariant === "stars")
+    return [
+      {
+        id: "article_stars_to_report",
+        eyebrow: "回到你的命盤",
+        title: "看看這些星曜如何落在你的先天命格",
+        description: "從自己的命盤出發，理解星曜與四化如何形成個人特質。",
+        label: "解析先天命格",
+        destination: "report",
+        reportCategory: "general",
+      },
+      {
+        id: "article_stars_to_qa",
+        eyebrow: "結合文章提問",
+        title: "讓 AI 用你的命盤解釋這篇文章",
+        description: "預先帶入文章問題，再由你確認是否送出。",
+        label: "帶著文章問 AI",
+        destination: "qa",
+        questions: [
+          `我剛讀完〈${current.title}〉，請結合我的命盤，說明這個觀念對我目前的影響與可以採取的行動。`,
+        ],
+      },
+    ];
+  if (current.nextStepVariant === "fortune")
+    return [
+      {
+        id: "article_fortune_to_ten_year",
+        eyebrow: "長期方向",
+        title: "看看你的十年人生主題",
+        description: "把文章中的大限觀念，放回自己的十年大運中理解。",
+        label: "解析十年大運",
+        destination: "report",
+        reportCategory: "ten_year",
+      },
+      {
+        id: "article_fortune_to_flow",
+        eyebrow: "近期時機",
+        title: "從十年方向聚焦到現在",
+        description: "選擇今年、這個月或今天，查看近期適合留意的重點。",
+        label: "查看時運解析",
+        destination: "flow",
+      },
+    ];
+  return [
+    {
+      id: "article_intro_to_chart",
+      eyebrow: "免費開始",
+      title: "建立你的紫微命盤",
+      description: "輸入出生資料，先看見命宮、身宮與十二宮星曜。",
+      label: "免費線上排盤",
+      destination: "chart",
+    },
+    {
+      id: "article_intro_to_report",
+      eyebrow: "深入理解",
+      title: "讓 AI 整理你的先天命格",
+      description: "從人格特質、天賦與發展方向，建立完整的自我理解。",
+      label: "解析先天命格",
+      destination: "report",
+      reportCategory: "general",
+    },
+  ];
+});
 </script>
 <template>
   <AppPageLayout
@@ -38,20 +103,11 @@ useHead(() => ({
       <article class="article-surface glass">
         <MarkdownContent :source="article.content" :report-formatting="false" />
       </article>
-      <section class="article-actions" aria-label="命盤服務">
-        <div>
-          <button class="app-button" type="button" @click="openChartEntry">
-            免費線上排盤
-          </button>
-          <button
-            class="app-button outline"
-            type="button"
-            @click="openReportEntry"
-          >
-            馬上解析命盤
-          </button>
-        </div>
-      </section>
+      <NextStepCtas
+        heading="把文章觀念放進你的命盤"
+        :source="{ type: 'article', id: article.slug }"
+        :actions="articleNextSteps"
+      />
       <NuxtLink class="back-link" to="/articles"
         ><ChevronLeft :size="15" />返回所有文章</NuxtLink
       >

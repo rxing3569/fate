@@ -2,6 +2,7 @@
 title: 化祿、化權、化科、化忌：四化不是吉凶標籤
 excerpt: 四化代表能量如何流動。理解渴望、推動、名聲與執著，比單純把化祿當好、化忌當壞更接近紫微斗數的本意。
 category: 星曜觀念
+nextStepVariant: stars
 date: 2026-07-12
 readingTime: 7 分鐘
 ---

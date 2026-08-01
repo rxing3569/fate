@@ -1,11 +1,23 @@
 <script setup lang="ts">
 import { BookOpen, Home, Newspaper, UserRound } from "@lucide/vue";
+
+// Vite replaces import.meta.dev at build time. In production this entire
+// dynamic-import branch is removed, so the dev component is not shipped.
+const DevFloatingButton = import.meta.dev
+  ? defineAsyncComponent(
+      () => import("~/components/dev/DevFloatingButton.client.vue"),
+    )
+  : null;
+
 const route = useRoute();
 const auth = useAuthStore();
 const activeAnalysis = useActiveAnalysisStore();
 const showLoginSheet = ref(false);
 const loginRedirect = ref("/");
 const learningSyncing = ref(false);
+const appMain = ref<HTMLElement | null>(null);
+let contentResizeObserver: ResizeObserver | undefined;
+let observedContent: Element | null = null;
 
 const tabs = [
   { to: "/", label: "首頁", mobileLabel: "首頁", icon: Home },
@@ -83,6 +95,9 @@ onMounted(async () => {
   window.addEventListener("auth-login-required", openLoginSheet);
   window.addEventListener("offline-snapshot-used", handleOfflineSnapshot);
   window.addEventListener("online", handleOnline);
+  window.addEventListener("resize", updateContentCenter);
+  await nextTick();
+  observeContentCenter();
   const isAuthenticated = await auth.hydrate();
   if (isAuthenticated) await activeAnalysis.hydrate();
   else activeAnalysis.reset();
@@ -92,7 +107,53 @@ onBeforeUnmount(() => {
   window.removeEventListener("auth-login-required", openLoginSheet);
   window.removeEventListener("offline-snapshot-used", handleOfflineSnapshot);
   window.removeEventListener("online", handleOnline);
+  window.removeEventListener("resize", updateContentCenter);
+  contentResizeObserver?.disconnect();
+  document.documentElement.style.removeProperty(
+    "--fate-app-content-center-x",
+  );
 });
+
+watch(
+  () => route.fullPath,
+  async () => {
+    await nextTick();
+    observeContentCenter();
+  },
+);
+
+function contentCenterTarget() {
+  return (
+    appMain.value?.querySelector(
+      ".screen > main, .screen > .screen-content, .screen > .app-page-content",
+    ) ||
+    appMain.value?.querySelector(".screen") ||
+    appMain.value
+  );
+}
+
+function updateContentCenter() {
+  const target = contentCenterTarget();
+  if (!target) return;
+  const rect = target.getBoundingClientRect();
+  document.documentElement.style.setProperty(
+    "--fate-app-content-center-x",
+    `${Math.round(rect.left + rect.width / 2)}px`,
+  );
+}
+
+function observeContentCenter() {
+  const target = contentCenterTarget();
+  if (!target) return;
+  if (!contentResizeObserver)
+    contentResizeObserver = new ResizeObserver(updateContentCenter);
+  if (observedContent !== target) {
+    contentResizeObserver.disconnect();
+    contentResizeObserver.observe(target);
+    observedContent = target;
+  }
+  updateContentCenter();
+}
 
 async function acceptLearningProgressSync() {
   if (learningSyncing.value) return;
@@ -177,6 +238,7 @@ function isTabActive(path: string) {
     <ApiErrorSnackbar />
     <OfflineStatusBanner />
     <main
+      ref="appMain"
       class="app-main"
       :class="{
         'with-tabs': showTabs,
@@ -227,6 +289,8 @@ function isTabActive(path: string) {
     <AppGoToTop
       v-if="showTabs && !['/report', '/report/'].includes(route.path)"
     />
+
+    <DevFloatingButton v-if="DevFloatingButton" />
 
     <nav
       v-if="showTabs"

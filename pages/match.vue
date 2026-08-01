@@ -17,7 +17,12 @@ import {
   X,
 } from "@lucide/vue";
 import cityData from "~/data/cities.json";
+import type { PremiumCheckoutDraft } from "~/types/billing";
 import type { BirthInfo, ZiweiChartData } from "~/types/ziwei";
+import {
+  clearPremiumCheckoutIntent,
+  readPremiumCheckoutIntent,
+} from "~/utils/premium-checkout";
 import { calculateChartFromSolar } from "~/utils/ziwei/calculator";
 import {
   earthlyBranches,
@@ -105,6 +110,10 @@ const analysisText = ref("");
 const showResult = ref(false);
 const error = ref("");
 const showConfirm = ref(false);
+const showPremiumCheckout = ref(false);
+const premiumCheckoutDraft = ref<PremiumCheckoutDraft | null>(null);
+const restoredBirthInfo = ref<BirthInfo | null>(null);
+const birthFormKey = ref(0);
 const showHistory = ref(false);
 const historyLoading = ref(false);
 const historyError = ref("");
@@ -112,7 +121,6 @@ const refreshingJob = ref(false);
 const records = ref<MatchRecord[]>([]);
 const deletingRecord = ref<MatchRecord | null>(null);
 const deleting = ref(false);
-const notice = ref("");
 const incompleteTasks = ref<MatchRecord[]>([]);
 const recoveryLoading = ref(false);
 const retryRecordUUID = ref("");
@@ -121,7 +129,13 @@ const pendingMatchType = ref<MatchType>("romance");
 const matchTypeOpen = ref(false);
 const matchTypePicker = ref<HTMLElement | null>(null);
 const matchUiStateKey = "ziwei:match-ui-state";
-let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+
+function isDevMockAnalysis() {
+  return (
+    import.meta.dev &&
+    activeAnalysis.active?.metadata.__devMock === "FATE_DEV_ANALYSIS_PANEL"
+  );
+}
 
 const selectedMatchTypeOption = computed(
   () => matchTypes.find((item) => item.value === selectedMatchType.value)!,
@@ -182,9 +196,15 @@ const sections = computed(() => parseSections(analysisText.value));
 const visibleSections = computed(() => sections.value);
 
 onMounted(async () => {
+  if (import.meta.dev)
+    window.addEventListener(
+      "fate-dev-analysis-applied",
+      handleDevAnalysisApplied,
+    );
   document.addEventListener("click", closeMatchTypePicker);
   try {
     chartStore.hydrate(auth.profile);
+    trackNextStepArrival("match");
     const restored = restoreMatchUiState();
     await activeAnalysis.hydrate();
     if (
@@ -197,16 +217,17 @@ onMounted(async () => {
     }
     if (showResult.value) {
       syncActiveMatch();
-      await recoverMatchResult();
+      if (!isDevMockAnalysis()) await recoverMatchResult();
     }
-    await loadIncompleteMatchTasks();
+    if (!isDevMockAnalysis()) await loadIncompleteMatchTasks();
+    restorePremiumCheckout();
     await nextTick();
   } finally {
     membershipReady.value = true;
   }
 });
 onBeforeRouteLeave(() => {
-  if (analyzing.value) {
+  if (analyzing.value && !isDevMockAnalysis()) {
     showAnalysisRunningSnackbar();
     return false;
   }
@@ -215,7 +236,11 @@ onBeforeRouteLeave(() => {
 });
 onBeforeUnmount(() => {
   document.removeEventListener("click", closeMatchTypePicker);
-  clearTimeout(noticeTimer);
+  if (import.meta.dev)
+    window.removeEventListener(
+      "fate-dev-analysis-applied",
+      handleDevAnalysisApplied,
+    );
 });
 watch(() => activeAnalysis.active, syncActiveMatch, { deep: true });
 watch(
@@ -236,8 +261,26 @@ function syncActiveMatch() {
   error.value = job.error || "";
 }
 
+function handleDevAnalysisApplied() {
+  if (!import.meta.dev) return;
+  const job = activeAnalysis.active;
+  if (!job) {
+    showResult.value = false;
+    analyzing.value = false;
+    analysisText.value = "";
+    error.value = "";
+    return;
+  }
+  if (job.kind !== "match" || !isDevMockAnalysis()) return;
+  showResult.value = true;
+  membershipReady.value = true;
+  analysisText.value = job.contents.main || "";
+  syncActiveMatch();
+}
+
 async function recoverMatchResult() {
   const job = activeAnalysis.active;
+  if (isDevMockAnalysis()) return;
   if (!job || job.kind !== "match" || !["running", "completed"].includes(job.status)) return;
   const info = job.metadata.birthInfo as BirthInfo | undefined;
   if (!info) return;
@@ -361,28 +404,19 @@ async function abandonIncompleteMatch() {
 }
 
 function notify(message: string) {
-  notice.value = message;
-  clearTimeout(noticeTimer);
-  noticeTimer = setTimeout(() => {
-    notice.value = "";
-  }, 3000);
+  showAppInfo(message);
 }
 
 function showAnalysisRunningSnackbar() {
-  window.dispatchEvent(
-    new CustomEvent("api-error-snackbar", {
-      detail: {
-        type: "info",
-        title: "合盤解析進行中",
-        message: "為避免中斷目前的解析，完成前請留在此頁。",
-        duration: 4000,
-      },
-    }),
-  );
+  showAppInfo("為避免中斷目前的解析，完成前請留在此頁。", {
+    title: "合盤解析進行中",
+    duration: 4000,
+  });
 }
 
 function persistMatchUiState() {
   if (!import.meta.client) return;
+  if (isDevMockAnalysis()) return;
   sessionStorage.setItem(
     matchUiStateKey,
     JSON.stringify({
@@ -469,9 +503,24 @@ async function requestStart(info: BirthInfo) {
     error.value = "請先完成本人的出生資料與命盤設定";
     return;
   }
-  if (!(await activeAnalysis.ensureAvailable("match"))) return;
+  trackNextStepSubmitted("match");
   pendingBirthInfo.value = info;
   pendingMatchType.value = selectedMatchType.value;
+  if (!(await auth.verifyOnlineAccess())) return;
+  if (!(await auth.refreshMembership())) {
+    error.value = "目前無法確認會員狀態，請檢查網路後再試。";
+    return;
+  }
+  if (!auth.premium) {
+    premiumCheckoutDraft.value = {
+      source: "match",
+      matchType: selectedMatchType.value,
+      birthInfo: info,
+    };
+    showPremiumCheckout.value = true;
+    return;
+  }
+  if (!(await activeAnalysis.ensureAvailable("match"))) return;
   try {
     const list = normalizeRecords(await ziweiApi.getMatchRecords());
     const targetTime = `${info.year}-${String(info.month).padStart(2, "0")}-${String(info.day).padStart(2, "0")} ${String(info.hour).padStart(2, "0")}:${String(info.minute).padStart(2, "0")}`;
@@ -502,6 +551,23 @@ async function requestStart(info: BirthInfo) {
 }
 
 const pendingBirthInfo = ref<BirthInfo | null>(null);
+
+function restorePremiumCheckout() {
+  if (!auth.premium) return;
+  const intent = readPremiumCheckoutIntent({
+    userUuid: String(auth.profile?.uuid || ""),
+    source: "match",
+  });
+  if (!intent || intent.source !== "match") return;
+  const matchType = normalizeMatchType(intent.matchType);
+  selectedMatchType.value = matchType;
+  pendingMatchType.value = matchType;
+  pendingBirthInfo.value = intent.birthInfo;
+  restoredBirthInfo.value = intent.birthInfo;
+  birthFormKey.value += 1;
+  showConfirm.value = true;
+  clearPremiumCheckoutIntent();
+}
 
 async function startAnalysis() {
   if (!(await auth.verifyOnlineAccess(true))) return;
@@ -801,16 +867,6 @@ async function goBack() {
         </div>
       </section>
 
-      <section v-else-if="!auth.premium" class="premium-lock glass">
-        <span><AppMaterialIcon name="diversity_1_rounded" :size="31" /></span>
-        <h2>Premium 專屬 - 合盤解析</h2>
-        <p>
-          成為 Premium
-          後，即可使用合盤解析查看姻緣、友情或事業關係中的互動重點。
-        </p>
-        <NuxtLink class="app-button" to="/store">成為 Premium 解鎖</NuxtLink>
-      </section>
-
       <AstrologyLoader
         v-else-if="analyzing"
         class="match-loading"
@@ -857,6 +913,8 @@ async function goBack() {
         </div>
         <p v-if="error" class="error-note"><WifiOff :size="17" />{{ error }}</p>
         <BirthInfoForm
+          :key="birthFormKey"
+          :initial="restoredBirthInfo"
           default-gender="女"
           gender-label="對象生理性別"
           date-label="對象國歷生日"
@@ -941,6 +999,12 @@ async function goBack() {
           </div>
         </div>
     </AppBottomSheet>
+
+    <PremiumCheckoutSheet
+      :open="showPremiumCheckout"
+      :draft="premiumCheckoutDraft"
+      @close="showPremiumCheckout = false"
+    />
 
     <Transition name="drawer">
       <div
@@ -1069,9 +1133,6 @@ async function goBack() {
       @abandon="abandonIncompleteMatch"
     />
 
-    <Transition name="toast"
-      ><div v-if="notice" class="toast">{{ notice }}</div></Transition
-    >
   </AppPageLayout>
 </template>
 
@@ -1508,23 +1569,6 @@ async function goBack() {
     transform: rotate(360deg);
   }
 }
-.toast {
-  position: fixed;
-  z-index: 100;
-  left: 50%;
-  bottom: calc(28px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
-  width: max-content;
-  max-width: calc(100% - 40px);
-  padding: 11px 16px;
-  border-radius: 16px;
-  background: rgba(36, 87, 90, 0.94);
-  box-shadow: 0 8px 20px rgba(36, 87, 90, 0.2);
-  color: white;
-  font-size: 13px;
-  font-weight: 700;
-  text-align: center;
-}
 .drawer-enter-active,
 .drawer-leave-active {
   transition: opacity 0.24s;
@@ -1540,17 +1584,6 @@ async function goBack() {
 .drawer-enter-from .history-drawer,
 .drawer-leave-to .history-drawer {
   transform: translateX(100%);
-}
-.toast-enter-active,
-.toast-leave-active {
-  transition:
-    opacity 0.2s,
-    transform 0.2s;
-}
-.toast-enter-from,
-.toast-leave-to {
-  opacity: 0;
-  transform: translate(-50%, 10px);
 }
 @media (max-width: 420px) {
   .history-drawer {

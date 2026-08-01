@@ -60,12 +60,17 @@ const showConfirm = ref(false);
 const showFallback = ref(false);
 const recalculate = ref(false);
 const usePointsFallback = ref(false);
-const notice = ref("");
 const incompleteTasks = ref<FlowRecord[]>([]);
 const recoveryLoading = ref(false);
 const allowActiveFlowResult = ref(false);
 const flowUiStateKey = "ziwei:flow-ui-state";
-let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+
+function isDevMockAnalysis() {
+  return (
+    import.meta.dev &&
+    activeAnalysis.active?.metadata.__devMock === "FATE_DEV_ANALYSIS_PANEL"
+  );
+}
 
 const days = computed(() =>
   Array.from(
@@ -128,7 +133,13 @@ watch(
   persistFlowUiState,
 );
 onMounted(async () => {
+  if (import.meta.dev)
+    window.addEventListener(
+      "fate-dev-analysis-applied",
+      handleDevAnalysisApplied,
+    );
   chartStore.hydrate(auth.profile);
+  trackNextStepArrival("flow");
   const restoredStage = restoreFlowUiState();
   await activeAnalysis.hydrate();
   const activeFlow =
@@ -140,19 +151,26 @@ onMounted(async () => {
         Boolean(activeFlow?.contents.main?.trim())));
   if (allowActiveFlowResult.value) {
     syncActiveFlow();
-    await recoverFlowResult();
+    if (!isDevMockAnalysis()) await recoverFlowResult();
   }
-  await loadIncompleteFlowTasks(true, allowActiveFlowResult.value);
+  if (!isDevMockAnalysis())
+    await loadIncompleteFlowTasks(true, allowActiveFlowResult.value);
 });
 onBeforeRouteLeave(() => {
-  if (analyzing.value) {
+  if (analyzing.value && !isDevMockAnalysis()) {
     showAnalysisRunningSnackbar();
     return false;
   }
   if (import.meta.client) sessionStorage.removeItem(flowUiStateKey);
   return true;
 });
-onBeforeUnmount(() => clearTimeout(noticeTimer));
+onBeforeUnmount(() => {
+  if (import.meta.dev)
+    window.removeEventListener(
+      "fate-dev-analysis-applied",
+      handleDevAnalysisApplied,
+    );
+});
 watch(() => activeAnalysis.active, syncActiveFlow, { deep: true });
 
 function syncActiveFlow() {
@@ -175,16 +193,40 @@ function syncActiveFlow() {
   stage.value = "result";
 }
 
+function handleDevAnalysisApplied() {
+  if (!import.meta.dev) return;
+  const job = activeAnalysis.active;
+  if (!job) {
+    analyzing.value = false;
+    content.value = "";
+    error.value = "";
+    return;
+  }
+  if (job.kind !== "flow" || !isDevMockAnalysis()) return;
+  allowActiveFlowResult.value = true;
+  content.value = job.contents.main || "";
+  stage.value = "result";
+  syncActiveFlow();
+}
+
 async function recoverFlowResult() {
   const job = activeAnalysis.active;
-  if (!job || job.kind !== "flow" || !["running", "completed"].includes(job.status)) return;
+  if (isDevMockAnalysis()) return;
+  if (
+    !job ||
+    job.kind !== "flow" ||
+    !["running", "completed"].includes(job.status)
+  )
+    return;
   const key = Number(job.metadata.dateKey || 0);
   if (!key) return;
   try {
     const record = normalizeRecord(
       await ziweiApi.getFlowRecord(key, { notifyError: false }),
     );
-    const recordTime = Date.parse(record?.updated_at || record?.created_at || "");
+    const recordTime = Date.parse(
+      record?.updated_at || record?.created_at || "",
+    );
     const belongsToCurrentJob =
       Boolean(record?.client_job_id) && record?.client_job_id === job.jobId;
     const isFreshSnapshot =
@@ -229,7 +271,9 @@ async function refreshFlowJob() {
         allowActiveFlowResult.value = true;
         content.value = record.content;
         createdAt.value = record.created_at || "";
-        applyFlowDateKey(record.analysis_date_key || recoveryRecord.analysis_date_key);
+        applyFlowDateKey(
+          record.analysis_date_key || recoveryRecord.analysis_date_key,
+        );
         stage.value = "result";
         analyzing.value = false;
       }
@@ -272,28 +316,19 @@ function selectType(type: FlowType) {
   error.value = "";
 }
 function notify(message: string) {
-  notice.value = message;
-  clearTimeout(noticeTimer);
-  noticeTimer = setTimeout(() => {
-    notice.value = "";
-  }, 3000);
+  showAppInfo(message);
 }
 
 function showAnalysisRunningSnackbar() {
-  window.dispatchEvent(
-    new CustomEvent("api-error-snackbar", {
-      detail: {
-        type: "info",
-        title: "時運解析進行中",
-        message: "為避免中斷目前的解析，完成前請留在此頁。",
-        duration: 4000,
-      },
-    }),
-  );
+  showAppInfo("為避免中斷目前的解析，完成前請留在此頁。", {
+    title: "時運解析進行中",
+    duration: 4000,
+  });
 }
 
 function persistFlowUiState() {
   if (!import.meta.client) return;
+  if (isDevMockAnalysis()) return;
   sessionStorage.setItem(
     flowUiStateKey,
     JSON.stringify({
@@ -373,7 +408,9 @@ function incompleteFlowLabel(record: FlowRecord) {
 function recoveryTime(raw?: string) {
   if (!raw) return "未知";
   const value = new Date(raw);
-  return Number.isNaN(value.getTime()) ? raw : value.toLocaleString("zh-TW", { hour12: false });
+  return Number.isNaN(value.getTime())
+    ? raw
+    : value.toLocaleString("zh-TW", { hour12: false });
 }
 async function loadIncompleteFlowTasks(
   preserveContent = false,
@@ -395,7 +432,9 @@ async function loadIncompleteFlowTasks(
         content.value = "";
       }
     }
-  } catch { incompleteTasks.value = []; }
+  } catch {
+    incompleteTasks.value = [];
+  }
 }
 const incompleteFlowDetails = computed(() => {
   const record = currentIncompleteTask.value;
@@ -418,7 +457,9 @@ async function restartIncompleteFlow() {
     incompleteTasks.value = [];
     recalculate.value = true;
     await startAnalysis();
-  } finally { recoveryLoading.value = false; }
+  } finally {
+    recoveryLoading.value = false;
+  }
 }
 async function abandonIncompleteFlow() {
   const record = currentIncompleteTask.value;
@@ -435,11 +476,14 @@ async function abandonIncompleteFlow() {
     error.value = "";
     allowActiveFlowResult.value = false;
     stage.value = "type";
-  } finally { recoveryLoading.value = false; }
+  } finally {
+    recoveryLoading.value = false;
+  }
 }
 
 async function requestAnalysis(force = false) {
   if (!chartStore.chart || analyzing.value || preparing.value) return;
+  trackNextStepSubmitted("flow");
   if (!(await activeAnalysis.ensureAvailable("flow"))) return;
   preparing.value = true;
   error.value = "";
@@ -613,9 +657,7 @@ function parseFlowScores(source: string): FlowScore[] {
   return source
     .split("\n")
     .map((line) =>
-      line
-        .trim()
-        .match(/^[-*+]\s+(.+?)[：:]\s*(\d+)\s*[／/]\s*5\s*$/),
+      line.trim().match(/^[-*+]\s+(.+?)[：:]\s*(\d+)\s*[／/]\s*5\s*$/),
     )
     .filter((match): match is RegExpMatchArray => Boolean(match))
     .map((match) => ({
@@ -629,9 +671,7 @@ function withoutFlowScores(source: string) {
     .split("\n")
     .filter(
       (line) =>
-        !line
-          .trim()
-          .match(/^[-*+]\s+(.+?)[：:]\s*(\d+)\s*[／/]\s*5\s*$/),
+        !line.trim().match(/^[-*+]\s+(.+?)[：:]\s*(\d+)\s*[／/]\s*5\s*$/),
     )
     .join("\n")
     .trim();
@@ -691,7 +731,9 @@ async function goBack() {
     <AnalysisProgressBar v-if="analyzing && content && !flowDisconnected" />
 
     <main v-if="stage === 'type'" class="flow-body type-stage">
-      <p class="stage-copy">請選擇您想排算的運勢週期，開始解析運勢</p>
+      <p class="stage-copy">
+        請選擇您想排算的運勢週期，開始解析運勢<br />（再次輸入已解析過的時間即可調閱歷史資料，且不消耗點數或額度。）
+      </p>
       <button
         v-for="option in typeOptions"
         :key="option.type"
@@ -708,7 +750,11 @@ async function goBack() {
     </main>
 
     <main v-else-if="stage === 'date'" class="flow-body date-stage">
-      <p class="stage-copy">選擇分析時間（{{ flowType }}）</p>
+      <p class="stage-copy">
+        選擇分析時間「{{
+          flowType
+        }}」<br />（再次輸入已解析過的時間即可調閱歷史資料，且不消耗點數或額度。）
+      </p>
       <FlowDatePicker
         v-model:year="year"
         v-model:month="month"
@@ -775,7 +821,10 @@ async function goBack() {
           :source="content"
           :report-formatting="false"
         />
-        <div v-if="analyzing && content && !flowBackgroundProcessing" class="streaming-note">
+        <div
+          v-if="analyzing && content && !flowBackgroundProcessing"
+          class="streaming-note"
+        >
           <Sparkles :size="16" />正在整理下一段內容...
         </div>
         <div v-if="error" class="result-error">
@@ -853,15 +902,14 @@ async function goBack() {
     <IncompleteAnalysisRecoverySheet
       :open="stage === 'result' && canRecoverIncompleteFlow"
       title="發現未完成的時運解析"
-      :summary="currentIncompleteTask ? incompleteFlowLabel(currentIncompleteTask) : ''"
+      :summary="
+        currentIncompleteTask ? incompleteFlowLabel(currentIncompleteTask) : ''
+      "
       :details="incompleteFlowDetails"
       :loading="recoveryLoading"
       @retry="restartIncompleteFlow"
       @abandon="abandonIncompleteFlow"
     />
-    <Transition name="toast"
-      ><div v-if="notice" class="toast">{{ notice }}</div></Transition
-    >
   </AppPageLayout>
 </template>
 
@@ -919,7 +967,7 @@ async function goBack() {
 .stage-copy {
   margin: 4px 0 28px;
   color: var(--mountain);
-  font-size: 14px;
+  font-size: 16px;
   text-align: center;
 }
 .type-card {
@@ -1100,29 +1148,6 @@ async function goBack() {
   background: rgba(107, 166, 160, 0.1);
   text-align: left;
 }
-.toast {
-  position: fixed;
-  z-index: 100;
-  left: 50%;
-  bottom: calc(28px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
-  max-width: calc(100% - 40px);
-  padding: 11px 16px;
-  border-radius: 15px;
-  background: rgba(36, 87, 90, 0.94);
-  color: white;
-  font-size: 13px;
-  font-weight: 700;
-  text-align: center;
-}
-.toast-enter-active,
-.toast-leave-active {
-  transition: opacity 0.2s;
-}
-.toast-enter-from,
-.toast-leave-to {
-  opacity: 0;
-}
 .bar-title small {
   display: none;
 }
@@ -1148,9 +1173,7 @@ async function goBack() {
   text-align: center;
 }
 .flow-loading {
-  --astrology-loader-viewport-offset: calc(
-    180px + env(safe-area-inset-bottom)
-  );
+  --astrology-loader-viewport-offset: calc(180px + env(safe-area-inset-bottom));
 }
 @media (max-width: 420px) {
   .flow-body {

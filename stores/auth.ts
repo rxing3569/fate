@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { showAppError } from '~/utils/app-snackbar'
 import { ApiError, apiFetch, getValidAccessToken, wasAuthCheckUnavailable } from '~/utils/api'
 import { clearUserStorage, sessionCache, tokenStorage } from '~/utils/storage'
 import { clearAllOfflineData, clearOfflineUser, getOfflineActiveUserUuid, loadOfflineAccount, saveOfflineAccount, saveOfflineSession } from '~/utils/offline-cache'
@@ -210,7 +211,7 @@ export const useAuthStore = defineStore('auth', {
     },
     async verifyOnlineAccess(requirePremium = false) {
       if (!import.meta.client || navigator.onLine === false) {
-        window.dispatchEvent(new CustomEvent('api-error-snackbar', { detail: { message: '此操作需要網路連線，離線時僅能查看已保存的歷史資料。' } }))
+        showAppError('此操作需要網路連線，離線時僅能查看已保存的歷史資料。')
         return false
       }
       if (!await getValidAccessToken()) {
@@ -220,7 +221,7 @@ export const useAuthStore = defineStore('auth', {
       }
       this.accessToken = 'cookie-session'
       if (requirePremium && !this.premium) {
-        window.dispatchEvent(new CustomEvent('api-error-snackbar', { detail: { message: '此功能為 Premium 會員專屬，請先確認會員方案。' } }))
+        showAppError('此功能為 Premium 會員專屬，請先確認會員方案。')
         return false
       }
       return true

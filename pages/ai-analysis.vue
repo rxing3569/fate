@@ -166,6 +166,7 @@ async function persistBirth(
 }
 
 async function saveBirth(info: Parameters<typeof chartStore.saveBirthInfo>[0]) {
+  if (readNextStepIntent("chart")) trackNextStepSubmitted("chart");
   if (auth.isAuthenticated && chartStore.birthInfo && !isSameBirthInfo(info)) {
     pendingBirthInfo.value = info;
     return;

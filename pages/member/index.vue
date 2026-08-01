@@ -18,11 +18,7 @@ async function logout() {
   try {
     await auth.logout();
     showLogoutSheet.value = false;
-    window.dispatchEvent(
-      new CustomEvent("api-error-snackbar", {
-        detail: { message: "您已成功登出", type: "info" },
-      }),
-    );
+    showAppInfo("您已成功登出");
     await navigateTo("/");
   } finally {
     loggingOut.value = false;

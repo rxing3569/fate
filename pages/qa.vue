@@ -13,6 +13,11 @@ import {
   palaceNameForBranch,
 } from "~/utils/ziwei/core";
 import { majorStars } from "~/utils/ziwei/stars";
+import type { PremiumCheckoutDraft } from "~/types/billing";
+import {
+  clearPremiumCheckoutIntent,
+  readPremiumCheckoutIntent,
+} from "~/utils/premium-checkout";
 
 definePageMeta({ middleware: "auth" });
 
@@ -42,6 +47,8 @@ const error = ref("");
 const showQuotaConfirm = ref(false);
 const showPointsFallback = ref(false);
 const showResetConfirm = ref(false);
+const showPremiumCheckout = ref(false);
+const premiumCheckoutDraft = ref<PremiumCheckoutDraft | null>(null);
 const resettingConversation = ref(false);
 const refreshingJob = ref(false);
 const pendingQuestion = ref("");
@@ -50,6 +57,13 @@ const chatId = ref<string>(createChatId());
 const chatArea = ref<HTMLElement | null>(null);
 const pageReady = ref(false);
 const composingInput = ref(false);
+
+function isDevMockAnalysis() {
+  return (
+    import.meta.dev &&
+    activeAnalysis.active?.metadata.__devMock === "FATE_DEV_ANALYSIS_PANEL"
+  );
+}
 
 const allSuggestions = [
   "適合自行創業，還是當個穩定的上班族？",
@@ -107,6 +121,15 @@ onMounted(async () => {
     .slice(0, 3);
   restoreConversation();
   syncActiveQa();
+  if (import.meta.dev)
+    window.addEventListener(
+      "fate-dev-analysis-applied",
+      handleDevAnalysisApplied,
+    );
+  if (isDevMockAnalysis()) {
+    handleDevAnalysisApplied();
+    return;
+  }
   await recoverQaHistory();
   try {
     const data = (await ziweiApi.getRecordDetail()) as unknown;
@@ -122,6 +145,16 @@ onMounted(async () => {
   } catch {
     reports.value = [];
   }
+  restorePremiumCheckout();
+  const nextStep = trackNextStepArrival("qa");
+  if (nextStep?.question) input.value = nextStep.question;
+});
+onBeforeUnmount(() => {
+  if (import.meta.dev)
+    window.removeEventListener(
+      "fate-dev-analysis-applied",
+      handleDevAnalysisApplied,
+    );
 });
 watch(() => activeAnalysis.active, syncActiveQa, { deep: true });
 watch(
@@ -159,8 +192,31 @@ function syncActiveQa() {
   scrollBottom();
 }
 
+function handleDevAnalysisApplied() {
+  if (!import.meta.dev) return;
+  const job = activeAnalysis.active;
+  if (!job) {
+    messages.value = [];
+    sending.value = false;
+    error.value = "";
+    return;
+  }
+  if (job.kind !== "qa" || !isDevMockAnalysis()) return;
+  const question = String(job.metadata.question || "DEV 模擬問題");
+  chatId.value = String(job.metadata.chatId || chatId.value);
+  messages.value = [
+    { role: "user", content: question },
+    { role: "assistant", content: job.contents.main || "" },
+  ];
+  sending.value = job.status === "running";
+  error.value = job.error || "";
+  pageReady.value = true;
+  scrollBottom();
+}
+
 async function recoverQaHistory() {
   const job = activeAnalysis.active;
+  if (isDevMockAnalysis()) return;
   if (!job || job.kind !== "qa" || job.status !== "completed") return;
   const savedChatId = String(job.metadata.chatId || chatId.value);
   try {
@@ -243,6 +299,7 @@ function restoreConversation() {
 }
 
 function persistConversation() {
+  if (isDevMockAnalysis()) return;
   if (!cacheKey.value) return;
   const persistable = messages.value.filter((item) => item.content.trim());
   if (!persistable.length) {
@@ -310,10 +367,24 @@ function chooseSuggestion(question: string) {
   requestSend();
 }
 
+function restorePremiumCheckout() {
+  if (!auth.premium) return;
+  const intent = readPremiumCheckoutIntent({
+    userUuid: String(auth.profile?.uuid || ""),
+    source: "qa",
+  });
+  if (!intent || intent.source !== "qa") return;
+  input.value = intent.question;
+  pendingQuestion.value = intent.question;
+  showQuotaConfirm.value = true;
+  clearPremiumCheckoutIntent();
+}
+
 async function requestSend() {
   if (requestingSend.value || startingSend.value) return;
   const question = input.value.trim();
   if (!question || sending.value || !chartStore.chart) return;
+  trackNextStepSubmitted("qa");
   requestingSend.value = true;
   try {
     if (remaining.value <= 0) {
@@ -321,8 +392,18 @@ async function requestSend() {
         "AI 問答功能每份命盤最多可提問 10 次。請重新提問開啟新的問答。";
       return;
     }
-    if (!(await activeAnalysis.ensureAvailable("qa"))) return;
     pendingQuestion.value = question;
+    if (!(await auth.verifyOnlineAccess())) return;
+    if (!(await auth.refreshMembership())) {
+      error.value = "目前無法確認會員狀態，請檢查網路後再試。";
+      return;
+    }
+    if (!auth.premium) {
+      premiumCheckoutDraft.value = { source: "qa", question };
+      showPremiumCheckout.value = true;
+      return;
+    }
+    if (!(await activeAnalysis.ensureAvailable("qa"))) return;
     if (askedCount.value === 0 && !usePointsFallback.value) {
       showQuotaConfirm.value = true;
     } else await sendQuestion(question);
@@ -505,17 +586,6 @@ function handleKeydown(event: KeyboardEvent) {
     back-label="返回排盤解盤"
   >
     <main v-if="!pageReady" key="loading" class="qa-loading" aria-busy="true" />
-
-    <main
-      v-else-if="!auth.premium"
-      key="premium-lock"
-      class="premium-lock glass"
-    >
-      <span class="feature-icon"><img src="/chat.svg" alt="" /></span>
-      <h2>Premium 專屬 - AI 問答</h2>
-      <p>成為 Premium 後，即可使用此功能來解答命盤細節之處。</p>
-      <NuxtLink class="app-button" to="/store">成為 Premium 解鎖</NuxtLink>
-    </main>
 
     <main v-else-if="!chartStore.chart" key="chart-empty" class="qa-empty">
       <WifiOff :size="46" />
@@ -720,6 +790,11 @@ function handleKeydown(event: KeyboardEvent) {
         </button>
       </div>
     </AppBottomSheet>
+    <PremiumCheckoutSheet
+      :open="showPremiumCheckout"
+      :draft="premiumCheckoutDraft"
+      @close="showPremiumCheckout = false"
+    />
   </AppPageLayout>
 </template>
 

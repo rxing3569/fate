@@ -1,4 +1,5 @@
 import { tokenStorage } from './storage'
+import { showAppError } from './app-snackbar'
 import {
   getOfflineActiveUserUuid,
   isOfflineSnapshotPath,
@@ -34,9 +35,11 @@ type ApiErrorNotification = {
 }
 
 function notifyApiError(notification: string | ApiErrorNotification) {
-  if (!import.meta.client) return
   const detail = typeof notification === 'string' ? { message: notification } : notification
-  window.dispatchEvent(new CustomEvent('api-error-snackbar', { detail }))
+  showAppError(detail.message, {
+    title: detail.title,
+    duration: detail.duration,
+  })
 }
 
 function getSuspendedAccountMessage(payload: unknown) {

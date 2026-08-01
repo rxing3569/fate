@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { CheckCircle2, Clock3, LoaderCircle, XCircle } from '@lucide/vue'
+import type { PremiumCheckoutIntent } from '~/types/billing'
+import { readPremiumCheckoutIntent } from '~/utils/premium-checkout'
+import { clearNextStepIntent, trackAttributedEvent } from '~/utils/next-step'
 
 definePageMeta({ middleware: 'auth' })
 type Order = { uuid:string, product_id:string, merchant_order_no:string, status:'pending'|'paid'|'failed'|'cancelled'|'refunded', amount:number, currency:string, paid_at?:string }
@@ -9,6 +12,7 @@ const order = ref<Order | null>(null)
 const loading = ref(true)
 const error = ref('')
 const fallbackMerchantOrderNo = ref('')
+const resumeIntent = ref<PremiumCheckoutIntent | null>(null)
 let timer: ReturnType<typeof setTimeout> | null = null
 let attempts = 0
 let historyGuardActive = false
@@ -29,10 +33,30 @@ const successActions = computed(() => isPointsOrder.value
       { label: '前往命盤解盤', to: '/ai-analysis' },
       { label: '開始時運解析', to: '/flow' },
     ]
-  : [
-      { label: '開始合盤解析', to: '/match' },
-      { label: '前往 AI 問答', to: '/qa' },
-    ])
+  : resumeIntent.value
+    ? [
+        {
+          label: resumeIntent.value.source === 'qa' ? '繼續 AI 問答' : '繼續合盤解析',
+          to: resumeIntent.value.source === 'qa' ? '/qa' : '/match',
+        },
+      ]
+    : [
+        { label: '開始合盤解析', to: '/match' },
+        { label: '前往 AI 問答', to: '/qa' },
+      ])
+const resumeAction = computed(() => resumeIntent.value
+  ? {
+      label: resumeIntent.value.source === 'qa' ? '返回未完成的問題' : '返回未完成的合盤資料',
+      to: resumeIntent.value.source === 'qa' ? '/qa' : '/match',
+    }
+  : null)
+
+function restoreCheckoutIntent() {
+  resumeIntent.value = readPremiumCheckoutIntent({
+    userUuid: String(auth.profile?.uuid || ''),
+    merchantOrderNo: merchantOrderNo.value || undefined,
+  })
+}
 
 function removeHistoryGuardListener() {
   if (!historyGuardActive) return
@@ -71,8 +95,9 @@ async function loadOrder() {
   if (rejectedReturn.value) {
     const code = returnStatus.value ? `（${returnStatus.value}）` : ''
     error.value = returnMessage.value
-      ? `${returnMessage.value}${code}，請返回選購方案重新建立訂單。`
-      : `藍新未接受這筆交易${code}，請返回選購方案重新建立訂單。`
+      ? `${returnMessage.value}${code}，您可以保留原本資料後再決定是否重新付款。`
+      : `藍新未接受這筆交易${code}，原本填寫的資料仍會保留。`
+    restoreCheckoutIntent()
     sessionStorage.removeItem('newebpay_pending_merchant_order_no')
     loading.value = false
     return
@@ -80,9 +105,14 @@ async function loadOrder() {
   if (!merchantOrderNo.value) { error.value = '缺少訂單資訊'; loading.value = false; return }
   try {
     order.value = await ziweiApi.getWebOrderByMerchantNo(merchantOrderNo.value) as Order
+    if (order.value.product_id === 'web.premium.monthly') restoreCheckoutIntent()
     if (order.value.status === 'paid') {
       sessionStorage.removeItem('newebpay_pending_merchant_order_no')
       await auth.loadBilling()
+      if (!isPointsOrder.value) {
+        trackAttributedEvent('subscription_completed')
+        clearNextStepIntent()
+      }
     }
     if (order.value.status === 'pending' && attempts++ < 30) timer = setTimeout(loadOrder, 2000)
   } catch (reason) {
@@ -104,10 +134,10 @@ onBeforeUnmount(() => {
   <AppPageLayout title="付款結果" screen-class="result-screen" show-back back-to="/store" back-replace back-label="返回選購方案">
     <main class="result-content">
       <section v-if="loading && !order" class="result-card glass"><LoaderCircle class="spin" :size="48" /><h2>正在確認付款結果</h2><p>請稍候，系統正在等待藍新付款通知。</p></section>
-      <section v-else-if="error" class="result-card glass error"><XCircle :size="48" /><h2>{{ rejectedReturn ? '付款未完成' : '無法確認訂單' }}</h2><p>{{ error }}</p><button class="app-button" type="button" @click="rejectedReturn ? navigateTo('/store', { replace:true }) : loadOrder()">{{ rejectedReturn ? '返回選購方案' : '重新查詢' }}</button></section>
+      <section v-else-if="error" class="result-card glass error"><XCircle :size="48" /><h2>{{ rejectedReturn ? '付款未完成' : '無法確認訂單' }}</h2><p>{{ error }}</p><button class="app-button" type="button" @click="rejectedReturn && resumeAction ? navigateTo(resumeAction.to, { replace:true }) : rejectedReturn ? navigateTo('/store', { replace:true }) : loadOrder()">{{ rejectedReturn && resumeAction ? resumeAction.label : rejectedReturn ? '返回選購方案' : '重新查詢' }}</button></section>
       <section v-else-if="order?.status === 'paid'" class="result-card glass success"><CheckCircle2 :size="54" /><h2>付款成功</h2><p>{{ productName }}已加入目前登入帳號，會員資料也已更新。<br />{{ successGuide }}</p><div class="order-row"><span>訂單編號</span><b>{{ order.merchant_order_no }}</b></div><div class="success-actions"><button v-for="action in successActions" :key="action.to" class="app-button" type="button" @click="navigateTo(action.to, { replace:true })">{{ action.label }}</button></div><button class="member-link" type="button" @click="navigateTo('/member', { replace:true })">返回會員中心</button></section>
       <section v-else-if="order?.status === 'pending'" class="result-card glass"><Clock3 :size="50" /><h2>付款結果確認中</h2><p>藍新通知可能需要幾秒鐘，您可以留在此頁等待，或稍後至購買紀錄查看。</p><button class="app-button outline" type="button" @click="navigateTo('/purchase-history', { replace:true })">查看購買紀錄</button></section>
-      <section v-else class="result-card glass error"><XCircle :size="52" /><h2>付款未完成</h2><p>此訂單狀態為「{{ order?.status }}」，不會發放點數或會員權益。</p><button class="app-button" type="button" @click="navigateTo('/store', { replace:true })">返回選購方案</button></section>
+      <section v-else class="result-card glass error"><XCircle :size="52" /><h2>付款未完成</h2><p>此訂單狀態為「{{ order?.status }}」，不會發放點數或會員權益。</p><button class="app-button" type="button" @click="resumeAction ? navigateTo(resumeAction.to, { replace:true }) : navigateTo('/store', { replace:true })">{{ resumeAction ? resumeAction.label : '返回選購方案' }}</button></section>
     </main>
   </AppPageLayout>
 </template>

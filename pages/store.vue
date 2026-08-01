@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { ApiError } from "~/utils/api";
 import {
+  hostedPaymentCopy,
+  premiumBenefits,
+  premiumPromotionCopy,
+  premiumRenewalCopy,
+} from "~/utils/premium-product-copy";
+import {
   BadgeCheck,
   Coins,
   Crown,
@@ -8,7 +14,6 @@ import {
   LoaderCircle,
   Sparkles,
   TestTube2,
-  X,
 } from "@lucide/vue";
 
 definePageMeta({ middleware: "auth" });
@@ -209,14 +214,7 @@ async function cancelSubscription() {
   try {
     await ziweiApi.cancelWebSubscription();
     await Promise.all([loadSubscription(), auth.loadBilling()]);
-    window.dispatchEvent(
-      new CustomEvent("api-error-snackbar", {
-        detail: {
-          type: "info",
-          message: "已取消自動續訂，權益保留至本期截止日",
-        },
-      }),
-    );
+    showAppInfo("已取消自動續訂，權益保留至本期截止日");
   } catch (reason) {
     error.value = reason instanceof Error ? reason.message : "取消訂閱失敗";
   } finally {
@@ -317,23 +315,20 @@ const money = (amount: number) => `NT$${amount}`;
               <span>{{ money(premiumProduct.price) }}<small>/月</small></span>
             </b>
           </div>
+          <p class="daily-price-copy">約 NT$9/日</p>
           <div class="divider" />
           <ul>
-            <li>每月有 60 次不扣除點數之額度（額度將於每月一號重置）</li>
-            <li>解鎖「合盤解析」、「AI 問答」等專屬功能</li>
+            <li v-for="benefit in premiumBenefits" :key="benefit">
+              {{ benefit }}
+            </li>
           </ul>
           <p v-if="premiumProduct.promotion" class="early-bird-copy">
-            <Sparkles :size="16" />早鳥期間完成訂閱，只要持續訂閱，即維持
-            {{
-              money(premiumProduct.price)
-            }}/月；取消後重新訂閱，將依當時方案售價計費。
+            <Sparkles :size="16" />{{
+              premiumPromotionCopy(premiumProduct.price)
+            }}
           </p>
           <p class="renewal-note">
-            <Info
-              :size="16"
-            />付款成功當日立即扣款並開通，後續由藍新於每月同日自動續扣；若於
-            29～31 日訂閱，後續扣款日固定為每月 28
-            日。您可隨時取消自動續訂，權益仍保留至當期截止日。
+            <Info :size="16" />{{ premiumRenewalCopy }}
           </p>
           <p v-if="auth.premium" class="active-note">
             <BadgeCheck :size="17" />您正在使用此方案，享有所有專屬功能！
@@ -379,33 +374,23 @@ const money = (amount: number) => `NT$${amount}`;
     <AppBottomSheet
       :open="Boolean(selected)"
       :locked="purchasing"
+      labelledby="store-checkout-title"
       @close="selected = null"
     >
-      <template v-if="selected" #header>
-        <div class="sheet-title">
-          <span><Sparkles :size="22" /></span>
-          <div>
-            <h2>前往付款</h2>
-            <p>{{ selected.name }}</p>
-          </div>
-          <button
-            type="button"
-            aria-label="關閉"
-            :disabled="purchasing"
-            @click="selected = null"
-          >
-            <X :size="20" />
-          </button>
-        </div>
-      </template>
       <div v-if="selected" class="purchase-sheet">
+        <span id="store-checkout-title" class="checkout-accessible-title">
+          前往付款
+        </span>
         <div class="order-row">
           <span>商品金額</span
           ><strong class="checkout-price"
             ><del v-if="selected.promotion && selected.original_price">{{
               money(selected.original_price)
             }}</del
-            ><span>{{ money(selected.price) }}</span></strong
+            ><span
+              >{{ money(selected.price)
+              }}<small v-if="selected.kind === 'subscription'">/月</small></span
+            ></strong
           >
         </div>
         <div v-if="selected.kind === 'subscription'" class="payer-email-field">
@@ -425,11 +410,10 @@ const money = (amount: number) => `NT$${amount}`;
           }}</small>
         </div>
         <p v-if="selected.promotion" class="checkout-promo-copy">
-          <Sparkles :size="15" />目前享有早鳥六折優惠。持續訂閱即維持
-          {{ money(selected.price) }}/月；取消後重新訂閱將依當時售價計費。
+          {{ premiumPromotionCopy(selected.price) }}
         </p>
         <p class="mock-copy">
-          下一步將離開本站前往藍新安全付款頁。付款結果會由系統驗證後發放點數或會員權益。
+          {{ hostedPaymentCopy }}
         </p>
         <div class="sheet-actions">
           <button
@@ -674,6 +658,18 @@ const money = (amount: number) => `NT$${amount}`;
 .price-badge small {
   font-size: 10px;
 }
+.daily-price-copy {
+  width: max-content;
+  margin: 7px 2px 0 auto;
+  padding: 3px 8px;
+  border: 1px solid rgba(107, 166, 160, 0.32);
+  border-radius: 999px;
+  background: rgba(107, 166, 160, 0.14);
+  color: var(--mountain);
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1.2;
+}
 .early-bird-copy {
   display: grid;
   grid-template-columns: 18px 1fr;
@@ -723,46 +719,19 @@ const money = (amount: number) => `NT$${amount}`;
   width: 100%;
   text-align: left;
 }
-.sheet-title {
-  display: grid;
-  grid-template-columns: 42px 1fr 36px;
-  gap: 11px;
-  align-items: center;
-}
-.sheet-title > span {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(36, 87, 90, 0.1);
-}
-.sheet-title h2,
-.sheet-title p {
-  margin: 0;
-}
-.sheet-title h2 {
-  font-size: 18px;
-}
-.sheet-title p {
-  margin-top: 3px;
-  color: var(--text-soft);
-  font-size: 12px;
-}
-.sheet-title button {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border: 0;
-  background: transparent;
-  color: var(--mountain);
+.checkout-accessible-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 .order-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 22px 0 12px;
+  margin: 4px 0 12px;
   padding: 15px;
   border-radius: 15px;
   background: rgba(107, 166, 160, 0.1);
@@ -772,6 +741,7 @@ const money = (amount: number) => `NT$${amount}`;
   display: grid;
   gap: 6px;
   margin-bottom: 12px;
+  text-align: left;
 }
 .payer-email-field label {
   font-size: 12px;
@@ -804,6 +774,8 @@ const money = (amount: number) => `NT$${amount}`;
   opacity: 1;
 }
 .mock-copy {
+  width: 100%;
+  max-width: none !important;
   margin: 0 0 22px;
   color: var(--text-soft);
   font-size: 12px;
@@ -848,10 +820,15 @@ const money = (amount: number) => `NT$${amount}`;
   color: var(--cinnabar);
   font-size: 16px;
 }
+.checkout-price span small {
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 700;
+}
 .checkout-promo-copy {
-  display: grid;
-  grid-template-columns: 18px 1fr;
-  gap: 7px;
+  display: block;
+  width: 100%;
+  max-width: none !important;
   margin: 0 0 12px;
   padding: 10px 12px;
   border-radius: 13px;

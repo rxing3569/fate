@@ -46,9 +46,7 @@ async function submit() {
       issue_type: category.value,
       description: normalizedContent,
     });
-    window.dispatchEvent(new CustomEvent("api-error-snackbar", {
-      detail: { message: "問題回報已送出", type: "info" },
-    }));
+    showAppInfo("問題回報已送出");
     await navigateTo("/member");
   } finally {
     submitting.value = false;

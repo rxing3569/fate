@@ -15,6 +15,14 @@ import {
 } from "~/utils/ziwei/core";
 import { majorStars } from "~/utils/ziwei/stars";
 import { sessionCache } from "~/utils/storage";
+import type { NextStepAction } from "~/types/next-step";
+import {
+  palaceQuestions,
+  romanceQuestions,
+  tenYearQuestions,
+  trackNextStepArrival,
+  trackNextStepSubmitted,
+} from "~/utils/next-step";
 
 definePageMeta({ middleware: "auth" });
 type CategoryId = "general" | "palace_detail" | "ten_year";
@@ -65,6 +73,14 @@ const analysisMarkerKey = computed(() => `${reportCacheKey.value}:streaming`);
 const doneReadKey = computed(() => `${reportCacheKey.value}:done-read`);
 const pageUnmounted = ref(false);
 const reportCacheSavedAt = ref(0);
+
+function isDevMockAnalysis() {
+  return (
+    import.meta.dev &&
+    activeAnalysis.active?.metadata.__devMock === "FATE_DEV_ANALYSIS_PANEL"
+  );
+}
+
 const reportContent = ref<HTMLElement | null>(null);
 const detailContent = ref<HTMLElement | null>(null);
 const usesDocumentScroll = ref(false);
@@ -166,6 +182,72 @@ const categories: {
 const currentMeta = computed(
   () => categories.find((item) => item.id === activeCategory.value)!,
 );
+const nextStepActions = computed<NextStepAction[]>(() => {
+  if (activeCategory.value === "general")
+    return [
+      {
+        id: "general_to_match",
+        eyebrow: "感情互動",
+        title: "你已經了解自己的感情模式",
+        description: "下一步看看你和在意的人，是否適合長期發展。",
+        label: "開始合盤解析",
+        destination: "match",
+      },
+      {
+        id: "general_to_qa",
+        eyebrow: "深入提問",
+        title: "把感情中的疑問問得更具體",
+        description:
+          "帶入一題和你命格有關的感情問題，找到更適合你的相處方式。",
+        label: "帶著問題問 AI",
+        destination: "qa",
+        questions: romanceQuestions,
+      },
+    ];
+  if (activeCategory.value === "palace_detail")
+    return [
+      {
+        id: "palace_to_qa",
+        eyebrow: "宮位探索",
+        title: "有一個宮位特別讓你在意嗎？",
+        description:
+          "從感情、工作、財務或內在狀態，繼續問得更具體。",
+        label: "帶著問題問 AI",
+        destination: "qa",
+        questions: palaceQuestions,
+      },
+      {
+        id: "palace_to_match",
+        eyebrow: "雙人關係",
+        title: "夫妻宮看見傾向，合盤看見兩人的互動",
+        description:
+          "加入對方的出生資料，了解彼此的相處優勢與需要磨合之處。",
+        label: "開始合盤解析",
+        destination: "match",
+      },
+    ];
+  return [
+    {
+      id: "ten_year_to_flow",
+      eyebrow: "聚焦現在",
+      title: "十年看方向，時運看現在",
+      description:
+        "進一步聚焦到今年、這個月或今天，找到適合行動的時間點。",
+      label: "查看時運解析",
+      destination: "flow",
+    },
+    {
+      id: "ten_year_to_qa",
+      eyebrow: "行動建議",
+      title: "把大運趨勢轉成你的行動方案",
+      description:
+        "帶入一題具體問題，了解現在該把握什麼、調整什麼。",
+      label: "帶著問題問 AI",
+      destination: "qa",
+      questions: tenYearQuestions,
+    },
+  ];
+});
 function recordTimestamp(record: ReportRecord) {
   const value = Date.parse(
     record.updated_at || record.created_at || record.createdAt || "",
@@ -315,6 +397,11 @@ const cardSections = computed(() =>
 );
 
 onMounted(async () => {
+  if (import.meta.dev)
+    window.addEventListener(
+      "fate-dev-analysis-applied",
+      handleDevAnalysisApplied,
+    );
   usesDocumentScroll.value = CSS.supports("-webkit-touch-callout", "none");
   window.addEventListener("popstate", handleDetailHistory);
   if (usesDocumentScroll.value)
@@ -323,7 +410,17 @@ onMounted(async () => {
   restoreDoneNotices();
   syncActiveReport();
   restoreReportCache();
+  if (isDevMockAnalysis()) {
+    handleDevAnalysisApplied();
+    return;
+  }
   const query = useRoute().query;
+  const arrival = trackNextStepArrival("report");
+  const requestedCategory = String(
+    query.category || arrival?.reportCategory || "",
+  );
+  if (categories.some((item) => item.id === requestedCategory))
+    activeCategory.value = requestedCategory as CategoryId;
   const shouldRun = query.run === "1";
   const requested = String(query.categories || "")
     .split(",")
@@ -378,7 +475,31 @@ function syncActiveReport() {
   error.value = job.error || "";
 }
 
+function handleDevAnalysisApplied() {
+  if (!import.meta.dev) return;
+  const job = activeAnalysis.active;
+  if (!job) {
+    for (const category of categories) outputs[category.id] = "";
+    analyzing.value = false;
+    fullRunning.value = false;
+    error.value = "";
+    loadingRecords.value = false;
+    return;
+  }
+  if (job.kind !== "report" || !isDevMockAnalysis()) return;
+  records.value = [];
+  for (const category of categories)
+    outputs[category.id] = job.contents[category.id] || "";
+  loadingRecords.value = false;
+  syncActiveReport();
+}
+
 onBeforeUnmount(() => {
+  if (import.meta.dev)
+    window.removeEventListener(
+      "fate-dev-analysis-applied",
+      handleDevAnalysisApplied,
+    );
   window.removeEventListener("popstate", handleDetailHistory);
   if (usesDocumentScroll.value)
     window.removeEventListener("scroll", rememberScroll);
@@ -473,11 +594,7 @@ function categoryCostLabel(category: CategoryId) {
 }
 
 function showReloadSnackbar(message: string, type: "info" | "error") {
-  window.dispatchEvent(
-    new CustomEvent("api-error-snackbar", {
-      detail: { message, type },
-    }),
-  );
+  showAppSnackbar({ message, type });
 }
 
 async function loadRecords(force = false, notifyResult = false) {
@@ -593,6 +710,7 @@ function restoreReportCache() {
 }
 
 function persistReportCache() {
+  if (isDevMockAnalysis()) return;
   reportCacheSavedAt.value = Date.now();
   sessionCache.set(reportCacheKey.value, {
     records: records.value,
@@ -605,6 +723,7 @@ watch(activeCategory, persistReportCache);
 
 async function requestStart() {
   if (!chartStore.chart || analyzing.value) return;
+  trackNextStepSubmitted("report");
   if (!(await activeAnalysis.ensureAvailable("report"))) return;
   if (isFirstFullAnalysis.value) {
     fullSelected.value = categories.map((category) => category.id);
@@ -1000,6 +1119,14 @@ async function closeDetail() {
     await restoreReportScroll();
   }
 }
+
+async function handleLeadingBack() {
+  if (selectedDetail.value) {
+    await closeDetail();
+    return;
+  }
+  await navigateTo("/ai-analysis");
+}
 </script>
 
 <template>
@@ -1013,8 +1140,8 @@ async function closeDetail() {
       <button
         class="icon-button"
         type="button"
-        aria-label="返回排盤解盤"
-        @click="navigateTo('/ai-analysis')"
+        :aria-label="selectedDetail ? '返回命盤解析列表' : '返回排盤解盤'"
+        @click="handleLeadingBack"
       >
         <ChevronLeft :size="23" />
       </button>
@@ -1187,6 +1314,11 @@ async function closeDetail() {
           }}
         </div>
         <p v-if="error" class="report-error">{{ error }}</p>
+        <NextStepCtas
+          v-if="!currentCategoryIsAnalyzing && !error"
+          :source="{ type: 'report', id: activeCategory }"
+          :actions="nextStepActions"
+        />
       </section>
     </main>
 
