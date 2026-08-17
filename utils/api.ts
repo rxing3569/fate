@@ -124,8 +124,13 @@ async function rotateToken() {
 
 export async function getValidAccessToken(forceRefresh = false) {
   authCheckUnavailable = false
+  if (!import.meta.client) return null
   const hasSessionHint = Boolean(getOfflineActiveUserUuid() || tokenStorage.getRefreshToken())
-  if (!hasSessionHint) return null
+  // The authenticated web session lives in an HttpOnly cookie and therefore
+  // cannot be detected from JavaScript. Always verify it while online, even
+  // when the local session hint is missing (for example after storage cleanup
+  // or when a protected route is opened in a new tab).
+  if (!hasSessionHint && navigator.onLine === false) return null
   if (!forceRefresh && Date.now() - sessionValidatedAt < SESSION_VALIDATION_TTL) return 'cookie-session'
   if (!forceRefresh && sessionCheckInFlight) return sessionCheckInFlight
   if (forceRefresh) sessionValidatedAt = 0

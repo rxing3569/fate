@@ -13,6 +13,15 @@ interface AnalysisPdfDownloadOptions {
   onPremiumRequired?: () => void | Promise<void>;
 }
 
+function httpStatus(reason: unknown) {
+  if (reason instanceof ApiError) return reason.status;
+  if (reason && typeof reason === "object" && "status" in reason) {
+    const status = Number((reason as { status?: unknown }).status);
+    return Number.isFinite(status) ? status : 0;
+  }
+  return 0;
+}
+
 export function useAnalysisPdfDownload() {
   const auth = useAuthStore();
   const downloading = ref(false);
@@ -39,7 +48,7 @@ export function useAnalysisPdfDownload() {
       showAppSuccess("PDF 已下載");
       return true;
     } catch (reason) {
-      if (reason instanceof ApiError && reason.status === 403) {
+      if (httpStatus(reason) === 403) {
         auth.premium = false;
         if (options.onPremiumRequired) await options.onPremiumRequired();
         else {
