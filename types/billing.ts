@@ -35,6 +35,15 @@ export type PremiumCheckoutDraft =
       source: "match";
       matchType: string;
       birthInfo: BirthInfo;
+    }
+  | {
+      source: "premium_feature";
+      feature:
+        | "report_pdf"
+        | "flow_pdf"
+        | "match_pdf"
+        | "match_history";
+      returnTo: "/report" | "/flow" | "/match";
     };
 
 export type PremiumCheckoutIntent = PremiumCheckoutDraft & {

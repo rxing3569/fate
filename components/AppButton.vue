@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { LoaderCircle } from "@lucide/vue";
 
+const button = ref<HTMLButtonElement | null>(null);
+
+defineExpose({ focus: () => button.value?.focus() });
+
 withDefaults(
   defineProps<{
     variant?: "primary" | "secondary" | "ghost" | "danger";
@@ -27,6 +31,7 @@ withDefaults(
 
 <template>
   <button
+    ref="button"
     class="app-design-button"
     :class="[
       `app-design-button--${variant}`,

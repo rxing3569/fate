@@ -521,7 +521,7 @@ const money = (amount: number) => `NT$${amount}`;
   display: grid;
   grid-template-columns: 54px minmax(0, 1fr) auto;
   gap: 14px;
-  align-items: center;
+  align-items: start;
 }
 .plan-icon {
   display: grid;
@@ -551,6 +551,8 @@ const money = (amount: number) => `NT$${amount}`;
   line-height: 1.35;
 }
 .price-badge {
+  align-self: start;
+  justify-self: end;
   padding: 8px 13px;
   border: 1px solid rgba(184, 91, 75, 0.24);
   border-radius: 15px;
@@ -615,9 +617,8 @@ const money = (amount: number) => `NT$${amount}`;
   text-align: center;
 }
 .title-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
+  justify-items: start;
   gap: 7px;
 }
 .early-bird-tag {
@@ -840,15 +841,16 @@ const money = (amount: number) => `NT$${amount}`;
     padding: 18px 16px;
   }
   .plan-heading {
-    grid-template-columns: 48px 1fr;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    gap: 12px;
   }
   .plan-icon {
     width: 48px;
     height: 48px;
   }
   .price-badge {
-    grid-column: 2;
-    justify-self: start;
+    grid-column: 3;
+    justify-self: end;
     padding: 6px 11px;
     font-size: 14px;
   }

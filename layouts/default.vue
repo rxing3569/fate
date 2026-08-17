@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { BookOpen, Home, Newspaper, UserRound } from "@lucide/vue";
+import { signupRewardPoints } from "~/utils/signup-reward";
 
 // Vite replaces import.meta.dev at build time. In production this entire
 // dynamic-import branch is removed, so the dev component is not shipped.
@@ -15,6 +16,7 @@ const activeAnalysis = useActiveAnalysisStore();
 const showLoginSheet = ref(false);
 const loginRedirect = ref("/");
 const learningSyncing = ref(false);
+const registrationReward = signupRewardPoints();
 const appMain = ref<HTMLElement | null>(null);
 let contentResizeObserver: ResizeObserver | undefined;
 let observedContent: Element | null = null;
@@ -349,7 +351,10 @@ function isTabActive(path: string) {
         ><img class="sheet-logo" src="/remove-background-logo.png" alt="" />
         <h2 id="login-sheet-title">開始探索紫微</h2></template
       >
-      <p>命盤解析盤等 AI 功能需要登入帳號後方可使用。<br />立即註冊領取 300P</p>
+      <p>
+        命盤解析盤等 AI 功能需要登入帳號後方可使用。<br />立即註冊領取
+        {{ registrationReward }}P
+      </p>
       <div class="sheet-actions">
         <button
           class="app-button outline"

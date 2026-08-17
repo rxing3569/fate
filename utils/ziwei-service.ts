@@ -11,7 +11,7 @@ export interface AnalysisRequest {
 }
 
 export interface BatchAnalysisEvent {
-  type: 'chunk' | 'step_completed' | 'step_failed' | 'analysis_service_busy' | 'batch_completed'
+  type: 'step_started' | 'chunk' | 'step_completed' | 'step_failed' | 'analysis_service_busy' | 'batch_completed'
   step_key?: string
   content?: string
   code?: string
@@ -136,7 +136,7 @@ export async function streamBatchAnalysis(options: {
         }
         if (data.type === 'learning_progress') return
         if (data.type === 'error' || data.error) return finish(new Error(data.detail || data.message || data.error || '分析發生錯誤'))
-        if (data.type && ['chunk', 'step_completed', 'step_failed', 'analysis_service_busy', 'batch_completed'].includes(data.type)) {
+        if (data.type && ['step_started', 'chunk', 'step_completed', 'step_failed', 'analysis_service_busy', 'batch_completed'].includes(data.type)) {
           options.onEvent(data as BatchAnalysisEvent)
           if (data.type === 'batch_completed') finish()
         }
@@ -215,6 +215,9 @@ export const ziweiApi = {
   },
   getWebProducts() {
     return apiFetch('/billing/web/products')
+  },
+  authorizeAnalysisPDF() {
+    return apiFetch('/billing/premium/analysis-pdf/access', { notifyError: false })
   },
   createWebCheckout(productId: string, expectedPrice: number, payerEmail = '') {
     return apiFetch('/billing/web/checkout', {

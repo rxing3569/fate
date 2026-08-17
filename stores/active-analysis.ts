@@ -479,7 +479,10 @@ export const useActiveAnalysisStore = defineStore("active-analysis", {
           onEvent: (event) => {
             if (this.active?.jobId !== job.jobId) return;
             const key = event.step_key || "";
-            if (event.type === "chunk" && key) {
+            if (event.type === "step_started" && key) {
+              this.active.metadata.currentCategory = key;
+            } else if (event.type === "chunk" && key) {
+              this.active.metadata.currentCategory = key;
               this.active.contents[key] =
                 (this.active.contents[key] || "") + (event.content || "");
             } else if (event.type === "step_completed" && key) {

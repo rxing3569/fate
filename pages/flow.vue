@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Coins,
+  Download,
   RefreshCw,
   Sparkles,
   WifiOff,
@@ -18,6 +19,10 @@ import {
   ziweiPalaces,
 } from "~/utils/ziwei/core";
 import { calculateFlowData } from "~/utils/ziwei/calculator";
+import {
+  extractPdfSummary,
+  withoutPdfSummary,
+} from "~/utils/report-pdf.client";
 
 definePageMeta({ middleware: "auth" });
 
@@ -51,6 +56,20 @@ const year = ref(now.getFullYear());
 const month = ref(now.getMonth() + 1);
 const day = ref(now.getDate());
 const content = ref("");
+const flowPdfSource = ref<HTMLElement | null>(null);
+const flowPdfSnapshot = ref<{
+  title: string;
+  createdAt: string;
+  sections: FlowSection[];
+} | null>(null);
+const { downloading: downloadingFlowPDF, download: downloadAnalysisPdf } =
+  useAnalysisPdfDownload();
+const premiumFeatureGate = usePremiumFeatureGate();
+const {
+  showPremiumCheckout,
+  premiumCheckoutDraft,
+  resumeFeature,
+} = premiumFeatureGate;
 const createdAt = ref("");
 const analyzing = ref(false);
 const preparing = ref(false);
@@ -155,6 +174,11 @@ onMounted(async () => {
   }
   if (!isDevMockAnalysis())
     await loadIncompleteFlowTasks(true, allowActiveFlowResult.value);
+  const resumedFeature = premiumFeatureGate.restoreFeature(["flow_pdf"]);
+  if (resumedFeature && !content.value.trim()) {
+    premiumFeatureGate.closeResume();
+    showAppWarning("原解析結果已不存在，請重新產生後再下載 PDF");
+  }
 });
 onBeforeRouteLeave(() => {
   if (analyzing.value && !isDevMockAnalysis()) {
@@ -677,6 +701,63 @@ function withoutFlowScores(source: string) {
     .trim();
 }
 
+async function downloadFlowPDF() {
+  if (downloadingFlowPDF.value || analyzing.value || !content.value.trim()) return;
+  const printableContent = content.value.trim();
+  await downloadAnalysisPdf({
+    source: flowPdfSource,
+    filename: () =>
+      `江映澄紫微-${flowType.value}-${displayDate.value.replaceAll("/", "-")}.pdf`,
+    prepare: () => {
+      const parsed = parseSections(printableContent);
+      flowPdfSnapshot.value = {
+        title: `${displayDate.value} 運勢解析`,
+        createdAt: formattedCreatedAt.value,
+        sections: parsed.length
+          ? parsed
+          : [{ title: "時運解析", content: printableContent }],
+      };
+    },
+    cleanup: () => {
+      flowPdfSnapshot.value = null;
+    },
+    onPremiumRequired: () =>
+      premiumFeatureGate.requestFeature("flow_pdf", "/flow"),
+  });
+}
+
+async function resumeFlowPremiumFeature() {
+  premiumFeatureGate.closeResume();
+  if (!content.value.trim()) {
+    showAppWarning("原解析結果已不存在，請重新產生後再下載 PDF");
+    return;
+  }
+  await downloadFlowPDF();
+}
+
+const flowActionItems = computed(() => [
+  {
+    id: "download-pdf",
+    label: "下載 PDF",
+    loadingLabel: "PDF 產生中",
+    icon: Download,
+    loading: downloadingFlowPDF.value,
+    disabled: analyzing.value,
+    premium: true,
+  },
+  {
+    id: "recalculate",
+    label: "重新排算",
+    icon: RefreshCw,
+    disabled: analyzing.value || downloadingFlowPDF.value,
+  },
+]);
+
+function handleFlowAction(id: string) {
+  if (id === "download-pdf") void downloadFlowPDF();
+  else if (id === "recalculate") requestAnalysis(true);
+}
+
 async function goBack() {
   if (analyzing.value) {
     showAnalysisRunningSnackbar();
@@ -717,17 +798,71 @@ async function goBack() {
     <template #title
       ><div class="bar-title"><h1>時運解析</h1></div></template
     >
-    <template #actions
-      ><button
+    <template #actions>
+      <AppActionMenu
         v-if="stage === 'result' && content"
-        class="recalc-button"
-        type="button"
-        :disabled="analyzing"
-        @click="requestAnalysis(true)"
-      >
-        <RefreshCw :size="16" />重新排算</button
-      ><span v-else
-    /></template>
+        label="時運解析操作"
+        :items="flowActionItems"
+        @select="handleFlowAction"
+      />
+      <span v-else />
+    </template>
+    <Teleport to="body">
+      <template v-if="downloadingFlowPDF">
+        <div
+          v-if="flowPdfSnapshot"
+          ref="flowPdfSource"
+          class="analysis-pdf-source flow-pdf-source"
+          aria-hidden="true"
+        >
+          <main data-pdf-page>
+            <header class="flow-pdf-heading analysis-pdf-cover glass" data-pdf-block>
+              <img src="/remove-background-logo.png" alt="" />
+              <p>江映澄紫微·時運解析</p>
+              <h2>{{ flowPdfSnapshot.title }}</h2>
+              <small>分析生成時間：{{ flowPdfSnapshot.createdAt || new Date().toLocaleString("zh-TW", { hour12: false }) }}</small>
+              <p class="analysis-pdf-disclaimer">本報告內容供自我探索與參考，不應取代醫療、法律或財務專業意見。</p>
+            </header>
+            <details
+              v-for="(section, index) in flowPdfSnapshot.sections"
+              :key="`${section.title}-${index}`"
+              class="flow-card glass pdf-flow-card"
+              data-pdf-block
+              open
+            >
+              <summary><strong>{{ section.title }}</strong></summary>
+              <aside
+                v-if="extractPdfSummary(section.content)"
+                class="analysis-pdf-summary"
+              >
+                <header><Sparkles :size="18" /><strong>核心小結</strong></header>
+                <MarkdownContent
+                  :source="extractPdfSummary(section.content)"
+                  :report-formatting="false"
+                />
+              </aside>
+              <MarkdownContent
+                v-if="withoutFlowScores(withoutPdfSummary(section.content))"
+                :source="withoutFlowScores(withoutPdfSummary(section.content))"
+                :report-formatting="false"
+              />
+              <FlowScoreScale
+                v-if="parseFlowScores(section.content).length"
+                :scores="parseFlowScores(section.content)"
+              />
+            </details>
+          </main>
+        </div>
+        <div
+          class="analysis-pdf-overlay"
+          data-html2canvas-ignore="true"
+          role="status"
+          aria-live="polite"
+        >
+          <AppLoading scope="page" layout="fill" :delay="0" message="正在整理時運 PDF，請稍候…" />
+        </div>
+      </template>
+    </Teleport>
     <AnalysisProgressBar v-if="analyzing && content && !flowDisconnected" />
 
     <main v-if="stage === 'type'" class="flow-body type-stage">
@@ -837,6 +972,18 @@ async function goBack() {
       </section>
     </main>
 
+    <PremiumCheckoutSheet
+      :open="showPremiumCheckout"
+      :draft="premiumCheckoutDraft"
+      @close="premiumFeatureGate.closeCheckout"
+    />
+    <PremiumFeatureResumeSheet
+      :feature="resumeFeature"
+      :loading="downloadingFlowPDF"
+      @close="premiumFeatureGate.closeResume"
+      @confirm="resumeFlowPremiumFeature"
+    />
+
     <AppBottomSheet :open="showConfirm" @close="showConfirm = false"
       ><template #header><h2>確認執行時運解析</h2></template>
       <p>
@@ -914,6 +1061,29 @@ async function goBack() {
 </template>
 
 <style scoped>
+.flow-pdf-heading {
+  margin-bottom: 18px;
+  text-align: center;
+}
+.flow-pdf-heading h2 {
+  margin: 8px 0 4px;
+  font-size: 18px;
+}
+.flow-pdf-heading small {
+  color: var(--text-soft);
+  font-size: 12px;
+}
+.flow-pdf-source .pdf-flow-card {
+  height: auto;
+  margin-bottom: 13px;
+  overflow: visible;
+}
+.flow-pdf-source .pdf-flow-card summary {
+  cursor: default;
+}
+.flow-pdf-source .pdf-flow-card summary::marker {
+  content: "";
+}
 .flow-screen {
   position: relative;
 }
@@ -1151,17 +1321,6 @@ async function goBack() {
 .bar-title small {
   display: none;
 }
-.recalc-button {
-  justify-content: flex-end;
-  width: 88px;
-  padding: 8px 0;
-  font-size: 12px;
-  white-space: nowrap;
-}
-.recalc-button:disabled {
-  cursor: wait;
-  opacity: 0.48;
-}
 .result-stage > h2 {
   margin-bottom: 3px;
 }
@@ -1184,10 +1343,6 @@ async function goBack() {
   }
   .type-card {
     padding-inline: 16px;
-  }
-  .recalc-button {
-    width: 88px;
-    font-size: 11px;
   }
 }
 </style>

@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Coins,
+  Download,
   RefreshCw,
   Sparkles,
   WifiOff,
@@ -26,6 +27,15 @@ import {
 
 definePageMeta({ middleware: "auth" });
 type CategoryId = "general" | "palace_detail" | "ten_year";
+const generalSectionTitles = new Set([
+  "五行局分析",
+  "今生任務",
+  "人生挑戰",
+  "人格特質",
+  "天賦才華",
+  "適合工作",
+  "感情運",
+]);
 interface ReportRecord {
   category: CategoryId;
   title?: string;
@@ -73,6 +83,20 @@ const analysisMarkerKey = computed(() => `${reportCacheKey.value}:streaming`);
 const doneReadKey = computed(() => `${reportCacheKey.value}:done-read`);
 const pageUnmounted = ref(false);
 const reportCacheSavedAt = ref(0);
+const pdfExportSource = ref<HTMLElement | null>(null);
+const pdfSnapshot = ref<{
+  label: string;
+  generatedAt: string;
+  sections: Array<{ title: string; content: string }>;
+} | null>(null);
+const { downloading: downloadingPDF, download: downloadAnalysisPdf } =
+  useAnalysisPdfDownload();
+const premiumFeatureGate = usePremiumFeatureGate();
+const {
+  showPremiumCheckout,
+  premiumCheckoutDraft,
+  resumeFeature,
+} = premiumFeatureGate;
 
 function isDevMockAnalysis() {
   return (
@@ -90,8 +114,6 @@ const categoryScrollPositions = reactive<Record<CategoryId, number>>({
   palace_detail: 0,
   ten_year: 0,
 });
-const receivedStreamData = ref(false);
-const analyzingCategory = ref<CategoryId | null>(null);
 const streamReceivedAt = reactive<Record<CategoryId, number | null>>({
   general: null,
   palace_detail: null,
@@ -118,24 +140,22 @@ function persistDoneNotices() {
   localStorage.setItem(doneReadKey.value, JSON.stringify(recent));
 }
 const selectedDetail = ref<{ title: string; content: string } | null>(null);
-const detailSummary = computed(
-  () =>
-    selectedDetail.value?.content
-      .match(/\/summary\s*([\s\S]*?)\s*\/summary_end/i)?.[1]
-      ?.trim() || "",
+const detailSummary = computed(() =>
+  extractSummary(selectedDetail.value?.content || ""),
 );
 const detailBefore = computed(() => {
   const content = selectedDetail.value?.content || "";
   const match = content.match(/\/summary\s*([\s\S]*?)\s*\/summary_end/i);
-  return match?.index == null ? content : content.slice(0, match.index).trim();
+  if (match?.index != null) return content.slice(0, match.index).trim();
+  return fallbackPalaceSummary(content) ? "" : content;
 });
 const detailAfter = computed(() => {
   const content = selectedDetail.value?.content || "";
   const regex = /\/summary\s*([\s\S]*?)\s*\/summary_end/i;
   const match = regex.exec(content);
-  return match
-    ? content.slice((match.index || 0) + match[0].length).trim()
-    : "";
+  if (match) return content.slice((match.index || 0) + match[0].length).trim();
+  const fallbackSummary = fallbackPalaceSummary(content);
+  return fallbackSummary ? content.slice(fallbackSummary.length).trim() : "";
 });
 function hasActiveRunLock() {
   const lock = sessionCache.get<{ startedAt?: number }>(runLockKey.value);
@@ -377,6 +397,9 @@ const currentContent = computed(() => {
   if (recordIsIncomplete(currentRecord.value)) return "";
   return currentRecord.value?.content || "";
 });
+const currentCategoryHasStreamData = computed(() =>
+  Boolean(outputs[activeCategory.value].trim()),
+);
 const generatedAt = computed(() => {
   const receivedAt = streamReceivedAt[activeCategory.value];
   const raw =
@@ -395,6 +418,81 @@ const cardSections = computed(() =>
     ? sections.value.slice(0, -1)
     : sections.value,
 );
+const printableCurrentContent = computed(() => {
+  if (activeCategory.value !== "general") return currentContent.value.trim();
+  return sections.value
+    .map((section) => `### ${section.title}\n\n${section.content}`.trim())
+    .join("\n\n")
+    .trim();
+});
+
+function withoutSummaryBlock(content: string) {
+  const withoutTaggedSummary = content
+    .replace(/\/summary\s*[\s\S]*?\s*\/summary_end/gi, "")
+    .trim();
+  const fallbackSummary = fallbackPalaceSummary(withoutTaggedSummary);
+  return fallbackSummary
+    ? withoutTaggedSummary.slice(fallbackSummary.length).trim()
+    : withoutTaggedSummary;
+}
+
+async function downloadReportPDF() {
+  if (downloadingPDF.value || !printableCurrentContent.value) return;
+  error.value = "";
+  const label = currentMeta.value.label;
+  await downloadAnalysisPdf({
+    source: pdfExportSource,
+    filename: () =>
+      `江映澄紫微-${label}-${new Date().toISOString().slice(0, 10)}.pdf`,
+    prepare: () => {
+      const parsed = parseSections(printableCurrentContent.value);
+      pdfSnapshot.value = {
+        label,
+        generatedAt: generatedAt.value,
+        sections: parsed.length
+          ? parsed
+          : [{ title: `${label}解析`, content: printableCurrentContent.value }],
+      };
+    },
+    cleanup: () => {
+      pdfSnapshot.value = null;
+    },
+    onPremiumRequired: () =>
+      premiumFeatureGate.requestFeature("report_pdf", "/report"),
+  });
+}
+
+async function resumeReportPremiumFeature() {
+  premiumFeatureGate.closeResume();
+  if (!printableCurrentContent.value) {
+    showAppWarning("原解析結果已不存在，請重新產生後再下載 PDF");
+    return;
+  }
+  await downloadReportPDF();
+}
+
+const reportActionItems = computed(() => [
+  {
+    id: "download-pdf",
+    label: "下載 PDF",
+    loadingLabel: "PDF 產生中",
+    icon: Download,
+    loading: downloadingPDF.value,
+    disabled: analyzing.value || fullRunning.value,
+    premium: true,
+  },
+  {
+    id: "reanalyze",
+    label: "重新解盤",
+    icon: RefreshCw,
+    disabled: analyzing.value || fullRunning.value || downloadingPDF.value,
+  },
+]);
+
+function handleReportAction(id: string) {
+  if (id === "download-pdf") void downloadReportPDF();
+  else if (id === "reanalyze") requestStart();
+}
 
 onMounted(async () => {
   if (import.meta.dev)
@@ -433,6 +531,11 @@ onMounted(async () => {
   await loadRecords(
     Boolean(currentIncompleteRecord.value) || interruptedStream,
   );
+  const resumedFeature = premiumFeatureGate.restoreFeature(["report_pdf"]);
+  if (resumedFeature && !printableCurrentContent.value) {
+    premiumFeatureGate.closeResume();
+    showAppWarning("原解析結果已不存在，請重新產生後再下載 PDF");
+  }
   if (interruptedStream) sessionCache.remove(analysisMarkerKey.value);
   if (query.full === "1" && (await activeAnalysis.ensureAvailable("report")))
     showFullConfirm.value = true;
@@ -459,19 +562,6 @@ function syncActiveReport() {
   analyzing.value = job.status === "running";
   fullRunning.value =
     job.status === "running" && job.metadata.fullRunning === true;
-  const restoredCategory = job.metadata.currentCategory as
-    | CategoryId
-    | undefined;
-  analyzingCategory.value = categories.some(
-    (category) => category.id === restoredCategory,
-  )
-    ? restoredCategory!
-    : job.status === "running"
-      ? activeCategory.value
-      : null;
-  receivedStreamData.value = Object.values(job.contents).some((value) =>
-    value.trim(),
-  );
   error.value = job.error || "";
 }
 
@@ -912,9 +1002,7 @@ async function runReportBatch(
   }
   analyzing.value = true;
   fullRunning.value = queue.length > 1;
-  analyzingCategory.value = queue[0] || null;
   error.value = "";
-  receivedStreamData.value = false;
   persistReportCache();
   try {
     await activeAnalysis.runBatch(
@@ -928,10 +1016,8 @@ async function runReportBatch(
       queue,
     );
     for (const category of queue) streamReceivedAt[category] = Date.now();
-    receivedStreamData.value = true;
     analyzing.value = false;
     fullRunning.value = false;
-    analyzingCategory.value = null;
     const failed =
       (activeAnalysis.active?.metadata.failedCategories as
         | CategoryId[]
@@ -955,7 +1041,6 @@ async function runReportBatch(
     }
     analyzing.value = false;
     fullRunning.value = false;
-    analyzingCategory.value = null;
     error.value = reason instanceof Error ? reason.message : "分析連線失敗";
     await loadRecords(true);
     sessionCache.remove(analysisMarkerKey.value);
@@ -1029,7 +1114,9 @@ function parseSections(content: string) {
       return;
     }
     const body = lines.join("\n").trim();
-    if (title || body)
+    const sectionIsVisible =
+      activeCategory.value !== "general" || generalSectionTitles.has(title);
+    if (sectionIsVisible && (title || body))
       result.push({
         title: decorateDaXianTitle(
           title,
@@ -1040,11 +1127,19 @@ function parseSections(content: string) {
     lines = [];
   };
   for (const line of content.split("\n")) {
-    const heading = line.trim().match(/^#{3,4}\s*(.+)$/);
+    const normalizedLine = line.trim();
+    const markdownHeading = normalizedLine.match(/^#{3,4}\s*(.+)$/);
+    const boldPalaceHeading =
+      activeCategory.value === "palace_detail"
+        ? normalizedLine.match(
+            /^\*\*((?:命|兄弟|夫妻|子女|財帛|疾厄|遷移|交友|官祿|田宅|福德|父母)宮)\*\*$/,
+          )
+        : null;
+    const heading = markdownHeading || boldPalaceHeading;
     if (heading) {
       commit();
       hasHeading = true;
-      title = heading[1]?.trim() || "";
+      title = (heading[1] || "").replace(/^\*\*|\*\*$/g, "").trim();
     } else if (hasHeading) {
       lines.push(line);
     }
@@ -1083,8 +1178,16 @@ function decorateDaXianTitle(title: string, sectionIndex: number) {
 
 function extractSummary(content: string) {
   return (
-    content.match(/\/summary\s*([\s\S]*?)\s*\/summary_end/i)?.[1]?.trim() || ""
+    content.match(/\/summary\s*([\s\S]*?)\s*\/summary_end/i)?.[1]?.trim() ||
+    fallbackPalaceSummary(content)
   );
+}
+
+function fallbackPalaceSummary(content: string) {
+  if (activeCategory.value !== "palace_detail") return "";
+  const firstSubsection = content.search(/\n\s*\n\s*[-*]\s+\*\*[^\n]+\*\*/);
+  if (firstSubsection < 0) return "";
+  return content.slice(0, firstSubsection).trim();
 }
 
 async function openDetail(section: { title: string; content: string }) {
@@ -1148,18 +1251,70 @@ async function handleLeadingBack() {
     </template>
 
     <template #actions>
-      <button
+      <AppActionMenu
         v-if="!selectedDetail && currentContent"
-        class="refresh-button"
-        type="button"
-        :disabled="analyzing || fullRunning"
-        @click="requestStart"
-      >
-        重新解盤
-        <RefreshCw :size="16" />
-      </button>
+        label="命盤解析操作"
+        :items="reportActionItems"
+        @select="handleReportAction"
+      />
       <span v-else />
     </template>
+
+    <Teleport to="body">
+      <template v-if="downloadingPDF">
+        <div
+          v-if="pdfSnapshot"
+          ref="pdfExportSource"
+          class="analysis-pdf-source report-pdf-source"
+          aria-hidden="true"
+        >
+          <main data-pdf-page>
+            <header class="analysis-pdf-heading analysis-pdf-cover glass" data-pdf-block>
+              <img src="/remove-background-logo.png" alt="" />
+              <p>江映澄紫微·命盤解析</p>
+              <h1>{{ pdfSnapshot.label }}</h1>
+              <span>{{ pdfSnapshot.generatedAt || `下載日期：${new Date().toLocaleDateString("zh-TW")}` }}</span>
+              <p class="analysis-pdf-disclaimer">本報告內容供自我探索與參考，不應取代醫療、法律或財務專業意見。</p>
+            </header>
+            <section
+              v-for="(section, index) in pdfSnapshot.sections"
+              :key="`${section.title}-${index}`"
+              class="report-card glass pdf-full-card"
+              data-pdf-block
+            >
+              <strong>{{ section.title || pdfSnapshot.label + "解析" }}</strong>
+              <aside
+                v-if="extractSummary(section.content)"
+                class="inline-summary-box pdf-summary-box"
+              >
+                <div><Sparkles :size="18" /><strong>核心小結</strong></div>
+                <MarkdownContent
+                  class="inline-summary-markdown"
+                  :source="extractSummary(section.content)"
+                />
+              </aside>
+              <MarkdownContent
+                v-if="withoutSummaryBlock(section.content)"
+                :source="withoutSummaryBlock(section.content)"
+              />
+            </section>
+          </main>
+        </div>
+        <div
+          class="analysis-pdf-overlay"
+          data-html2canvas-ignore="true"
+          role="status"
+          aria-live="polite"
+        >
+          <AppLoading
+            scope="page"
+            layout="fill"
+            :delay="0"
+            message="正在逐頁整理 PDF，請稍候…"
+          />
+        </div>
+      </template>
+    </Teleport>
 
     <div
       v-if="!selectedDetail"
@@ -1186,14 +1341,14 @@ async function handleLeadingBack() {
       v-if="
         !selectedDetail &&
         currentCategoryIsAnalyzing &&
-        (receivedStreamData || reportBackgroundProcessing)
+        (currentCategoryHasStreamData || reportBackgroundProcessing)
       "
     />
     <div
       v-if="!selectedDetail && fullRunning && !reportBackgroundProcessing"
       class="full-running"
     >
-      <Sparkles :size="15" />正在同時生成所選的命盤解析；完成的項目會立即顯示
+      <Sparkles :size="15" />正在依序生成所選的命盤解析；完成的項目會立即顯示
     </div>
 
     <main v-if="!selectedDetail" class="report-body">
@@ -1233,7 +1388,7 @@ async function handleLeadingBack() {
       </section>
 
       <AstrologyLoader
-        v-else-if="currentCategoryIsAnalyzing && !receivedStreamData"
+        v-else-if="currentCategoryIsAnalyzing && !currentCategoryHasStreamData"
         class="report-analysis-loader"
         layout="viewport"
       />
@@ -1306,7 +1461,7 @@ async function handleLeadingBack() {
           /></span>
         </button>
         <div
-          v-if="currentCategoryIsAnalyzing && receivedStreamData"
+          v-if="currentCategoryIsAnalyzing && currentCategoryHasStreamData"
           class="streaming-note"
         >
           {{
@@ -1355,6 +1510,18 @@ async function handleLeadingBack() {
             : reportContent
       "
       :label="selectedDetail ? '回到詳細內容頂端' : '回到命盤解析頂端'"
+    />
+
+    <PremiumCheckoutSheet
+      :open="showPremiumCheckout"
+      :draft="premiumCheckoutDraft"
+      @close="premiumFeatureGate.closeCheckout"
+    />
+    <PremiumFeatureResumeSheet
+      :feature="resumeFeature"
+      :loading="downloadingPDF"
+      @close="premiumFeatureGate.closeResume"
+      @confirm="resumeReportPremiumFeature"
     />
 
     <AppBottomSheet :open="showConfirm" @close="showConfirm = false">
@@ -1546,27 +1713,25 @@ async function handleLeadingBack() {
 </template>
 
 <style scoped>
-.refresh-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  justify-self: end;
-  gap: 5px;
-  width: 88px;
-  padding: 8px 0;
-  border: 0;
-  background: transparent;
+.report-pdf-source .pdf-full-card {
+  height: auto;
+  cursor: default;
+}
+.report-pdf-source .pdf-full-card > :deep(.markdown-content) {
+  margin-top: 12px;
+}
+.report-pdf-source .pdf-summary-box {
+  position: static;
+  clear: both;
+  margin: 14px 0 16px;
+  border: 2px solid rgba(107, 166, 160, 0.42);
+  background-color: rgba(107, 166, 160, 0.1);
+  box-shadow: none;
+  overflow: visible;
+}
+.report-pdf-source .pdf-summary-box > div {
   color: var(--mountain);
-  font-size: 13px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-.refresh-button:disabled {
-  cursor: wait;
-  opacity: 0.48;
-}
-.refresh-button .spinning {
-  animation: spin 0.9s linear infinite;
+  font-size: 16px;
 }
 .report-tabs {
   display: grid;

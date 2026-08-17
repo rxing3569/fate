@@ -35,6 +35,12 @@ function isPremiumCheckoutIntent(
     return false;
   if (intent.source === "qa")
     return typeof intent.question === "string" && Boolean(intent.question.trim());
+  if (intent.source === "premium_feature")
+    return (
+      ["report_pdf", "flow_pdf", "match_pdf", "match_history"].includes(
+        String(intent.feature),
+      ) && ["/report", "/flow", "/match"].includes(String(intent.returnTo))
+    );
   return (
     intent.source === "match" &&
     typeof intent.matchType === "string" &&
@@ -78,12 +84,12 @@ export function readPremiumCheckoutIntent(options: {
       intent.expiresAt <= Date.now() ||
       (options.userUuid && intent.userUuid !== options.userUuid) ||
       (options.merchantOrderNo &&
-        intent.merchantOrderNo !== options.merchantOrderNo) ||
-      (options.source && intent.source !== options.source)
+        intent.merchantOrderNo !== options.merchantOrderNo)
     ) {
       clearPremiumCheckoutIntent();
       return null;
     }
+    if (options.source && intent.source !== options.source) return null;
     return intent;
   } catch {
     clearPremiumCheckoutIntent();

@@ -5,6 +5,7 @@ interface Dimension {
   title: string
   score: number
   description: string
+  visualIndex?: number
 }
 
 const props = defineProps<{ dimensions: Dimension[] }>()
@@ -14,6 +15,7 @@ const icons = [Heart, Brain, Puzzle, MessageCircle, Shield]
 const colors = ['#b85b4b', '#e5a93b', '#24575a', '#4a90e2', '#6b4ee0']
 const itemIcon = (index: number) => icons[index % icons.length]
 const itemColor = (index: number) => colors[index % colors.length]!
+const visualIndex = (item: Dimension, fallback: number) => item.visualIndex ?? fallback
 
 const radarPoint = (axis: number, value: number) => {
   const angle = axis * Math.PI * 2 / 5 - Math.PI / 2
@@ -59,11 +61,11 @@ const radarScorePoints = computed(() => radarScores.value.map((score, axis) => r
     <div class="dimension-list">
       <article v-for="(item, index) in ordered" :key="`${item.title}-${index}`" class="dimension-card">
         <header>
-          <span class="dimension-icon" :style="{ color: itemColor(index), backgroundColor: `${itemColor(index)}18` }"><component :is="itemIcon(index)" :size="19" /></span>
+          <span class="dimension-icon" :style="{ color: itemColor(visualIndex(item, index)), backgroundColor: `${itemColor(visualIndex(item, index))}18` }"><component :is="itemIcon(visualIndex(item, index))" :size="19" /></span>
           <strong>{{ item.title }}</strong>
-          <b :style="{ color: itemColor(index) }">{{ item.score }}</b><small>/ 100</small>
+          <b :style="{ color: itemColor(visualIndex(item, index)) }">{{ item.score }}</b><small>/ 100</small>
         </header>
-        <div class="score-scale"><i :style="{ width: `${item.score}%`, background: `linear-gradient(90deg, ${itemColor(index)}, ${itemColor(index)}b3)`, boxShadow: `0 2px 5px ${itemColor(index)}3d` }" /></div>
+        <div class="score-scale"><i :style="{ width: `${item.score}%`, backgroundColor: itemColor(visualIndex(item, index)), backgroundImage: `linear-gradient(90deg, ${itemColor(visualIndex(item, index))}, ${itemColor(visualIndex(item, index))}b3)`, boxShadow: `0 2px 5px ${itemColor(visualIndex(item, index))}3d` }" /></div>
         <MarkdownContent
           v-if="item.description"
           class="dimension-copy"

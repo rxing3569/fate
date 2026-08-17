@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ChevronLeft, Coins } from "@lucide/vue";
+import { signupRewardPoints } from "~/utils/signup-reward";
 const auth = useAuthStore();
 const chartStore = useChartStore();
 const route = useRoute();
@@ -62,7 +63,9 @@ const birthDate = computed(() => {
 const birthGender = computed(() => chartStore.birthInfo?.gender || "--");
 const pointsLabel = computed(() => {
   if (!auth.sessionReady) return "- P";
-  return auth.isAuthenticated ? `${auth.points} P` : "初次註冊領取 300P";
+  return auth.isAuthenticated
+    ? `${auth.points} P`
+    : `初次註冊領取 ${signupRewardPoints()}P`;
 });
 
 const features = [

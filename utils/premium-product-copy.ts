@@ -1,6 +1,7 @@
 export const premiumBenefits = [
   "每月有 60 次解盤、問答之額度",
   "解鎖「合盤解析」、「AI 問答」等專屬功能",
+  "下載解析 PDF 報告",
 ] as const;
 
 export function premiumPromotionCopy(price: number) {

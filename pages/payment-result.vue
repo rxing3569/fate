@@ -24,9 +24,27 @@ const rejectedReturn = computed(() => route.query.result === 'invalid' || route.
 const returnStatus = computed(() => String(route.query.status || ''))
 const returnMessage = computed(() => String(route.query.message || ''))
 const productName = computed(() => order.value?.product_id === 'web.points.500' ? '500 點數' : 'Premium 月訂閱')
+const resumeDestination = computed(() => {
+  const intent = resumeIntent.value
+  if (!intent) return null
+  if (intent.source === 'premium_feature') {
+    const labels = {
+      report_pdf: '返回命盤解析',
+      flow_pdf: '返回時運解析',
+      match_pdf: '返回合盤解析',
+      match_history: '查看合盤歷史紀錄',
+    }
+    return { label: labels[intent.feature], to: intent.returnTo }
+  }
+  return intent.source === 'qa'
+    ? { label: '繼續 AI 問答', to: '/qa' }
+    : { label: '繼續合盤解析', to: '/match' }
+})
 const isPointsOrder = computed(() => order.value?.product_id === 'web.points.500')
 const successGuide = computed(() => isPointsOrder.value
   ? '點數已入帳，現在可以前往命盤解盤，或查看近期時運。'
+  : resumeIntent.value?.source === 'premium_feature'
+    ? 'Premium 已開通，返回原頁即可繼續剛才的操作。'
   : 'Premium 已開通，現在可以開始合盤解析，或使用 AI 問答。')
 const successActions = computed(() => isPointsOrder.value
   ? [
@@ -36,8 +54,8 @@ const successActions = computed(() => isPointsOrder.value
   : resumeIntent.value
     ? [
         {
-          label: resumeIntent.value.source === 'qa' ? '繼續 AI 問答' : '繼續合盤解析',
-          to: resumeIntent.value.source === 'qa' ? '/qa' : '/match',
+          label: resumeDestination.value!.label,
+          to: resumeDestination.value!.to,
         },
       ]
     : [
@@ -46,8 +64,12 @@ const successActions = computed(() => isPointsOrder.value
       ])
 const resumeAction = computed(() => resumeIntent.value
   ? {
-      label: resumeIntent.value.source === 'qa' ? '返回未完成的問題' : '返回未完成的合盤資料',
-      to: resumeIntent.value.source === 'qa' ? '/qa' : '/match',
+      label: resumeIntent.value.source === 'premium_feature'
+        ? resumeDestination.value!.label
+        : resumeIntent.value.source === 'qa'
+          ? '返回未完成的問題'
+          : '返回未完成的合盤資料',
+      to: resumeDestination.value!.to,
     }
   : null)
 

@@ -4,6 +4,7 @@ import {
   Check,
   ChevronDown,
   ChevronLeft,
+  Download,
   Heart,
   Handshake,
   History,
@@ -17,12 +18,15 @@ import {
   X,
 } from "@lucide/vue";
 import cityData from "~/data/cities.json";
-import type { PremiumCheckoutDraft } from "~/types/billing";
 import type { BirthInfo, ZiweiChartData } from "~/types/ziwei";
 import {
   clearPremiumCheckoutIntent,
   readPremiumCheckoutIntent,
 } from "~/utils/premium-checkout";
+import {
+  extractPdfSummary,
+  withoutPdfSummary,
+} from "~/utils/report-pdf.client";
 import { calculateChartFromSolar } from "~/utils/ziwei/calculator";
 import {
   earthlyBranches,
@@ -94,6 +98,8 @@ function matchTypeIcon(value?: string) {
 interface MatchSection {
   title: string;
   content: string;
+  score?: number;
+  scoreIndex?: number;
 }
 interface MatchDimension {
   title: string;
@@ -107,11 +113,22 @@ const activeAnalysis = useActiveAnalysisStore();
 const membershipReady = ref(false);
 const analyzing = ref(false);
 const analysisText = ref("");
+const matchPdfSource = ref<HTMLElement | null>(null);
+const matchPdfSnapshot = ref<{
+  label: string;
+  sections: MatchSection[];
+} | null>(null);
+const { downloading: downloadingMatchPDF, download: downloadAnalysisPdf } =
+  useAnalysisPdfDownload();
+const premiumFeatureGate = usePremiumFeatureGate();
+const {
+  showPremiumCheckout,
+  premiumCheckoutDraft,
+  resumeFeature,
+} = premiumFeatureGate;
 const showResult = ref(false);
 const error = ref("");
 const showConfirm = ref(false);
-const showPremiumCheckout = ref(false);
-const premiumCheckoutDraft = ref<PremiumCheckoutDraft | null>(null);
 const restoredBirthInfo = ref<BirthInfo | null>(null);
 const birthFormKey = ref(0);
 const showHistory = ref(false);
@@ -221,6 +238,14 @@ onMounted(async () => {
     }
     if (!isDevMockAnalysis()) await loadIncompleteMatchTasks();
     restorePremiumCheckout();
+    const resumedFeature = premiumFeatureGate.restoreFeature([
+      "match_pdf",
+      "match_history",
+    ]);
+    if (resumedFeature === "match_pdf" && !analysisText.value.trim()) {
+      premiumFeatureGate.closeResume();
+      showAppWarning("原解析結果已不存在，請重新產生後再下載 PDF");
+    }
     await nextTick();
   } finally {
     membershipReady.value = true;
@@ -643,6 +668,49 @@ function parseSections(content: string): MatchSection[] {
   return result;
 }
 
+function parsePdfSections(content: string): MatchSection[] {
+  if (!content.trim()) return [];
+  const dimensions = parseDimensions(content);
+  const result: MatchSection[] = [];
+  let parentTitle = "";
+  let title = "";
+  let lines: string[] = [];
+  const commit = () => {
+    const body = lines.join("\n").trim();
+    const sectionTitle = title || parentTitle;
+    if (body && sectionTitle !== "分數") {
+      const dimension = dimensions.find(
+        (item) => item.title.trim() === sectionTitle.trim(),
+      );
+      result.push({
+        title: sectionTitle,
+        content: body,
+        score: dimension?.score,
+        scoreIndex: dimension ? dimensions.indexOf(dimension) : undefined,
+      });
+    }
+    lines = [];
+  };
+
+  for (const line of content.split("\n")) {
+    const heading = line.trim().match(/^(##|###)\s+(.+)/);
+    if (!heading) {
+      lines.push(line);
+      continue;
+    }
+
+    commit();
+    if (heading[1] === "##") {
+      parentTitle = heading[2]!.trim();
+      title = parentTitle;
+    } else {
+      title = heading[2]!.trim();
+    }
+  }
+  commit();
+  return result;
+}
+
 function parseDimensions(content: string): MatchDimension[] {
   const listedDimensions = content
     .split("\n")
@@ -806,6 +874,78 @@ function formatDate(raw?: string, utc = false) {
   });
 }
 
+async function downloadMatchPDF() {
+  if (downloadingMatchPDF.value || analyzing.value || !analysisText.value.trim())
+    return;
+  const content = analysisText.value.trim();
+  await downloadAnalysisPdf({
+    source: matchPdfSource,
+    filename: () =>
+      `江映澄紫微-${matchTypeLabel(selectedMatchType.value)}-${new Date().toISOString().slice(0, 10)}.pdf`,
+    prepare: () => {
+      const parsed = parsePdfSections(content);
+      matchPdfSnapshot.value = {
+        label: matchTypeLabel(selectedMatchType.value),
+        sections: parsed.length
+          ? parsed
+          : [{ title: "合盤解析", content }],
+      };
+    },
+    cleanup: () => {
+      matchPdfSnapshot.value = null;
+    },
+    onPremiumRequired: () =>
+      premiumFeatureGate.requestFeature("match_pdf", "/match"),
+  });
+}
+
+async function resumeMatchPremiumFeature() {
+  const feature = resumeFeature.value;
+  premiumFeatureGate.closeResume();
+  if (feature === "match_history") {
+    await openHistoryDrawer();
+    return;
+  }
+  if (feature === "match_pdf") {
+    if (!analysisText.value.trim()) {
+      showAppWarning("原解析結果已不存在，請重新產生後再下載 PDF");
+      return;
+    }
+    await downloadMatchPDF();
+  }
+}
+
+const matchActionItems = computed(() => [
+  {
+    id: "download-pdf",
+    label: "下載 PDF",
+    loadingLabel: "PDF 產生中",
+    icon: Download,
+    loading: downloadingMatchPDF.value,
+    disabled: analyzing.value || !showResult.value || !analysisText.value.trim(),
+    premium: true,
+  },
+  {
+    id: "history",
+    label: "歷史紀錄",
+    icon: History,
+    premium: true,
+  },
+]);
+
+async function handleMatchAction(id: string) {
+  if (id === "download-pdf") {
+    await downloadMatchPDF();
+    return;
+  }
+  if (id !== "history") return;
+  if (!auth.premium) {
+    premiumFeatureGate.requestFeature("match_history", "/match");
+    return;
+  }
+  await openHistoryDrawer();
+}
+
 async function goBack() {
   if (analyzing.value) {
     showAnalysisRunningSnackbar();
@@ -839,16 +979,73 @@ async function goBack() {
       </button>
     </template>
     <template #actions>
-      <button
-        class="icon-button match-history-button"
-        type="button"
-        aria-label="合盤歷史紀錄"
-        :disabled="!auth.premium"
-        @click="openHistoryDrawer"
-      >
-        <History :size="21" />
-      </button>
+      <AppActionMenu
+        label="合盤解析操作"
+        :items="matchActionItems"
+        @select="handleMatchAction"
+      />
     </template>
+    <Teleport to="body">
+      <template v-if="downloadingMatchPDF">
+        <div
+          v-if="matchPdfSnapshot"
+          ref="matchPdfSource"
+          class="analysis-pdf-source match-pdf-source"
+          aria-hidden="true"
+        >
+          <main data-pdf-page>
+            <header class="analysis-pdf-heading analysis-pdf-cover glass" data-pdf-block>
+              <img src="/remove-background-logo.png" alt="" />
+              <p>江映澄紫微·合盤解析</p>
+              <h1>{{ matchPdfSnapshot.label }}</h1>
+              <span>分析生成時間：{{ new Date().toLocaleString("zh-TW", { hour12: false }) }}</span>
+              <p class="analysis-pdf-disclaimer">本報告內容供自我探索與參考，不應取代醫療、法律或財務專業意見。</p>
+            </header>
+            <details
+              v-for="(section, index) in matchPdfSnapshot.sections"
+              :key="`${section.title}-${index}`"
+              class="match-card glass pdf-match-card"
+              data-pdf-block
+              data-pdf-new-page
+              open
+            >
+              <summary><strong>{{ section.title || "合盤解析" }}</strong></summary>
+              <aside
+                v-if="!isScoreSection(section) && extractPdfSummary(section.content)"
+                class="analysis-pdf-summary"
+              >
+                <header><Sparkles :size="18" /><strong>核心小結</strong></header>
+                <MarkdownContent
+                  :source="extractPdfSummary(section.content)"
+                  :report-formatting="false"
+                />
+              </aside>
+              <div v-if="section.score !== undefined" class="quick-match">
+                <MatchScoreOverview
+                  :dimensions="[{ title: section.title, score: section.score, description: '', visualIndex: section.scoreIndex }]"
+                />
+              </div>
+              <div v-if="isScoreSection(section)" class="quick-match">
+                <MatchScoreOverview :dimensions="parseDimensions(section.content)" />
+              </div>
+              <MarkdownContent
+                v-if="!isScoreSection(section) && withoutPdfSummary(section.content)"
+                :source="withoutPdfSummary(section.content)"
+                :report-formatting="false"
+              />
+            </details>
+          </main>
+        </div>
+        <div
+          class="analysis-pdf-overlay"
+          data-html2canvas-ignore="true"
+          role="status"
+          aria-live="polite"
+        >
+          <AppLoading scope="page" layout="fill" :delay="0" message="正在整理合盤 PDF，請稍候…" />
+        </div>
+      </template>
+    </Teleport>
     <AnalysisProgressBar v-if="analyzing && !matchBackgroundProcessing" />
 
     <main
@@ -1003,7 +1200,13 @@ async function goBack() {
     <PremiumCheckoutSheet
       :open="showPremiumCheckout"
       :draft="premiumCheckoutDraft"
-      @close="showPremiumCheckout = false"
+      @close="premiumFeatureGate.closeCheckout"
+    />
+    <PremiumFeatureResumeSheet
+      :feature="resumeFeature"
+      :loading="downloadingMatchPDF || historyLoading"
+      @close="premiumFeatureGate.closeResume"
+      @confirm="resumeMatchPremiumFeature"
     />
 
     <Transition name="drawer">
@@ -1137,6 +1340,17 @@ async function goBack() {
 </template>
 
 <style scoped>
+.match-pdf-source .pdf-match-card {
+  height: auto;
+  margin-bottom: 18px;
+  overflow: visible;
+}
+.match-pdf-source .pdf-match-card summary {
+  cursor: default;
+}
+.match-pdf-source .pdf-match-card summary::marker {
+  content: "";
+}
 .match-screen {
   position: relative;
 }
@@ -1146,13 +1360,6 @@ async function goBack() {
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
-}
-.match-history-button {
-  justify-self: end;
-}
-.match-history-button:disabled {
-  opacity: 0.28;
-  cursor: default;
 }
 .match-body,
 .result-body {

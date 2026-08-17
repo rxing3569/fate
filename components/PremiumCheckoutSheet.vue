@@ -198,9 +198,6 @@ async function purchase() {
         <small v-if="payerEmailError">{{ payerEmailError }}</small>
       </div>
 
-      <p class="premium-renewal-copy">
-        {{ premiumRenewalCopy }}
-      </p>
       <p class="premium-information-copy">
         {{ hostedPaymentCopy }}
       </p>

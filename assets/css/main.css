@@ -6,6 +6,161 @@
   font-display: block;
 }
 
+.analysis-pdf-source {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2147483646;
+  box-sizing: border-box;
+  width: 794px;
+  min-height: 1123px;
+  padding: 26px 20px;
+  background: var(--mist, #f7faf6);
+  color: var(--mountain, #24575a);
+  font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 15px;
+  line-height: 1.75;
+  pointer-events: none;
+}
+.analysis-pdf-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(247, 250, 246, 0.96);
+}
+.analysis-pdf-heading {
+  margin-bottom: 18px;
+  padding: 24px;
+  border-radius: 30px;
+}
+.analysis-pdf-cover {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 1000px;
+  margin-bottom: 0;
+  padding: 72px 56px;
+  text-align: center;
+}
+.analysis-pdf-cover img {
+  width: 148px;
+  height: 148px;
+  margin-bottom: 32px;
+  object-fit: contain;
+}
+.analysis-pdf-cover p {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.analysis-pdf-heading.analysis-pdf-cover h1,
+.analysis-pdf-heading.analysis-pdf-cover h2,
+.analysis-pdf-source .flow-pdf-heading.analysis-pdf-cover h2 {
+  margin: 16px 0 22px;
+  color: var(--mountain);
+  font-size: 34px;
+  line-height: 1.3;
+}
+.analysis-pdf-cover span,
+.analysis-pdf-cover small {
+  color: var(--text-soft);
+  font-size: 14px;
+}
+.analysis-pdf-cover .analysis-pdf-disclaimer {
+  width: min(100%, 540px);
+  margin: 52px auto 0;
+  padding-top: 20px;
+  border-top: 1px solid rgba(36, 87, 90, 0.2);
+  color: rgba(36, 87, 90, 0.72);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.8;
+  letter-spacing: 0;
+}
+.analysis-pdf-heading p,
+.analysis-pdf-heading span {
+  display: block;
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 13px;
+}
+.analysis-pdf-heading h1 {
+  margin: 4px 0 8px;
+  color: var(--mountain);
+  font-size: 26px;
+  line-height: 1.3;
+}
+.analysis-pdf-footer {
+  margin-top: 24px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+  color: var(--text-soft);
+  font-size: 13px;
+}
+.analysis-pdf-source,
+.analysis-pdf-source * {
+  background-image: none !important;
+}
+.analysis-pdf-source *::before,
+.analysis-pdf-source *::after {
+  background-image: none !important;
+}
+.analysis-pdf-source .glass {
+  border: 1px solid rgba(36, 87, 90, 0.16);
+  background-color: #fff !important;
+  box-shadow: 0 6px 18px rgba(36, 87, 90, 0.07);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.analysis-pdf-source .glass::before {
+  display: none;
+}
+.analysis-pdf-summary {
+  position: static !important;
+  display: block;
+  clear: both;
+  break-inside: avoid;
+  margin: 0 0 16px;
+  padding: 16px 18px;
+  border: 2px solid rgba(107, 166, 160, 0.42);
+  border-radius: 18px;
+  background-color: rgba(107, 166, 160, 0.1);
+  overflow: visible;
+}
+.analysis-pdf-summary > header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  color: var(--mountain);
+  font-size: 14px;
+}
+.analysis-pdf-source [data-pdf-block] > strong,
+.analysis-pdf-source details > summary strong {
+  font-size: 15px;
+}
+.analysis-pdf-source .markdown-content {
+  font-size: 14.5px !important;
+}
+.analysis-pdf-source .markdown-content h1 {
+  font-size: 20px !important;
+}
+.analysis-pdf-source .markdown-content h2 {
+  font-size: 18px !important;
+}
+.analysis-pdf-source .markdown-content h3,
+.analysis-pdf-source .markdown-content h4 {
+  font-size: 16px !important;
+}
+.analysis-pdf-source .score-scale i {
+  background-image: none !important;
+  transition: none !important;
+}
+
 :root {
   --paper: #f7f3ea;
   --paper-deep: #ede6d8;
