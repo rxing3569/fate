@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import { Pencil } from "@lucide/vue";
+import { Check, Copy, Pencil } from "@lucide/vue";
+import {
+  earthlyBranches,
+  getXiaoXianAges,
+  palaceNameForBranch,
+} from "~/utils/ziwei/core";
+import { majorStarBrightness, majorStars } from "~/utils/ziwei/stars";
 
 const chartStore = useChartStore();
+const isDevMode = import.meta.dev;
 const chartHydrated = ref(false);
 const checkingReport = ref(false);
 const showAnalysisSelection = ref(false);
 const message = ref("");
+const devCopyState = ref<"idle" | "copied" | "failed">("idle");
 type CategoryId = "general" | "palace_detail" | "ten_year";
 const selectedCategories = ref<CategoryId[]>([
   "general",
@@ -136,6 +144,88 @@ async function editChart() {
   }
   await navigateTo(chartFormTarget.value);
 }
+
+function buildDevChartPrompt() {
+  const chart = chartStore.chart;
+  if (!chart) return "";
+  const palaceSections = earthlyBranches.map((branch) => {
+    let name = palaceNameForBranch(chart, branch);
+    const isBodyPalace = branch === chart.bodyPalaceBranch;
+    const stars = chart.palaceStars[branch] || [];
+    const branchIndex = earthlyBranches.indexOf(branch);
+    const major = stars.filter((star) => majorStars.includes(star));
+    const minor = stars.filter((star) => !majorStars.includes(star));
+    const majorLabels = major.map((star) => {
+      const brightness = majorStarBrightness[star]?.[branchIndex] || "";
+      const transformation = chart.palaceSiHua[star] || "";
+      return `${star}${brightness}${transformation ? `・${transformation}` : ""}`;
+    });
+    const transformed = stars
+      .filter((star) => chart.palaceSiHua[star])
+      .map((star) => `${star}${chart.palaceSiHua[star]}`);
+    const daXian = chart.palaceDaXian[branch] || null;
+    const xiaoXian = getXiaoXianAges(chart, branch);
+    const gods = [
+      chart.palaceChangSheng[branch]
+        ? `長生十二神：${chart.palaceChangSheng[branch]}`
+        : "",
+      chart.palaceBoShi[branch]
+        ? `博士十二神：${chart.palaceBoShi[branch]}`
+        : "",
+      chart.palaceSuiJian[branch]
+        ? `歲建十二神：${chart.palaceSuiJian[branch]}`
+        : "",
+      chart.palaceJiangQian[branch]
+        ? `將前十二神：${chart.palaceJiangQian[branch]}`
+        : "",
+    ].filter(Boolean);
+    return `【${name}｜${branch}${isBodyPalace ? "｜身宮所在" : ""}】
+主星：${majorLabels.length ? majorLabels.join("、") : "無主星（空宮）"}
+其他星曜：${minor.length ? minor.join("、") : "無"}
+生年四化：${transformed.length ? transformed.join("、") : "無"}
+十二神：${gods.length ? gods.join("；") : "無"}
+大限：${daXian ? `${daXian[0]}–${daXian[1]} 歲` : "未提供"}
+小限歲數：${xiaoXian.length ? xiaoXian.join("、") : "未提供"}`;
+  });
+  const transformations = Object.entries(chart.palaceSiHua)
+    .map(([star, label]) => `${star}${label}`)
+    .join("、");
+  return `【紫微斗數本命盤資料】
+性別：${chart.gender}
+陽曆：${chart.solarYear}年${chart.solarMonth}月${chart.solarDay}日
+農曆：${chart.lunarYear}年${chart.lunarMonth}月${chart.lunarDay}日
+干支時辰：${chart.yearStem || ""}${chart.yearBranch || ""}年・${chart.timeBranch}時
+真太陽時：${chart.trueSolarTime || "未校正／未提供"}
+五行局：${chart.bureau?.name || "未知"}
+命宮位置：${chart.destinyPalaceBranch || "未知"}
+身宮位置：${chart.bodyPalaceBranch || "未知"}（${chart.bodyPalaceBranch ? palaceNameForBranch(chart, chart.bodyPalaceBranch) : "未知宮位"}）
+生年四化：${transformations || "未提供"}
+
+${palaceSections.join("\n\n")}`;
+}
+
+async function copyDevChartPayload() {
+  if (!import.meta.dev) return;
+  const text = buildDevChartPrompt();
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    devCopyState.value = "copied";
+  } catch {
+    const helper = document.createElement("textarea");
+    helper.value = text;
+    helper.setAttribute("readonly", "");
+    helper.style.position = "fixed";
+    helper.style.opacity = "0";
+    document.body.appendChild(helper);
+    helper.select();
+    devCopyState.value = document.execCommand("copy") ? "copied" : "failed";
+    helper.remove();
+  }
+  window.setTimeout(() => {
+    devCopyState.value = "idle";
+  }, 2400);
+}
 </script>
 
 <template>
@@ -146,9 +236,23 @@ async function editChart() {
     show-back
   >
     <template #actions>
-      <button class="edit-link" type="button" @click="editChart">
-        修改命盤 <Pencil :size="16" aria-hidden="true" />
-      </button>
+      <div class="chart-actions">
+        <button
+          v-if="isDevMode"
+          class="dev-copy-chart"
+          type="button"
+          :disabled="!chartStore.chart"
+          :aria-label="devCopyState === 'copied' ? 'Prompt 命盤資料已複製' : '複製 Prompt 命盤資料'"
+          @click="copyDevChartPayload"
+        >
+          <Check v-if="devCopyState === 'copied'" :size="16" aria-hidden="true" />
+          <Copy v-else :size="16" aria-hidden="true" />
+          {{ devCopyState === "copied" ? "已複製" : devCopyState === "failed" ? "複製失敗" : "複製 Prompt" }}
+        </button>
+        <button class="edit-link" type="button" @click="editChart">
+          修改命盤 <Pencil :size="16" aria-hidden="true" />
+        </button>
+      </div>
     </template>
     <p v-if="message" class="chart-message" role="alert">{{ message }}</p>
     <main class="chart-content">
@@ -254,6 +358,42 @@ async function editChart() {
   height: 100svh;
   min-height: 0;
   overflow: hidden;
+}
+
+.chart-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.dev-copy-chart {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 94px;
+  height: 34px;
+  padding: 0 11px;
+  border: 1px dashed rgba(184, 91, 75, 0.55);
+  border-radius: 10px;
+  background: rgba(184, 91, 75, 0.08);
+  color: var(--cinnabar);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dev-copy-chart:hover:not(:disabled) {
+  background: rgba(184, 91, 75, 0.14);
+}
+.dev-copy-chart:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.dev-copy-chart:focus-visible {
+  outline: 3px solid rgba(184, 91, 75, 0.25);
+  outline-offset: 2px;
 }
 
 .edit-link {

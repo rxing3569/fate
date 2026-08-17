@@ -13,11 +13,40 @@ import {
   targetLabels,
 } from "./analysis-fixtures";
 import { useDevAnalysisSimulator } from "./useDevAnalysisSimulator";
+import {
+  showAppError,
+  showAppInfo,
+  showAppSuccess,
+  showAppWarning,
+} from "~/utils/app-snackbar";
 
 const open = ref(false);
 const panel = ref<HTMLElement | null>(null);
 const trigger = ref<HTMLButtonElement | null>(null);
 const simulator = useDevAnalysisSimulator();
+
+const snackbarFixtures = [
+  {
+    label: "資訊",
+    type: "info",
+    show: () => showAppInfo("這是一則 DEV 資訊提示，用來確認一般 Snackbar 顯示。"),
+  },
+  {
+    label: "成功",
+    type: "success",
+    show: () => showAppSuccess("模擬操作已成功完成。"),
+  },
+  {
+    label: "警告",
+    type: "warning",
+    show: () => showAppWarning("這是一則 DEV 警告提示，請確認提醒樣式。"),
+  },
+  {
+    label: "錯誤",
+    type: "error",
+    show: () => showAppError("模擬服務發生錯誤，請稍後再試。"),
+  },
+] as const;
 
 const selectedScenarioLabel = computed(
   () =>
@@ -102,6 +131,21 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleKeydown));
         <button class="dev-apply" type="button" @click="simulator.apply">
           套用「{{ selectedScenarioLabel }}」
         </button>
+
+        <fieldset>
+          <legend>Snackbar</legend>
+          <div class="dev-snackbar-grid">
+            <button
+              v-for="fixture in snackbarFixtures"
+              :key="fixture.type"
+              type="button"
+              :class="`is-${fixture.type}`"
+              @click="fixture.show"
+            >
+              {{ fixture.label }}
+            </button>
+          </div>
+        </fieldset>
 
         <p v-if="simulator.panelError.value" class="dev-panel-error" role="alert">
           {{ simulator.panelError.value }}
@@ -314,6 +358,27 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleKeydown));
   grid-template-columns: repeat(2, 1fr);
   gap: 7px;
 }
+
+.dev-snackbar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7px;
+}
+
+.dev-snackbar-grid button {
+  min-height: 38px;
+  border: 1px solid #4a5562;
+  border-radius: 10px;
+  color: inherit;
+  background: #2b323a;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dev-snackbar-grid .is-info { border-color: #38bdf8; }
+.dev-snackbar-grid .is-success { border-color: #4ade80; }
+.dev-snackbar-grid .is-warning { border-color: #facc15; }
+.dev-snackbar-grid .is-error { border-color: #f87171; }
 
 .dev-target-grid button,
 .dev-apply,

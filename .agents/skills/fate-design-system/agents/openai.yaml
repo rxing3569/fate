@@ -1,0 +1,6 @@
+interface:
+  display_name: "Fate Design System"
+  short_description: "Apply Fate front-end tokens and reusable Vue components"
+  default_prompt: "Use $fate-design-system to implement this front-end change with existing tokens and reusable components."
+policy:
+  allow_implicit_invocation: false

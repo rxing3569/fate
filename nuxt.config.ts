@@ -27,8 +27,6 @@ const articlePrerenderRoutes = [
   "ten-year-fortune",
 ].map((slug) => `/articles/${slug}/`);
 
-const cmsPrerenderRoutes = ["/cms/"];
-
 export default defineNuxtConfig({
   compatibilityDate: "2025-01-01",
   ssr: true,
@@ -52,7 +50,6 @@ export default defineNuxtConfig({
         .concat(
           learningPrerenderRoutes,
           articlePrerenderRoutes,
-          cmsPrerenderRoutes,
         ),
     },
   },
@@ -83,12 +80,12 @@ export default defineNuxtConfig({
     "/report-detail": { ssr: false, prerender: false },
     "/cms": {
       ssr: false,
-      prerender: true,
+      prerender: false,
       headers: { "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet" },
     },
     "/cms/**": {
       ssr: false,
-      prerender: true,
+      prerender: false,
       headers: { "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet" },
     },
   },
@@ -102,6 +99,8 @@ export default defineNuxtConfig({
   },
   sitemap: {
     exclude: [
+      "/cms",
+      "/cms/",
       "/cms/**",
       "/chart",
       "/flow",

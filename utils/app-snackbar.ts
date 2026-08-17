@@ -2,10 +2,11 @@ export const APP_SNACKBAR_EVENT = "fate:app-snackbar";
 
 export interface AppSnackbarOptions {
   message: string;
-  type?: "error" | "info";
+  type?: "success" | "info" | "warning" | "error";
   title?: string;
   actionLabel?: string;
   actionTo?: string;
+  action?: () => void | Promise<void>;
   duration?: number;
 }
 
@@ -21,6 +22,20 @@ export function showAppInfo(
   options: Omit<AppSnackbarOptions, "message" | "type"> = {},
 ) {
   showAppSnackbar({ ...options, message, type: "info" });
+}
+
+export function showAppSuccess(
+  message: string,
+  options: Omit<AppSnackbarOptions, "message" | "type"> = {},
+) {
+  showAppSnackbar({ ...options, message, type: "success" });
+}
+
+export function showAppWarning(
+  message: string,
+  options: Omit<AppSnackbarOptions, "message" | "type"> = {},
+) {
+  showAppSnackbar({ ...options, message, type: "warning" });
 }
 
 export function showAppError(

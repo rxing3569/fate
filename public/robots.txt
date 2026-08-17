@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /cms
+Disallow: /cms/
+
+Sitemap: https://www.fatejyc.com/sitemap.xml

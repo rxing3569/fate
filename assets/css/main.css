@@ -19,6 +19,56 @@
   --line: rgba(36, 87, 90, 0.16);
   --layer-navigation: 30;
   --layer-bottom-sheet: 80;
+  --color-bg-canvas: var(--paper);
+  --color-bg-subtle: var(--paper-deep);
+  --color-surface: rgba(255, 255, 255, 0.62);
+  --color-surface-strong: rgba(255, 255, 255, 0.86);
+  --color-brand-primary: var(--mountain);
+  --color-brand-secondary: var(--jade);
+  --color-text-primary: var(--mountain);
+  --color-text-secondary: var(--text-soft);
+  --color-accent-tea: var(--tea);
+  --color-accent-gold: var(--gold);
+  --color-danger: var(--cinnabar);
+  --color-success: var(--jade);
+  --color-warning: var(--tea);
+  --color-info: var(--jade);
+  --color-border: var(--line);
+  --color-border-strong: rgba(36, 87, 90, 0.28);
+  --color-focus: rgba(36, 87, 90, 0.34);
+  --font-size-caption: 12px;
+  --font-size-body-sm: 14px;
+  --font-size-body: 16px;
+  --font-size-heading: 20px;
+  --font-size-title: 28px;
+  --font-size-display: 40px;
+  --font-weight-regular: 400;
+  --font-weight-medium: 600;
+  --font-weight-bold: 800;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+  --shadow-raised: 0 16px 28px rgba(36, 87, 90, 0.08);
+  --shadow-floating: 0 16px 38px rgba(36, 87, 90, 0.2);
+  --shadow-focus: 0 0 0 3px var(--color-focus);
+  --layer-content: 0;
+  --layer-sticky: 12;
+  --layer-overlay: var(--layer-bottom-sheet);
+  --layer-snackbar: 1000;
+  --motion-fast: 120ms;
+  --motion-base: 220ms;
+  --motion-slow: 320ms;
+  --ease-standard: ease;
+  --ease-emphasized: cubic-bezier(0.22, 0.8, 0.25, 1);
   font-family:
     -apple-system, BlinkMacSystemFont, "Noto Sans TC", "PingFang TC",
     "Microsoft JhengHei", sans-serif;
@@ -74,6 +124,11 @@ a {
 }
 button {
   cursor: pointer;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 .app-shell {

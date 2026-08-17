@@ -177,8 +177,6 @@ async function purchase() {
           ><small>/月</small>
         </p>
       </div>
-      <p class="premium-daily-price">約 NT$9/日</p>
-
       <ul class="premium-benefits">
         <li v-for="benefit in premiumBenefits" :key="benefit">
           <BadgeCheck :size="18" />{{ benefit }}
@@ -296,18 +294,6 @@ async function purchase() {
 .premium-price-row p small {
   color: var(--text-soft);
   font-weight: 700;
-}
-.premium-daily-price {
-  width: max-content;
-  margin: -4px 2px 0 auto !important;
-  padding: 3px 8px;
-  border: 1px solid rgba(107, 166, 160, 0.32);
-  border-radius: 999px;
-  background: rgba(107, 166, 160, 0.14);
-  color: var(--mountain);
-  font-size: 10px;
-  font-weight: 850;
-  line-height: 1.2;
 }
 .premium-benefits {
   display: grid;

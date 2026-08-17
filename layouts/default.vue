@@ -235,7 +235,7 @@ function isTabActive(path: string) {
 <template>
   <div class="app-shell">
     <PwaPrompt />
-    <ApiErrorSnackbar />
+    <AppSnackbarHost />
     <OfflineStatusBanner />
     <main
       ref="appMain"

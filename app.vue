@@ -20,7 +20,7 @@ const privateRoutes = new Set([
 ])
 const normalizedPath = computed(() => route.path.replace(/\/$/, '') || '/')
 useSeoMeta({
-  robots: () => privateRoutes.has(normalizedPath.value)
+  robots: () => privateRoutes.has(normalizedPath.value) || normalizedPath.value.startsWith('/cms/')
     ? 'noindex, nofollow'
     : 'index, follow',
   ogImage: 'https://www.fatejyc.com/og.png',

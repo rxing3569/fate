@@ -16,6 +16,46 @@ let dragStartY = 0;
 let dragStartedAt = 0;
 let suppressClick = false;
 let dragTarget: HTMLElement | null = null;
+let opener: HTMLElement | null = null;
+
+const focusableSelector = [
+  "button:not([disabled])",
+  "a[href]",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
+
+function focusSheet() {
+  const target = sheet.value?.querySelector<HTMLElement>(focusableSelector) || sheet.value;
+  target?.focus();
+}
+
+function handleDocumentKeydown(event: KeyboardEvent) {
+  if (!props.open) return;
+  if (event.key === "Escape" && !props.locked) {
+    event.preventDefault();
+    emit("close");
+    return;
+  }
+  if (event.key !== "Tab" || !sheet.value) return;
+  const focusable = Array.from(sheet.value.querySelectorAll<HTMLElement>(focusableSelector));
+  if (!focusable.length) {
+    event.preventDefault();
+    sheet.value.focus();
+    return;
+  }
+  const first = focusable[0];
+  const last = focusable.at(-1)!;
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
 
 function closeFromBackdrop() {
   if (!props.closeOnBackdrop || props.locked) return;
@@ -145,11 +185,20 @@ function removeViewportListeners() {
 
 watch(
   () => props.open,
-  (value) => {
-    if (value) addViewportListeners();
+  async (value) => {
+    if (value) {
+      opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      addViewportListeners();
+      document.addEventListener("keydown", handleDocumentKeydown);
+      await nextTick();
+      focusSheet();
+    }
     else {
       resetDrag();
       removeViewportListeners();
+      document.removeEventListener("keydown", handleDocumentKeydown);
+      opener?.focus();
+      opener = null;
     }
   },
 );
@@ -160,6 +209,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   resetDrag();
   removeViewportListeners();
+  document.removeEventListener("keydown", handleDocumentKeydown);
 });
 </script>
 
@@ -193,7 +243,9 @@ onBeforeUnmount(() => {
           ]"
           :style="{ '--sheet-drag-y': `${dragOffset}px` }"
           :role="role"
+          tabindex="-1"
           aria-modal="true"
+          :aria-busy="locked || undefined"
           :aria-labelledby="labelledby"
         >
           <div
@@ -321,23 +373,30 @@ onBeforeUnmount(() => {
   line-height: 1.6;
 }
 @media (min-width: 760px) {
+  .app-bottom-sheet-backdrop {
+    align-items: center;
+    padding: var(--space-6);
+  }
   .app-bottom-sheet-backdrop.has-primary-navigation {
     padding-left: 88px;
   }
   .app-bottom-sheet {
     width: min(644px, calc(100vw - 124px));
+    max-height: min(720px, calc(100dvh - 48px));
+    padding: var(--space-6);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-floating);
+    transform: none;
   }
-}
-@media (min-width: 1180px) {
-  .app-bottom-sheet-backdrop.has-primary-navigation {
-    justify-content: flex-start;
-    padding-left: 0;
+  .app-bottom-sheet .sheet-handle {
+    display: none;
   }
-  .app-bottom-sheet {
-    width: 644px;
+  .app-bottom-sheet-content {
+    padding-bottom: 0;
   }
-  .app-bottom-sheet-backdrop.has-primary-navigation .app-bottom-sheet {
-    margin-left: calc(260px + max(24px, (100vw - 940px) / 2 - 80px) + 18px);
+  .sheet-enter-from .app-bottom-sheet,
+  .sheet-leave-to .app-bottom-sheet {
+    transform: translateY(var(--space-3)) scale(.98) !important;
   }
 }
 </style>

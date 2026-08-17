@@ -315,7 +315,6 @@ const money = (amount: number) => `NT$${amount}`;
               <span>{{ money(premiumProduct.price) }}<small>/月</small></span>
             </b>
           </div>
-          <p class="daily-price-copy">約 NT$9/日</p>
           <div class="divider" />
           <ul>
             <li v-for="benefit in premiumBenefits" :key="benefit">
@@ -326,9 +325,6 @@ const money = (amount: number) => `NT$${amount}`;
             <Sparkles :size="16" />{{
               premiumPromotionCopy(premiumProduct.price)
             }}
-          </p>
-          <p class="renewal-note">
-            <Info :size="16" />{{ premiumRenewalCopy }}
           </p>
           <p v-if="auth.premium" class="active-note">
             <BadgeCheck :size="17" />您正在使用此方案，享有所有專屬功能！
@@ -363,10 +359,9 @@ const money = (amount: number) => `NT$${amount}`;
 
         <section class="purchase-policy">
           <h2>關於購買與權益</h2>
+          <p>{{ premiumRenewalCopy }}</p>
+          <p>Premium 每月之額度於每月一號重置。</p>
           <a href="/privacy-pwa" target="_blank" rel="noopener">隱私權政策</a>
-          <p>
-            本站服務使用「藍新金流」，付款將於「藍新安全頁面」完成，本站不保存信用卡資料。
-          </p>
         </section>
       </template>
     </main>
@@ -593,7 +588,6 @@ const money = (amount: number) => `NT$${amount}`;
   background: var(--jade);
   content: "";
 }
-.renewal-note,
 .plan-note,
 .active-note {
   display: grid;
@@ -608,10 +602,6 @@ const money = (amount: number) => `NT$${amount}`;
   font-size: 11.5px;
   font-weight: 600;
   line-height: 1.55;
-}
-.renewal-note {
-  border-color: rgba(107, 166, 160, 0.22);
-  background: rgba(107, 166, 160, 0.1);
 }
 .active-note {
   border-color: rgba(107, 166, 160, 0.18);
@@ -658,18 +648,6 @@ const money = (amount: number) => `NT$${amount}`;
 .price-badge small {
   font-size: 10px;
 }
-.daily-price-copy {
-  width: max-content;
-  margin: 7px 2px 0 auto;
-  padding: 3px 8px;
-  border: 1px solid rgba(107, 166, 160, 0.32);
-  border-radius: 999px;
-  background: rgba(107, 166, 160, 0.14);
-  color: var(--mountain);
-  font-size: 10px;
-  font-weight: 850;
-  line-height: 1.2;
-}
 .early-bird-copy {
   display: grid;
   grid-template-columns: 18px 1fr;
@@ -690,30 +668,46 @@ const money = (amount: number) => `NT$${amount}`;
 }
 .purchase-policy {
   margin-top: 26px;
+  padding: 16px;
+  border: 1px solid rgba(36, 87, 90, 0.12);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 10px 28px rgba(36, 87, 90, 0.06);
 }
 .purchase-policy h2 {
-  margin: 0 0 9px;
+  margin: 0 0 12px;
   font-size: 16px;
 }
 .purchase-policy a,
 .purchase-policy p {
   display: block;
-  margin: 0 0 8px;
-  padding-left: 16px;
+  margin: 0 0 9px;
+  padding: 11px 13px 11px 30px;
+  border: 1px solid rgba(107, 166, 160, 0.16);
+  border-radius: 13px;
+  background: rgba(247, 250, 246, 0.82);
   color: var(--mountain);
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.6;
 }
 .purchase-policy a {
+  margin-bottom: 0;
   font-weight: 800;
   text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .purchase-policy a::before,
 .purchase-policy p::before {
-  margin-left: -16px;
+  margin-left: -17px;
   margin-right: 9px;
   content: "•";
+  color: var(--jade);
   font-weight: 800;
+}
+.purchase-policy a:hover,
+.purchase-policy a:focus-visible {
+  border-color: rgba(107, 166, 160, 0.38);
+  background: rgba(107, 166, 160, 0.13);
 }
 .purchase-sheet {
   width: 100%;
