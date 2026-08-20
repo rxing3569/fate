@@ -21,12 +21,11 @@ const learningPrerenderRoutes = [
   "4_2",
 ].map((courseId) => `/learning/${courseId}/`);
 
-const articlePrerenderRoutes = [
-  "ziwei-chart-basics",
-  "four-transformations",
-  "ten-year-fortune",
-  "ziwei-star-twelve-palaces-guide",
-].map((slug) => `/articles/${slug}/`);
+const articlePrerenderRoutes = readdirSync(
+  new URL("./data/articles/", import.meta.url),
+)
+  .filter((fileName) => fileName.endsWith(".md"))
+  .map((fileName) => `/articles/${fileName.replace(/\.md$/, "")}/`);
 
 const publicSeoRoutes = [
   "/",
@@ -266,3 +265,4 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe>`,
     },
   },
 });
+import { readdirSync } from "node:fs";

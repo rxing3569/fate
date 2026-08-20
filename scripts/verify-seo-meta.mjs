@@ -1,13 +1,10 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const siteUrl = "https://www.fatejyc.com";
-const articleSlugs = [
-  "four-transformations",
-  "ten-year-fortune",
-  "ziwei-chart-basics",
-  "ziwei-star-twelve-palaces-guide",
-];
+const articleSlugs = (await readdir(resolve("data/articles")))
+  .filter((fileName) => fileName.endsWith(".md"))
+  .map((fileName) => fileName.replace(/\.md$/, ""));
 const learningIds = [
   "1",
   "2_1",
