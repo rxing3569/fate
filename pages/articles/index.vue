@@ -2,11 +2,13 @@
 import { ArrowRight, BookOpen } from "@lucide/vue";
 import { articles } from "~/utils/articles";
 
-useSeoMeta({
-  title: "紫微斗數命理專欄｜江映澄紫微",
-  description: "閱讀紫微斗數入門、星曜四化與大限運勢等命理文章，用清楚的觀念與實例建立正確的命盤閱讀方法。",
-  ogTitle: "紫微斗數命理專欄｜江映澄紫微",
-  ogDescription: "從命盤基礎、星曜四化到大限運勢，循序建立紫微斗數的閱讀方法。",
+usePageSeo({
+  title: "紫微斗數命理專欄｜命盤解析、十四主星、四化、流年與免費排盤教學",
+  description:
+    "江映澄紫微的 AI紫微、紫微教學平台，整理紫微斗數命理專欄，從紫微命盤入門、十二宮、十四主星、四化到大限與流年，以清楚觀念和實例帶你學會命盤怎麼看、紫微怎麼算；搭配免費排盤練習，理解星曜與宮位關係，逐步建立免費算命、紫微解析及線上解盤所需的實用判讀能力。",
+  keywords: ["命盤怎麼看", "紫微怎麼算", "紫微解析", "命盤解析", "紫微斗數"],
+  canonicalPath: "/articles/",
+  brandLabel: "江映澄紫微、AI紫微、紫微教學平台",
 });
 </script>
 <template>

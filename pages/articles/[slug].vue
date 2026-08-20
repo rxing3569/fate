@@ -6,15 +6,30 @@ const route = useRoute();
 const article = computed(() => getArticle(String(route.params.slug || "")));
 if (!article.value)
   throw createError({ statusCode: 404, statusMessage: "找不到這篇文章" });
+const articleSeoTitle = computed(
+  () =>
+    `${article.value?.title || "紫微斗數專欄"}｜江映澄紫微、AI紫微、紫微教學平台`,
+);
+const articleSeoDescription = computed(
+  () => article.value?.seoDescription || article.value?.excerpt || "",
+);
+const articleCanonical = computed(
+  () => `https://www.fatejyc.com/articles/${article.value?.slug || ""}/`,
+);
 useSeoMeta({
-  title: () => `${article.value?.title}｜江映澄紫微`,
-  description: () => article.value?.excerpt || "",
-  ogTitle: () => `${article.value?.title}｜江映澄紫微`,
-  ogDescription: () => article.value?.excerpt || "",
+  title: () => articleSeoTitle.value,
+  description: () => articleSeoDescription.value,
+  keywords: () => article.value?.seoKeywords.join(", ") || "",
+  ogTitle: () => articleSeoTitle.value,
+  ogDescription: () => articleSeoDescription.value,
   ogType: "article",
+  ogUrl: () => articleCanonical.value,
+  twitterCard: "summary_large_image",
+  twitterTitle: () => articleSeoTitle.value,
+  twitterDescription: () => articleSeoDescription.value,
 });
 useHead(() => ({
-  link: [{ rel: "canonical", href: `https://www.fatejyc.com/articles/${article.value?.slug}/` }],
+  link: [{ rel: "canonical", href: articleCanonical.value }],
 }));
 const articleNextSteps = computed<NextStepAction[]>(() => {
   const current = article.value!;
@@ -89,6 +104,7 @@ const articleNextSteps = computed<NextStepAction[]>(() => {
     screen-class="article-screen"
     show-back
   >
+    <template #title><span class="article-app-title">命理專欄</span></template>
     <main class="article-content">
       <ArticleBreadcrumb :current="article.title" />
       <header class="article-heading">
@@ -117,6 +133,14 @@ const articleNextSteps = computed<NextStepAction[]>(() => {
 <style scoped>
 .article-content {
   padding: 22px 18px 120px;
+}
+.article-app-title {
+  overflow: hidden;
+  color: var(--mountain);
+  font-size: 18px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .article-heading {
   padding: 22px 6px 25px;
@@ -158,6 +182,10 @@ const articleNextSteps = computed<NextStepAction[]>(() => {
 .article-surface :deep(h2) {
   margin-top: 34px;
   font-family: "Noto Serif TC", serif;
+}
+.article-surface :deep(h3) {
+  padding-bottom: 0;
+  border-bottom: 0;
 }
 .article-actions {
   padding: 38px 12px 4px;

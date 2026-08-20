@@ -29,6 +29,13 @@ type Category = {
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
+usePageSeo({
+  title: "紫微斗數線上測驗｜命盤知識題庫、答案解析與免費排盤實戰練習",
+  description:
+    "江映澄紫微的 AI紫微、紫微教學平台提供紫微斗數線上測驗，練習命盤結構、天干地支、十二宮、十四主星、四化與流年等核心知識；即時查看答案與解析、找出需要加強的觀念，再搭配免費排盤驗證所學，熟悉命盤怎麼看與紫微解析順序，逐步建立免費算命及線上解盤的判讀能力。",
+  keywords: ["紫微斗數", "命盤怎麼看", "紫微解析", "紫微怎麼算"],
+  canonicalPath: "/quiz/",
+});
 const stageId = computed(() =>
   typeof route.query.stage === "string" ? route.query.stage : "",
 );

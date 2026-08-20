@@ -4,12 +4,12 @@ import { signupRewardPoints } from "~/utils/signup-reward";
 const auth = useAuthStore();
 const chartStore = useChartStore();
 const route = useRoute();
-useSeoMeta({
-  title: "免費紫微斗數排盤與 AI 解盤｜江映澄紫微",
+usePageSeo({
+  title: "免費紫微斗數排盤｜AI命盤解析、流年時運、感情合盤與線上解盤",
   description:
-    "輸入出生日期、時間與城市，建立紫微斗數命盤、查看十二宮星曜，並使用 AI 進行先天命格（本命）、時運（流年）與雙人事業合盤、雙人感情合盤等解析。",
-  ogTitle: "免費紫微斗數排盤與 AI 解盤｜江映澄紫微",
-  ogDescription: "免費建立紫微斗數命盤，查看十二宮星曜並使用 AI 進行多種解析。",
+    "江映澄紫微的 AI紫微、紫微教學平台，輸入出生日期、時間與城市即可免費算命、免費排盤，查看命宮、身宮、十二宮與星曜配置；再透過線上解盤理解先天命格、流年時運，以及雙人感情與事業合盤，從性格、關係到工作方向獲得具體參考，讓複雜的紫微命盤變得清楚、容易運用。",
+  keywords: ["免費算命", "免費紫微", "紫微排盤", "免費排盤", "AI排盤"],
+  canonicalPath: "/ai-analysis/",
 });
 const featureModes = new Set(["chart", "report", "flow", "match", "qa"]);
 const routeMode = computed(() => {

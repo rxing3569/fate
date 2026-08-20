@@ -4,10 +4,12 @@ import { reviewLevels } from "~/utils/questionBank";
 
 const icons = [BookOpen, Layers3, Sparkles];
 
-useSeoMeta({
-  title: "紫微斗數題庫複習｜江映澄紫微",
+usePageSeo({
+  title: "紫微斗數題庫複習｜命盤解析、十四主星、四化、流年與線上解盤教學",
   description:
-    "依基礎、進階與高階分類複習紫微斗數題庫，逐課掌握命盤、星曜與時運知識。",
+    "江映澄紫微的 AI紫微、紫微教學平台，依基礎、進階與高階分類整理紫微斗數題庫；逐課複習題目、正確答案與重點解析，掌握命盤結構、星曜特質、四化及流年時運，再搭配免費排盤實際驗證，釐清命盤怎麼看與紫微解析步驟，建立免費算命及線上解盤所需的穩定判讀基礎。",
+  keywords: ["紫微斗數", "命盤怎麼看", "紫微解析", "命盤解析"],
+  canonicalPath: "/review/",
 });
 </script>
 

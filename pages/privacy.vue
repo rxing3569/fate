@@ -3,15 +3,12 @@ import { ref } from "vue";
 
 const lang = ref("zh");
 
-useHead({
-  title: "隱私權政策 | 江映澄紫微",
-  meta: [
-    {
-      name: "description",
-      content:
-        "江映澄紫微行動應用程式之隱私權政策。本政策說明我們如何收集、使用、揭露及保護您的個人資訊。",
-    },
-  ],
+usePageSeo({
+  title: "行動應用程式完整隱私權政策",
+  description:
+    "江映澄紫微行動應用程式隱私權政策，說明帳戶、命盤、裝置、交易及使用資料的收集方式、利用目的、第三方服務、保存期間與個人資料權利。",
+  keywords: ["江映澄紫微", "隱私權政策", "命盤資料", "個人資料保護"],
+  canonicalPath: "/privacy/",
 });
 </script>
 

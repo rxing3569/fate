@@ -6,11 +6,20 @@ const route = useRoute()
 const router = useRouter()
 const id = computed(() => String(route.params.id))
 const stage = computed(() => learningStages.find(item => item.id === id.value))
-useSeoMeta({
-  title: () => `${stage.value ? stageLabel(stage.value) : '紫微斗數課程'}｜江映澄紫微`,
+const lessonKeywords = computed(() => {
+  if (id.value.startsWith('2_') || id.value === '1')
+    return ['紫微斗數', '紫微命盤', '命盤怎麼看', stage.value?.title || '命盤解析']
+  if (id.value.startsWith('3_'))
+    return ['紫微斗數', '紫微解析', '命盤解析', stage.value?.title || '星曜解析']
+  return ['紫微斗數', '紫微怎麼算', '紫微解析', '線上解盤']
+})
+usePageSeo({
+  title: () => `${stage.value ? stageLabel(stage.value) : '紫微斗數'}完整教學｜紫微斗數入門、題庫測驗、免費排盤與線上解盤練習`,
   description: () => stage.value
-    ? `學習「${stageLabel(stage.value)}」的紫微斗數重點觀念，搭配章節內容與測驗，循序建立命盤判讀能力。`
-    : '循序學習紫微斗數命盤、星曜、宮位、四化與運勢判讀。',
+    ? `江映澄紫微的 AI紫微、紫微教學平台，帶你完整學習「${stageLabel(stage.value)}」核心觀念與實際判讀方式；透過章節說明、題庫測驗與免費排盤練習，循序學會命盤怎麼看、紫微怎麼算，理解星曜、宮位與四化之間的關聯，並將課程觀念應用到真實命盤，建立可用於免費算命與線上解盤的紫微斗數解析能力。`
+    : '江映澄紫微的 AI紫微、紫微教學平台，帶你循序學習紫微命盤、星曜、宮位、四化與流年判讀；搭配完整章節、題庫測驗與免費排盤練習，掌握命盤怎麼看與紫微怎麼算，建立可實際運用於免費算命與線上解盤的命盤解析能力。',
+  keywords: () => lessonKeywords.value,
+  canonicalPath: () => `/learning/${id.value}/`,
 })
 const source = ref('')
 const selectedStar = ref('')

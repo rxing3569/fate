@@ -67,10 +67,19 @@ const error = computed(() => {
   return questionError.value ? "題庫內容載入失敗，請稍後再試。" : "";
 });
 
-useSeoMeta({
-  title: () => `${course.value?.title || "題庫複習"}｜紫微斗數題庫｜江映澄紫微`,
+const reviewKeywords = computed(() => {
+  if (courseId.value.startsWith("2_") || courseId.value === "1")
+    return ["紫微斗數", "紫微命盤", "命盤怎麼看", course.value?.title || "命盤解析"];
+  if (courseId.value.startsWith("3_"))
+    return ["紫微斗數", "紫微解析", "命盤解析", course.value?.title || "星曜解析"];
+  return ["紫微斗數", "紫微怎麼算", "紫微解析", "線上解盤"];
+});
+usePageSeo({
+  title: () => `${course.value?.title || "命盤知識"}題庫解析｜紫微斗數答案詳解、免費排盤與線上解盤練習`,
   description: () =>
-    `複習${course.value?.title || "紫微斗數"}題目、正確答案與重點解析。`,
+    `江映澄紫微的 AI紫微、紫微教學平台，帶你複習「${course.value?.title || "紫微斗數"}」核心題目、正確答案與逐題解析；釐清容易混淆的命盤觀念，再搭配免費排盤實際驗證，掌握星曜、宮位、四化與流年的判讀順序，找出錯題背後尚未熟悉的重點，循序建立可用於免費算命、紫微解析與線上解盤的能力。`,
+  keywords: () => reviewKeywords.value,
+  canonicalPath: () => `/review/${levelSlug.value}/${courseId.value}/`,
 });
 </script>
 

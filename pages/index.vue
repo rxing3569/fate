@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { ArrowDown, ArrowRight, BookOpen, Newspaper } from "@lucide/vue";
 const { openChartEntry, openReportEntry } = useChartEntryNavigation();
-useSeoMeta({
-  title: "AI 紫微斗數命盤解析｜江映澄紫微",
+usePageSeo({
+  title: "AI紫微斗數命盤解析｜免費排盤、免費算命、線上解盤與紫微教學",
   description:
-    "江映澄紫微提供免費線上排盤、AI 命盤解析、時運解析、感情合盤與紫微斗數問答，結合命理老師經驗，協助你看懂天賦、運勢與人生方向。",
-  ogTitle: "AI 紫微斗數命盤解析｜江映澄紫微",
-  ogDescription:
-    "免費線上排盤，使用 AI 探索紫微命盤、流年時運、感情合盤與人生方向。",
+    "江映澄紫微是結合命理師經驗與科技的 AI紫微、紫微教學平台，提供免費算命、免費排盤與線上解盤服務；從紫微命盤、十二宮、十四主星到流年時運、感情合盤與命理問答，以清楚易懂的解析陪你認識性格天賦、掌握人生課題，理解感情、工作與人生節奏，找到適合自己的未來方向。",
+  keywords: ["紫微斗數", "紫微命盤", "AI紫微", "AI算命", "線上紫微"],
+  canonicalPath: "/",
 });
 function scrollToAbout() {
   document.querySelector("#about")?.scrollIntoView({ behavior: "smooth" });
@@ -43,8 +42,8 @@ function scrollToAbout() {
               </button>
             </div>
             <div class="stats" aria-label="服務成果">
-              <div><b>50+</b><span>書籍數據庫</span></div>
-              <div><b>800+</b><span>已生成報告</span></div>
+              <div><b>350+</b><span>會員數</span></div>
+              <div><b>1200+</b><span>已生成報告</span></div>
               <div><b>6 年</b><span>資歷老師把關</span></div>
             </div>
           </div>

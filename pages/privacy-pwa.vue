@@ -3,15 +3,12 @@ import { ShieldCheck } from "@lucide/vue";
 
 const lang = ref<"zh" | "en">("zh");
 
-useHead({
-  title: "隱私權政策 | 江映澄紫微",
-  meta: [
-    {
-      name: "description",
-      content:
-        "江映澄紫微 PWA 網站隱私權政策，說明個人資料、命盤資料、付款資訊與網站儲存機制。",
-    },
-  ],
+usePageSeo({
+  title: "PWA 網站服務隱私權政策",
+  description:
+    "江映澄紫微 PWA 網站隱私權政策，說明帳戶與命盤資料、付款紀錄、瀏覽器儲存機制、第三方服務、資訊安全措施及使用者個人資料權利。",
+  keywords: ["江映澄紫微", "PWA隱私權", "命盤資料", "個人資料保護"],
+  canonicalPath: "/privacy-pwa/",
 });
 </script>
 

@@ -25,7 +25,24 @@ const articlePrerenderRoutes = [
   "ziwei-chart-basics",
   "four-transformations",
   "ten-year-fortune",
+  "ziwei-star-twelve-palaces-guide",
 ].map((slug) => `/articles/${slug}/`);
+
+const publicSeoRoutes = [
+  "/",
+  "/ai-analysis/",
+  "/articles/",
+  "/learn/",
+  "/learning/",
+  "/quiz/",
+  "/review/",
+  "/privacy/",
+  "/privacy-pwa/",
+];
+
+const noIndexHeaders = {
+  "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet",
+};
 
 export default defineNuxtConfig({
   compatibilityDate: "2025-01-01",
@@ -47,7 +64,11 @@ export default defineNuxtConfig({
         .flatMap(([level, courseIds]) =>
           courseIds.map((courseId) => `/review/${level}/${courseId}/`),
         )
-        .concat(learningPrerenderRoutes, articlePrerenderRoutes),
+        .concat(
+          publicSeoRoutes,
+          learningPrerenderRoutes,
+          articlePrerenderRoutes,
+        ),
     },
   },
   routeRules: {
@@ -56,34 +77,39 @@ export default defineNuxtConfig({
         "Cache-Control": "no-cache, no-store, must-revalidate",
       },
     },
-    "/chart": { ssr: false, prerender: true },
-    "/flow": { ssr: false, prerender: true },
-    "/issue-report": { ssr: false, prerender: true },
-    "/match": { ssr: false, prerender: true },
-    "/member": { ssr: false, prerender: true },
+    "/chart": { ssr: false, prerender: true, headers: noIndexHeaders },
+    "/flow": { ssr: false, prerender: true, headers: noIndexHeaders },
+    "/issue-report": { ssr: false, prerender: true, headers: noIndexHeaders },
+    "/login": { headers: noIndexHeaders },
+    "/match": { ssr: false, prerender: true, headers: noIndexHeaders },
+    "/member": { ssr: false, prerender: true, headers: noIndexHeaders },
+    "/member/**": { headers: noIndexHeaders },
     "/nwp-live-check": {
       ssr: false,
       prerender: true,
-      headers: {
-        "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet",
-      },
+      headers: noIndexHeaders,
     },
-    "/payment-result": { ssr: false, prerender: true },
-    "/point-history": { ssr: false, prerender: true },
-    "/profile/edit": { ssr: false, prerender: true },
-    "/purchase-history": { ssr: false, prerender: true },
-    "/qa": { ssr: false, prerender: true },
-    "/report": { ssr: false, prerender: true },
-    "/report-detail": { ssr: false, prerender: true },
+    "/payment-result": { ssr: false, prerender: true, headers: noIndexHeaders },
+    "/point-history": { ssr: false, prerender: true, headers: noIndexHeaders },
+    "/profile/**": { ssr: false, prerender: true, headers: noIndexHeaders },
+    "/purchase-history": {
+      ssr: false,
+      prerender: true,
+      headers: noIndexHeaders,
+    },
+    "/qa": { ssr: false, prerender: true, headers: noIndexHeaders },
+    "/report": { ssr: false, prerender: true, headers: noIndexHeaders },
+    "/report-detail": { ssr: false, prerender: true, headers: noIndexHeaders },
+    "/store": { headers: noIndexHeaders },
     "/cms": {
       ssr: false,
       prerender: true,
-      headers: { "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet" },
+      headers: noIndexHeaders,
     },
     "/cms/**": {
       ssr: false,
       prerender: true,
-      headers: { "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet" },
+      headers: noIndexHeaders,
     },
   },
   modules:
@@ -126,7 +152,7 @@ export default defineNuxtConfig({
         process.env.NUXT_PUBLIC_WS_ANALYZE_URL ||
         "ws://localhost:3000/ws/analyze",
       appName: process.env.NUXT_PUBLIC_APP_NAME || "紫微斗數",
-      appVersion: process.env.NUXT_PUBLIC_APP_VERSION || "1.5.1",
+      appVersion: process.env.NUXT_PUBLIC_APP_VERSION || "1.5.2",
       googleWebClientId: process.env.NUXT_PUBLIC_GOOGLE_WEB_CLIENT_ID || "",
     },
   },
