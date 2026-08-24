@@ -68,12 +68,12 @@ const articleNextSteps = computed<NextStepAction[]>(() => {
         reportCategory: "ten_year",
       },
       {
-		id: "article_fortune_to_annual_flow",
+        id: "article_fortune_to_annual_flow",
         eyebrow: "近期時機",
         title: "從十年方向聚焦到現在",
-		description: "選擇年份，查看全年與四季適合留意的重點。",
-		label: "查看流年運勢",
-		destination: "annual_flow",
+        description: "選擇年份，查看全年度該注意的重點。",
+        label: "查看流年運勢",
+        destination: "annual_flow",
       },
     ];
   return [

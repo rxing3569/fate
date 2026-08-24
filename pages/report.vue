@@ -92,11 +92,8 @@ const pdfSnapshot = ref<{
 const { downloading: downloadingPDF, download: downloadAnalysisPdf } =
   useAnalysisPdfDownload();
 const premiumFeatureGate = usePremiumFeatureGate();
-const {
-  showPremiumCheckout,
-  premiumCheckoutDraft,
-  resumeFeature,
-} = premiumFeatureGate;
+const { showPremiumCheckout, premiumCheckoutDraft, resumeFeature } =
+  premiumFeatureGate;
 
 function isDevMockAnalysis() {
   return (
@@ -217,8 +214,7 @@ const nextStepActions = computed<NextStepAction[]>(() => {
         id: "general_to_qa",
         eyebrow: "深入提問",
         title: "把感情中的疑問問得更具體",
-        description:
-          "帶入一題和你命格有關的感情問題，找到更適合你的相處方式。",
+        description: "帶入一題和你命格有關的感情問題，找到更適合你的相處方式。",
         label: "帶著問題問 AI",
         destination: "qa",
         questions: romanceQuestions,
@@ -230,8 +226,7 @@ const nextStepActions = computed<NextStepAction[]>(() => {
         id: "palace_to_qa",
         eyebrow: "宮位探索",
         title: "有一個宮位特別讓你在意嗎？",
-        description:
-          "從感情、工作、財務或內在狀態，繼續問得更具體。",
+        description: "從感情、工作、財務或內在狀態，繼續問得更具體。",
         label: "帶著問題問 AI",
         destination: "qa",
         questions: palaceQuestions,
@@ -240,28 +235,25 @@ const nextStepActions = computed<NextStepAction[]>(() => {
         id: "palace_to_match",
         eyebrow: "雙人關係",
         title: "夫妻宮看見傾向，合盤看見兩人的互動",
-        description:
-          "加入對方的出生資料，了解彼此的相處優勢與需要磨合之處。",
+        description: "加入對方的出生資料，了解彼此的相處優勢與需要磨合之處。",
         label: "開始合盤解析",
         destination: "match",
       },
     ];
   return [
     {
-		id: "ten_year_to_annual_flow",
+      id: "ten_year_to_annual_flow",
       eyebrow: "聚焦現在",
-		title: "十年看方向，流年看今年",
-      description:
-		  "進一步聚焦指定年份，掌握四季節奏與適合行動的方向。",
-		label: "查看流年運勢",
-		destination: "annual_flow",
+      title: "十年看方向，流年看今年",
+      description: "進一步聚焦指定年份，掌握時運流動與適合行動的方向。",
+      label: "查看流年運勢",
+      destination: "annual_flow",
     },
     {
       id: "ten_year_to_qa",
       eyebrow: "行動建議",
       title: "把大運趨勢轉成你的行動方案",
-      description:
-        "帶入一題具體問題，了解現在該把握什麼、調整什麼。",
+      description: "帶入一題具體問題，了解現在該把握什麼、調整什麼。",
       label: "帶著問題問 AI",
       destination: "qa",
       questions: tenYearQuestions,
@@ -1269,12 +1261,20 @@ async function handleLeadingBack() {
           aria-hidden="true"
         >
           <main data-pdf-page>
-            <header class="analysis-pdf-heading analysis-pdf-cover glass" data-pdf-block>
+            <header
+              class="analysis-pdf-heading analysis-pdf-cover glass"
+              data-pdf-block
+            >
               <img src="/remove-background-logo.png" alt="" />
               <p>江映澄紫微·命盤解析</p>
               <h1>{{ pdfSnapshot.label }}</h1>
-              <span>{{ pdfSnapshot.generatedAt || `下載日期：${new Date().toLocaleDateString("zh-TW")}` }}</span>
-              <p class="analysis-pdf-disclaimer">本報告內容供自我探索與參考，不應取代醫療、法律或財務專業意見。</p>
+              <span>{{
+                pdfSnapshot.generatedAt ||
+                `下載日期：${new Date().toLocaleDateString("zh-TW")}`
+              }}</span>
+              <p class="analysis-pdf-disclaimer">
+                本報告內容供自我探索與參考，不應取代醫療、法律或財務專業意見。
+              </p>
             </header>
             <section
               v-for="(section, index) in pdfSnapshot.sections"

@@ -11,7 +11,15 @@ usePageSeo({
   keywords: ["免費算命", "免費紫微", "紫微排盤", "免費排盤", "AI排盤"],
   canonicalPath: "/ai-analysis/",
 });
-const featureModes = new Set(["chart", "report", "flow_today", "flow_month", "annual_flow", "match", "qa"]);
+const featureModes = new Set([
+  "chart",
+  "report",
+  "flow_today",
+  "flow_month",
+  "annual_flow",
+  "match",
+  "qa",
+]);
 const routeMode = computed(() => {
   const value = Array.isArray(route.query.mode)
     ? route.query.mode[0]
@@ -96,7 +104,7 @@ const features = [
   {
     id: "annual_flow",
     title: "流年運勢",
-    subtitle: "會員專屬年度解析，掌握四季節奏與方向。",
+    subtitle: "掌握流年，觀察大環境與探索方向。",
     icon: "auto_awesome_rounded" as const,
     to: "/annual-flow",
     primary: true,
@@ -311,9 +319,6 @@ async function confirmBirthChange() {
           /></span>
           <strong>命盤排盤</strong>
         </span>
-        <span class="chart-arrow"
-          ><AppMaterialIcon name="arrow_outward_rounded" :size="18"
-        /></span>
         <span class="birth-strip">
           <span
             ><small>出生</small><b>{{ birthDate }}</b></span
@@ -345,11 +350,13 @@ async function confirmBirthChange() {
               />
               <AppMaterialIcon v-else :name="feature.icon" :size="22" />
             </span>
-            <strong>{{ feature.title }}<em v-if="feature.badge" class="feature-badge">{{ feature.badge }}</em></strong>
+            <strong
+              >{{ feature.title
+              }}<em v-if="feature.badge" class="feature-badge">{{
+                feature.badge
+              }}</em></strong
+            >
           </span>
-          <span class="feature-arrow"
-            ><AppMaterialIcon name="arrow_outward_rounded" :size="14"
-          /></span>
           <small v-if="feature.subtitle">{{ feature.subtitle }}</small>
         </button>
       </div>
@@ -370,7 +377,9 @@ async function confirmBirthChange() {
         <Coins :size="18" />
         <span>{{ auth.premium ? "本月會員額度剩餘" : "目前點數" }}</span>
         <b>{{
-          auth.premium ? `${auth.membershipQuotaRemaining} 次` : `${auth.points} P`
+          auth.premium
+            ? `${auth.membershipQuotaRemaining} 次`
+            : `${auth.points} P`
         }}</b>
       </div>
       <div class="today-flow-actions">
@@ -522,19 +531,6 @@ async function confirmBirthChange() {
     inset 0 1px 0 #fff,
     0 6px 14px rgba(36, 87, 90, 0.1);
 }
-.chart-arrow {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid rgba(36, 87, 90, 0.14);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.72);
-  box-shadow: inset 0 1px 0 #fff;
-}
 .birth-strip {
   margin-top: 12px;
   display: grid;
@@ -624,7 +620,6 @@ async function confirmBirthChange() {
   align-items: center;
   gap: 8px;
   min-width: 0;
-  padding-right: 24px;
 }
 .feature-icon {
   flex: 0 0 auto;
@@ -655,6 +650,9 @@ async function confirmBirthChange() {
   font-weight: 900;
 }
 .feature-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
   padding: 3px 6px;
   border-radius: 999px;
   background: var(--cinnabar);
@@ -662,7 +660,7 @@ async function confirmBirthChange() {
   font-size: 9px;
   font-style: normal;
   font-weight: 900;
-  letter-spacing: .08em;
+  letter-spacing: 0.08em;
   line-height: 1;
 }
 .feature-card small {
@@ -678,19 +676,6 @@ async function confirmBirthChange() {
 }
 .feature-card.primary small {
   color: rgba(36, 87, 90, 0.82);
-}
-.feature-arrow {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid rgba(36, 87, 90, 0.12);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.76);
-  box-shadow: inset 0 1px 0 #fff;
 }
 .chart-entry,
 .feature-card,
