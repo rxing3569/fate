@@ -248,13 +248,13 @@ const nextStepActions = computed<NextStepAction[]>(() => {
     ];
   return [
     {
-      id: "ten_year_to_flow",
+		id: "ten_year_to_annual_flow",
       eyebrow: "聚焦現在",
-      title: "十年看方向，時運看現在",
+		title: "十年看方向，流年看今年",
       description:
-        "進一步聚焦到今年、這個月或今天，找到適合行動的時間點。",
-      label: "查看時運解析",
-      destination: "flow",
+		  "進一步聚焦指定年份，掌握四季節奏與適合行動的方向。",
+		label: "查看流年運勢",
+		destination: "annual_flow",
     },
     {
       id: "ten_year_to_qa",

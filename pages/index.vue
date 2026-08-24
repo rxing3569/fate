@@ -113,16 +113,16 @@ function scrollToAbout() {
             </p>
             <span class="entry-action">開始解析 <ArrowRight :size="14" /></span>
           </NuxtLink>
-          <NuxtLink to="/flow" class="entry-card glass">
+		  <NuxtLink to="/ai-analysis" class="entry-card glass">
             <div class="entry-heading">
               <AppMaterialIcon name="insights_rounded" :size="24" />
-              <h3>AI 時運解析</h3>
+			  <h3>AI 運勢解析</h3>
             </div>
             <p>
               透過 AI
-              分析流年、流月與流日運勢，掌握工作、感情及財運變化，提早看見重要時機與需要留意的方向。
+			  分析今日、本月與整年運勢，掌握工作、感情及財運變化，提早看見重要時機與需要留意的方向。
             </p>
-            <span class="entry-action">查看時運 <ArrowRight :size="14" /></span>
+			<span class="entry-action">查看運勢 <ArrowRight :size="14" /></span>
           </NuxtLink>
           <NuxtLink to="/match" class="entry-card glass">
             <div class="entry-heading">
@@ -138,7 +138,7 @@ function scrollToAbout() {
           <NuxtLink to="/qa" class="entry-card glass">
             <div class="entry-heading">
               <i class="entry-chat-icon" aria-hidden="true" />
-              <h3>AI 問答</h3>
+              <h3>線上問答</h3>
             </div>
             <p>
               根據個人紫微命盤向 AI

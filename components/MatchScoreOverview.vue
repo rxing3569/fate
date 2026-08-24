@@ -4,7 +4,7 @@ import { Brain, Heart, MessageCircle, Puzzle, Shield } from '@lucide/vue'
 interface Dimension {
   title: string
   score: number
-  description: string
+  description?: string
   visualIndex?: number
 }
 

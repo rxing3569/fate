@@ -1,4 +1,4 @@
-export type NextStepDestination = "chart" | "report" | "match" | "flow" | "qa";
+export type NextStepDestination = "chart" | "report" | "match" | "flow" | "annual_flow" | "qa";
 export type NextStepSourceType = "report" | "article";
 
 export interface NextStepSource {

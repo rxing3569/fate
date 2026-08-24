@@ -30,26 +30,28 @@ const resumeDestination = computed(() => {
   if (intent.source === 'premium_feature') {
     const labels = {
       report_pdf: '返回命盤解析',
-      flow_pdf: '返回時運解析',
+	  flow_pdf: '返回近期運勢',
+	  annual_flow: '開始流年運勢',
+	  annual_flow_pdf: '返回流年運勢',
       match_pdf: '返回合盤解析',
       match_history: '查看合盤歷史紀錄',
     }
     return { label: labels[intent.feature], to: intent.returnTo }
   }
   return intent.source === 'qa'
-    ? { label: '繼續 AI 問答', to: '/qa' }
+    ? { label: '繼續線上問答', to: '/qa' }
     : { label: '繼續合盤解析', to: '/match' }
 })
 const isPointsOrder = computed(() => order.value?.product_id === 'web.points.500')
 const successGuide = computed(() => isPointsOrder.value
-  ? '點數已入帳，現在可以前往命盤解盤，或查看近期時運。'
+  ? '點數已入帳，現在可以前往命盤解盤，或查看近期運勢。'
   : resumeIntent.value?.source === 'premium_feature'
     ? 'Premium 已開通，返回原頁即可繼續剛才的操作。'
-  : 'Premium 已開通，現在可以開始合盤解析，或使用 AI 問答。')
+  : 'Premium 已開通，現在可以開始合盤解析，或使用線上問答。')
 const successActions = computed(() => isPointsOrder.value
   ? [
       { label: '前往命盤解盤', to: '/ai-analysis' },
-      { label: '開始時運解析', to: '/flow' },
+	  { label: '查看今日運勢', to: '/flow?period=today' },
     ]
   : resumeIntent.value
     ? [
@@ -60,7 +62,7 @@ const successActions = computed(() => isPointsOrder.value
       ]
     : [
         { label: '開始合盤解析', to: '/match' },
-        { label: '前往 AI 問答', to: '/qa' },
+        { label: '前往線上問答', to: '/qa' },
       ])
 const resumeAction = computed(() => resumeIntent.value
   ? {

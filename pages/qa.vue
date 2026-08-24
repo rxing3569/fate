@@ -33,7 +33,7 @@ interface ReportRecord {
   created_at?: string;
 }
 
-const MAX_QUESTIONS = 10;
+const MAX_QUESTIONS = 5;
 const auth = useAuthStore();
 const chartStore = useChartStore();
 const activeAnalysis = useActiveAnalysisStore();
@@ -389,7 +389,7 @@ async function requestSend() {
   try {
     if (remaining.value <= 0) {
       error.value =
-        "AI 問答功能每份命盤最多可提問 10 次。請重新提問開啟新的問答。";
+        "線上問答功能每份命盤最多可提問 5 次。請重新提問開啟新的問答。";
       return;
     }
     pendingQuestion.value = question;
@@ -538,7 +538,7 @@ async function sendQuestion(question: string) {
       showPointsFallback.value = true;
     } else if (message.includes("turn_limit") || message.includes("limit"))
       error.value =
-        "AI 問答功能每份命盤最多可提問 10 次。請重新提問開啟新的問答。";
+        "線上問答功能每份命盤最多可提問 5 次。請重新提問開啟新的問答。";
     else if (message.includes("requires_membership")) {
       auth.premium = false;
       error.value = "此功能為付費會員專屬，請購買會員後再試。";
@@ -578,7 +578,7 @@ function handleKeydown(event: KeyboardEvent) {
 
 <template>
   <AppPageLayout
-    title="AI 問答"
+    title="線上問答"
     screen-class="qa-screen"
     content-mode="flush"
     show-back
@@ -600,7 +600,7 @@ function handleKeydown(event: KeyboardEvent) {
           <span class="welcome-icon"><MessageCircle :size="28" /></span>
           <p>
             可透過問答更加理解命盤<br /><small
-              >(同一次對話裡面有十次追問的機會喔～)</small
+              >(同一次對話裡面有五次追問的機會喔～)</small
             >
           </p>
           <div class="welcome-composer composer-field">
@@ -743,8 +743,8 @@ function handleKeydown(event: KeyboardEvent) {
     </AppBottomSheet>
 
     <AppBottomSheet :open="showQuotaConfirm" @close="showQuotaConfirm = false">
-      <template #header><h2>確認使用 AI 問答</h2></template>
-      <p>本次操作將消耗會員額度 1 次，且後續最多可追問十次，不重複扣除額度。</p>
+      <template #header><h2>確認使用線上問答</h2></template>
+      <p>本次操作將消耗會員額度 1 次，且後續最多可追問五次，不重複扣除額度。</p>
       <div class="quota-row">
         <Coins :size="18" />
         <span>本月會員額度剩餘</span>
@@ -772,7 +772,7 @@ function handleKeydown(event: KeyboardEvent) {
       @close="showPointsFallback = false"
     >
       <template #header><h2>會員月度額度已滿</h2></template>
-      <p>是否改為扣除 100 點數繼續本次 AI 問答？目前點數：{{ auth.points }}</p>
+      <p>是否改為扣除 100 點數繼續本次線上問答？目前點數：{{ auth.points }}</p>
       <div class="sheet-actions">
         <button
           class="app-button outline"

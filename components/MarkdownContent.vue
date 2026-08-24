@@ -2,7 +2,14 @@
 import DOMPurify from "dompurify";
 import { marked } from "marked";
 
-const props = withDefaults(defineProps<{ source: string; reportFormatting?: boolean }>(), { reportFormatting: true });
+const props = withDefaults(
+  defineProps<{
+    source: string;
+    reportFormatting?: boolean;
+    bracketedTitles?: boolean;
+  }>(),
+  { reportFormatting: true, bracketedTitles: false },
+);
 
 function escapeHtml(value: string) {
   return value
@@ -129,6 +136,23 @@ function renderRichMarkdownBlocks(source: string) {
     );
 }
 
+function normalizeBracketedTitles(source: string) {
+  return source
+    .split("\n")
+    .map((line) => {
+      const bracketedLead =
+        line.match(/^\s*【([^】\n]+)】\s*(.*)$/) ||
+        line.match(/^\s*「([^」\n]+)」\s*(.*)$/) ||
+        line.match(/^\s*\[([^\]\n]+)\](?!\()\s*(.*)$/);
+      if (!bracketedLead) return line;
+
+      const title = bracketedLead[1]?.trim();
+      const content = bracketedLead[2]?.trim();
+      return `**${title}：**${content ? ` ${content}` : ""}`;
+    })
+    .join("\n");
+}
+
 function normalizeReportMarkdown(source: string) {
   return source
     .replace(/\\\*\\\*/g, "**")
@@ -138,8 +162,9 @@ function normalizeReportMarkdown(source: string) {
     .split("\n")
     .map((line) => {
       const point = line.match(/^\s*[-*+]\s+\*\*(.+?)\*\*\s*(?:[：:]\s*)?(.*)$/);
-      if (!point) return line;
-      return `\n#### ${point[1]?.trim()}\n\n${point[2]?.trim()}\n`;
+      if (point)
+        return `\n#### ${point[1]?.trim()}\n\n${point[2]?.trim()}\n`;
+      return line;
     })
     .join("\n")
     .replace(/\*\*([\s\S]*?)\*\*/g, (_, content: string) => {
@@ -147,7 +172,12 @@ function normalizeReportMarkdown(source: string) {
     });
 }
 const html = computed(() => {
-  const source = props.reportFormatting ? normalizeReportMarkdown(props.source || "") : props.source || "";
+  const bracketedSource = props.bracketedTitles
+    ? normalizeBracketedTitles(props.source || "")
+    : props.source || "";
+  const source = props.reportFormatting
+    ? normalizeReportMarkdown(bracketedSource)
+    : bracketedSource;
   const richSource = renderRichMarkdownBlocks(source);
   const rendered = (marked.parse(richSource, {
     async: false,

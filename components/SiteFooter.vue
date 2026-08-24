@@ -5,9 +5,11 @@ const linkGroups = [
     title: "系統功能",
     links: [
       { label: "命盤解析", to: "/report" },
-      { label: "時運解析", to: "/flow" },
+		  { label: "今日運勢", to: "/flow?period=today" },
+		  { label: "本月運勢", to: "/flow?period=month" },
+		  { label: "流年運勢", to: "/annual-flow" },
       { label: "合盤解析", to: "/match" },
-      { label: "AI 問答", to: "/qa" },
+      { label: "線上問答", to: "/qa" },
     ],
   },
   {

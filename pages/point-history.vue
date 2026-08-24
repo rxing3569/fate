@@ -42,9 +42,10 @@ const analysisLabels: Record<string, string> = {
   palace_detail: "宮位詳解解析",
   decade: "十年大運解析",
   ten_year: "十年大運解析",
-  flow: "時運解析",
+  flow: "今日／本月運勢",
+  annual_flow: "流年運勢",
   match: "合盤解析",
-  qa: "AI 問答",
+  qa: "線上問答",
 };
 const quotaTypeLabels: Record<string, string> = {
   usage: "會員額度使用",

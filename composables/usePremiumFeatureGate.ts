@@ -23,7 +23,7 @@ export function usePremiumFeatureGate() {
 
   function requestFeature(
     feature: PremiumFeature,
-    returnTo: "/report" | "/flow" | "/match",
+    returnTo: "/report" | "/flow" | "/annual-flow" | "/match",
   ) {
     openCheckout({ source: "premium_feature", feature, returnTo });
   }

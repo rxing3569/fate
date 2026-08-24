@@ -89,19 +89,20 @@ export function useDevAnalysisSimulator() {
         fullRunning: true,
       };
     }
-    if (kind === "flow") {
+	if (kind === "flow") {
       const now = new Date();
       return {
         ...base,
-        flowType: "流年",
+		flowType: "流日",
         year: now.getFullYear(),
         month: now.getMonth() + 1,
         day: now.getDate(),
         dateKey: Number(
           `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`,
         ),
-      };
-    }
+	  };
+	}
+	if (kind === "annual_flow") return { ...base, year: taipeiToday().year };
     if (kind === "match") return { ...base, matchType: "romance" };
     return {
       ...base,

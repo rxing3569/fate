@@ -80,7 +80,8 @@ const sourceName: Record<string, string> = {
 };
 const usageName: Record<string, string> = {
   general: "本命解析",
-  flow: "時運解析",
+  flow: "今日／本月運勢",
+  annual_flow: "流年運勢",
   match: "合盤解析",
   qa: "命理問答",
   palace_detail: "十二宮詳解",

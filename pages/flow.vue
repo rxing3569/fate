@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
   CalendarCheck,
-  CalendarDays,
   CalendarRange,
   ChevronDown,
   ChevronLeft,
@@ -26,8 +25,10 @@ import {
 
 definePageMeta({ middleware: "auth" });
 
-type FlowType = "流年" | "流月" | "流日";
+type FlowType = "流月" | "流日";
 type FlowStage = "type" | "date" | "result";
+type FlowPeriod = "today" | "month";
+type FlowLaunchIntent = "load" | "start";
 interface FlowSection {
   title: string;
   content: string;
@@ -47,14 +48,17 @@ interface FlowScore {
 }
 
 const auth = useAuthStore();
+const route = useRoute();
 const chartStore = useChartStore();
 const activeAnalysis = useActiveAnalysisStore();
 const now = new Date();
-const stage = ref<FlowStage>("type");
-const flowType = ref<FlowType>("流年");
-const year = ref(now.getFullYear());
-const month = ref(now.getMonth() + 1);
-const day = ref(now.getDate());
+const today = taipeiToday();
+const initialPeriod = Array.isArray(route.query.period) ? route.query.period[0] : route.query.period;
+const stage = ref<FlowStage>(initialPeriod === "today" || initialPeriod === "month" ? "date" : "type");
+const flowType = ref<FlowType>(initialPeriod === "month" ? "流月" : "流日");
+const year = ref(today.year);
+const month = ref(today.month);
+const day = ref(today.day);
 const content = ref("");
 const flowPdfSource = ref<HTMLElement | null>(null);
 const flowPdfSnapshot = ref<{
@@ -83,12 +87,109 @@ const incompleteTasks = ref<FlowRecord[]>([]);
 const recoveryLoading = ref(false);
 const allowActiveFlowResult = ref(false);
 const flowUiStateKey = "ziwei:flow-ui-state";
+const flowLaunchIntentKey = "ziwei:flow-launch-intent";
+
+function consumeFlowLaunchIntent(): FlowLaunchIntent | null {
+  if (!import.meta.client) return null;
+  const value = sessionStorage.getItem(flowLaunchIntentKey);
+  sessionStorage.removeItem(flowLaunchIntentKey);
+  return value === "load" || value === "start" ? value : null;
+}
+
+function requestedPeriod(value: unknown = route.query.period): FlowPeriod | null {
+  value = Array.isArray(value) ? value[0] : value;
+  return value === "today" || value === "month" ? value : null;
+}
+function flowSelectionMatchesPeriod(period: FlowPeriod | null) {
+  if (!period) return true;
+  if (period === "month") return flowType.value === "流月";
+  const current = taipeiToday();
+  return (
+    flowType.value === "流日" &&
+    year.value === current.year &&
+    month.value === current.month &&
+    day.value === current.day
+  );
+}
+function resetFlowView(period: FlowPeriod, dismissCompleted = false) {
+  if (
+    dismissCompleted &&
+    activeAnalysis.active?.kind === "flow" &&
+    activeAnalysis.active.status !== "running"
+  )
+    activeAnalysis.dismiss("flow");
+  const current = taipeiToday();
+  flowType.value = period === "month" ? "流月" : "流日";
+  year.value = current.year;
+  month.value = current.month;
+  day.value = current.day;
+  stage.value = "date";
+  content.value = "";
+  createdAt.value = "";
+  error.value = "";
+  showConfirm.value = false;
+  showFallback.value = false;
+  recalculate.value = false;
+  usePointsFallback.value = false;
+  incompleteTasks.value = [];
+  allowActiveFlowResult.value = false;
+}
+function applyRequestedPeriod(period = requestedPeriod()) {
+  if (!period) return;
+  if (!flowSelectionMatchesPeriod(period)) resetFlowView(period);
+  if (stage.value !== "result") stage.value = "date";
+}
+
+function flowRecordMatchesPeriod(
+  record: FlowRecord,
+  period = requestedPeriod(),
+) {
+  if (!period) return true;
+  const key = Number(record.analysis_date_key || 0);
+  if (!key) return false;
+  const isMonth = key % 100 === 0;
+  if (period === "month") return isMonth;
+  const current = taipeiToday();
+  const todayKey = current.year * 10000 + current.month * 100 + current.day;
+  return !isMonth && key === todayKey;
+}
+
+function activeFlowMatchesPeriod(
+  job: typeof activeAnalysis.active,
+  period = requestedPeriod(),
+) {
+  if (!job || job.kind !== "flow") return false;
+  if (!period) return true;
+  const meta = job.metadata as {
+    flowType?: FlowType;
+    year?: number;
+    month?: number;
+    day?: number;
+    dateKey?: number;
+  };
+  if (period === "month") return meta.flowType === "流月";
+  const current = taipeiToday();
+  const todayKey = current.year * 10000 + current.month * 100 + current.day;
+  return (
+    meta.flowType === "流日" &&
+    (Number(meta.dateKey || 0) === todayKey ||
+      (meta.year === current.year &&
+        meta.month === current.month &&
+        meta.day === current.day))
+  );
+}
 
 function isDevMockAnalysis() {
   return (
     import.meta.dev &&
     activeAnalysis.active?.metadata.__devMock === "FATE_DEV_ANALYSIS_PANEL"
   );
+}
+
+function handleBeforeUnload(event: BeforeUnloadEvent) {
+  if (!analyzing.value || isDevMockAnalysis()) return;
+  event.preventDefault();
+  event.returnValue = "";
 }
 
 const days = computed(() =>
@@ -105,19 +206,16 @@ const birthYear = computed(() =>
   ),
 );
 const dateKey = computed(() =>
-  flowType.value === "流年"
-    ? year.value * 10000
-    : flowType.value === "流月"
-      ? year.value * 10000 + month.value * 100
-      : year.value * 10000 + month.value * 100 + day.value,
+	flowType.value === "流月"
+		? year.value * 10000 + month.value * 100
+		: year.value * 10000 + month.value * 100 + day.value,
 );
 const displayDate = computed(() =>
-  flowType.value === "流年"
-    ? `${year.value}`
-    : flowType.value === "流月"
-      ? `${year.value}/${String(month.value).padStart(2, "0")}`
-      : `${year.value}/${String(month.value).padStart(2, "0")}/${String(day.value).padStart(2, "0")}`,
+	flowType.value === "流月"
+		? `${year.value}/${String(month.value).padStart(2, "0")}`
+		: `${year.value}/${String(month.value).padStart(2, "0")}/${String(day.value).padStart(2, "0")}`,
 );
+const featureName = computed(() => flowType.value === "流月" ? "本月運勢" : "今日運勢");
 const sections = computed(() => parseSections(content.value));
 const visibleSections = computed(() => sections.value);
 const formattedCreatedAt = computed(() => {
@@ -152,6 +250,8 @@ watch(
   persistFlowUiState,
 );
 onMounted(async () => {
+  window.addEventListener("beforeunload", handleBeforeUnload);
+  const launchIntent = consumeFlowLaunchIntent();
   if (import.meta.dev)
     window.addEventListener(
       "fate-dev-analysis-applied",
@@ -160,24 +260,34 @@ onMounted(async () => {
   chartStore.hydrate(auth.profile);
   trackNextStepArrival("flow");
   const restoredStage = restoreFlowUiState();
+  const period = requestedPeriod();
+  applyRequestedPeriod(period);
   await activeAnalysis.hydrate();
   const activeFlow =
     activeAnalysis.active?.kind === "flow" ? activeAnalysis.active : null;
+  const activeMatchesPeriod = activeFlowMatchesPeriod(activeFlow, period);
   allowActiveFlowResult.value =
-    restoredStage === "result" ||
+    stage.value === "result" ||
     (restoredStage === null &&
+      activeMatchesPeriod &&
       (activeFlow?.status === "running" ||
         Boolean(activeFlow?.contents.main?.trim())));
   if (allowActiveFlowResult.value) {
-    syncActiveFlow();
-    if (!isDevMockAnalysis()) await recoverFlowResult();
+    if (activeMatchesPeriod) {
+      syncActiveFlow();
+      if (!isDevMockAnalysis()) await recoverFlowResult();
+    }
   }
   if (!isDevMockAnalysis())
-    await loadIncompleteFlowTasks(true, allowActiveFlowResult.value);
+    await loadIncompleteFlowTasks(true, allowActiveFlowResult.value, period);
   const resumedFeature = premiumFeatureGate.restoreFeature(["flow_pdf"]);
   if (resumedFeature && !content.value.trim()) {
     premiumFeatureGate.closeResume();
     showAppWarning("原解析結果已不存在，請重新產生後再下載 PDF");
+  }
+  if (period === "today" && launchIntent) {
+    await nextTick();
+    await requestAnalysis(false, launchIntent === "start");
   }
 });
 onBeforeRouteLeave(() => {
@@ -188,7 +298,19 @@ onBeforeRouteLeave(() => {
   if (import.meta.client) sessionStorage.removeItem(flowUiStateKey);
   return true;
 });
+onBeforeRouteUpdate((to, from) => {
+  if (
+    requestedPeriod(to.query.period) !== requestedPeriod(from.query.period) &&
+    analyzing.value &&
+    !isDevMockAnalysis()
+  ) {
+    showAnalysisRunningSnackbar();
+    return false;
+  }
+  return true;
+});
 onBeforeUnmount(() => {
+  window.removeEventListener("beforeunload", handleBeforeUnload);
   if (import.meta.dev)
     window.removeEventListener(
       "fate-dev-analysis-applied",
@@ -196,11 +318,22 @@ onBeforeUnmount(() => {
     );
 });
 watch(() => activeAnalysis.active, syncActiveFlow, { deep: true });
+watch(
+  () => route.query.period,
+  async (value, previous) => {
+    const period = requestedPeriod(value);
+    if (!period || period === requestedPeriod(previous)) return;
+    resetFlowView(period, true);
+    if (!isDevMockAnalysis())
+      await loadIncompleteFlowTasks(true, true, period);
+  },
+);
 
 function syncActiveFlow() {
   const job = activeAnalysis.active;
   if (!job || job.kind !== "flow") return;
   if (!allowActiveFlowResult.value) return;
+  if (!activeFlowMatchesPeriod(job)) return;
   const meta = job.metadata as {
     flowType?: FlowType;
     year?: number;
@@ -313,21 +446,15 @@ async function refreshFlowJob() {
 }
 
 const typeOptions = [
-  {
-    type: "流年" as const,
-    title: "流年（年度）運勢",
-    subtitle: "分析整年吉凶起伏、事業財運與流年重點",
-    icon: CalendarDays,
-  },
-  {
-    type: "流月" as const,
-    title: "流月（月份）運勢",
+	{
+		type: "流月" as const,
+		title: "本月運勢",
     subtitle: "細推每月氣場轉變，掌握行事契機與變化",
     icon: CalendarRange,
   },
   {
     type: "流日" as const,
-    title: "流日（單日）運勢",
+		title: "今日運勢",
     subtitle: "排算每日吉凶運程，指引生活細節與決策",
     icon: CalendarCheck,
   },
@@ -345,7 +472,7 @@ function notify(message: string) {
 
 function showAnalysisRunningSnackbar() {
   showAppInfo("為避免中斷目前的解析，完成前請留在此頁。", {
-    title: "時運解析進行中",
+		title: `${featureName.value}進行中`,
     duration: 4000,
   });
 }
@@ -382,7 +509,7 @@ function restoreFlowUiState(): FlowStage | null {
       createdAt?: string;
     } | null;
     if (!value) return null;
-    if (["流年", "流月", "流日"].includes(value.flowType || "")) {
+	if (["流月", "流日"].includes(value.flowType || "")) {
       flowType.value = value.flowType!;
     }
     if (Number.isInteger(value.year)) year.value = value.year!;
@@ -411,19 +538,21 @@ function normalizeRecord(data: unknown): FlowRecord | null {
 
 function normalizeFlowRecords(data: unknown): FlowRecord[] {
   const body = data as { data?: unknown } | null;
-  return Array.isArray(body?.data) ? (body.data as FlowRecord[]) : [];
+  return Array.isArray(body?.data)
+    ? (body.data as FlowRecord[]).filter((record) => Number(record.analysis_date_key || 0) % 10000 !== 0)
+    : [];
 }
 function applyFlowDateKey(key: number) {
   year.value = Math.floor(key / 10000);
   const rest = key % 10000;
   month.value = Math.floor(rest / 100) || 1;
   day.value = rest % 100 || 1;
-  flowType.value = rest === 0 ? "流年" : rest % 100 === 0 ? "流月" : "流日";
+	flowType.value = rest % 100 === 0 ? "流月" : "流日";
 }
 function incompleteFlowLabel(record: FlowRecord) {
   const key = Number(record.analysis_date_key || 0);
   const rest = key % 10000;
-  const type = rest === 0 ? "流年" : rest % 100 === 0 ? "流月" : "流日";
+	const type = rest % 100 === 0 ? "流月" : "流日";
   const y = Math.floor(key / 10000);
   const m = Math.floor(rest / 100);
   const d = rest % 100;
@@ -439,11 +568,12 @@ function recoveryTime(raw?: string) {
 async function loadIncompleteFlowTasks(
   preserveContent = false,
   revealResult = true,
+  period = requestedPeriod(),
 ) {
   try {
     incompleteTasks.value = normalizeFlowRecords(
       await ziweiApi.getIncompleteAnalyses("flow", { notifyError: false }),
-    );
+    ).filter((record) => flowRecordMatchesPeriod(record, period));
     const record = currentIncompleteTask.value;
     if (record?.analysis_date_key && revealResult) {
       allowActiveFlowResult.value = true;
@@ -505,7 +635,7 @@ async function abandonIncompleteFlow() {
   }
 }
 
-async function requestAnalysis(force = false) {
+async function requestAnalysis(force = false, confirmed = false) {
   if (!chartStore.chart || analyzing.value || preparing.value) return;
   trackNextStepSubmitted("flow");
   if (!(await activeAnalysis.ensureAvailable("flow"))) return;
@@ -532,6 +662,10 @@ async function requestAnalysis(force = false) {
     }
   }
   preparing.value = false;
+  if (confirmed) {
+    await startAnalysis();
+    return;
+  }
   showConfirm.value = true;
 }
 
@@ -707,7 +841,7 @@ async function downloadFlowPDF() {
   await downloadAnalysisPdf({
     source: flowPdfSource,
     filename: () =>
-      `江映澄紫微-${flowType.value}-${displayDate.value.replaceAll("/", "-")}.pdf`,
+		`江映澄紫微-${featureName.value}-${displayDate.value.replaceAll("/", "-")}.pdf`,
     prepare: () => {
       const parsed = parseSections(printableContent);
       flowPdfSnapshot.value = {
@@ -715,7 +849,7 @@ async function downloadFlowPDF() {
         createdAt: formattedCreatedAt.value,
         sections: parsed.length
           ? parsed
-          : [{ title: "時運解析", content: printableContent }],
+			: [{ title: featureName.value, content: printableContent }],
       };
     },
     cleanup: () => {
@@ -766,15 +900,20 @@ async function goBack() {
   if (stage.value === "result") {
     allowActiveFlowResult.value = false;
     activeAnalysis.dismiss("flow");
-    stage.value = "date";
     content.value = "";
     error.value = "";
+    if (requestedPeriod() === "today") {
+      await navigateTo("/ai-analysis");
+      return;
+    }
+    stage.value = "date";
     return;
   }
   if (stage.value === "date") {
-    allowActiveFlowResult.value = false;
-    stage.value = "type";
-    return;
+	allowActiveFlowResult.value = false;
+	if (requestedPeriod()) await navigateTo("/ai-analysis");
+	else stage.value = "type";
+	return;
   }
   await navigateTo("/ai-analysis");
 }
@@ -796,12 +935,12 @@ async function goBack() {
         <ChevronLeft :size="23" /></button
     ></template>
     <template #title
-      ><div class="bar-title"><h1>時運解析</h1></div></template
+		><div class="bar-title"><h1>{{ stage === 'type' ? '近期運勢' : featureName }}</h1></div></template
     >
     <template #actions>
       <AppActionMenu
         v-if="stage === 'result' && content"
-        label="時運解析操作"
+		:label="`${featureName}操作`"
         :items="flowActionItems"
         @select="handleFlowAction"
       />
@@ -818,7 +957,7 @@ async function goBack() {
           <main data-pdf-page>
             <header class="flow-pdf-heading analysis-pdf-cover glass" data-pdf-block>
               <img src="/remove-background-logo.png" alt="" />
-              <p>江映澄紫微·時運解析</p>
+			<p>江映澄紫微·{{ featureName }}</p>
               <h2>{{ flowPdfSnapshot.title }}</h2>
               <small>分析生成時間：{{ flowPdfSnapshot.createdAt || new Date().toLocaleString("zh-TW", { hour12: false }) }}</small>
               <p class="analysis-pdf-disclaimer">本報告內容供自我探索與參考，不應取代醫療、法律或財務專業意見。</p>
@@ -859,7 +998,7 @@ async function goBack() {
           role="status"
           aria-live="polite"
         >
-          <AppLoading scope="page" layout="fill" :delay="0" message="正在整理時運 PDF，請稍候…" />
+		  <AppLoading scope="page" layout="fill" :delay="0" message="正在整理運勢 PDF，請稍候…" />
         </div>
       </template>
     </Teleport>
@@ -867,7 +1006,7 @@ async function goBack() {
 
     <main v-if="stage === 'type'" class="flow-body type-stage">
       <p class="stage-copy">
-        請選擇您想排算的運勢週期，開始解析運勢<br />（再次輸入已解析過的時間即可調閱歷史資料，且不消耗點數或額度。）
+		請選擇今日或本月的運勢分析。已完成的時間會直接載入歷史結果，不重複消耗點數或額度。
       </p>
       <button
         v-for="option in typeOptions"
@@ -886,16 +1025,15 @@ async function goBack() {
 
     <main v-else-if="stage === 'date'" class="flow-body date-stage">
       <p class="stage-copy">
-        選擇分析時間「{{
-          flowType
-        }}」<br />（再次輸入已解析過的時間即可調閱歷史資料，且不消耗點數或額度。）
+		{{ flowType === '流日' ? '分析今天的工作、感情、財運與生活節奏。' : '選擇要分析的月份；已有結果時會直接載入。' }}
       </p>
-      <FlowDatePicker
+	  <FlowDatePicker v-if="flowType === '流月'"
         v-model:year="year"
         v-model:month="month"
         v-model:day="day"
         :flow-type="flowType"
-        :birth-year="birthYear"
+		:birth-year="birthYear"
+		:min-year-override="today.year"
       />
       <p v-if="!chartStore.chart" class="flow-error">
         請先完成出生資料與命盤設定
@@ -906,7 +1044,7 @@ async function goBack() {
         :disabled="preparing || !chartStore.chart"
         @click="requestAnalysis(false)"
       >
-        <Sparkles :size="18" />{{ preparing ? "正在確認..." : "開始時運解析" }}
+		<Sparkles :size="18" />{{ preparing ? "正在確認..." : `開始${featureName}` }}
       </button>
     </main>
 
@@ -985,7 +1123,7 @@ async function goBack() {
     />
 
     <AppBottomSheet :open="showConfirm" @close="showConfirm = false"
-      ><template #header><h2>確認執行時運解析</h2></template>
+	  ><template #header><h2>確認執行{{ featureName }}</h2></template>
       <p>
         {{
           auth.premium
@@ -1028,7 +1166,7 @@ async function goBack() {
     >
     <AppBottomSheet :open="showFallback" @close="showFallback = false"
       ><template #header><h2>會員月度額度已滿</h2></template>
-      <p>是否改為扣除 100 點數繼續本次時運解析？目前點數：{{ auth.points }}</p>
+	  <p>是否改為扣除 100 點數繼續本次{{ featureName }}？目前點數：{{ auth.points }}</p>
       <div class="sheet-actions">
         <button
           class="app-button outline"
@@ -1048,7 +1186,7 @@ async function goBack() {
     >
     <IncompleteAnalysisRecoverySheet
       :open="stage === 'result' && canRecoverIncompleteFlow"
-      title="發現未完成的時運解析"
+	  :title="`發現未完成的${featureName}`"
       :summary="
         currentIncompleteTask ? incompleteFlowLabel(currentIncompleteTask) : ''
       "

@@ -28,14 +28,16 @@ export interface DevStreamFrame {
 export const targetLabels: Record<AnalysisKind, string> = {
   report: "命盤解析",
   match: "合盤解析",
-  flow: "時運解析",
-  qa: "AI 問答",
+  flow: "今日／本月運勢",
+  annual_flow: "流年運勢",
+  qa: "線上問答",
 };
 
 export const targetRoutes: Record<AnalysisKind, string> = {
   report: "/report",
   match: "/match",
   flow: "/flow",
+  annual_flow: "/annual-flow",
   qa: "/qa",
 };
 
@@ -113,7 +115,7 @@ const reportFixtures: Record<string, string> = {
 };
 
 const flowFixture = `### DEV 模擬資料：整體趨勢
-這是時運解析的合成串流內容，用來檢查段落逐步出現的狀態。
+這是近期運勢的合成串流內容，用來檢查段落逐步出現的狀態。
 
 - 工作推進：4/5
 - 人際互動：3/5
@@ -121,6 +123,48 @@ const flowFixture = `### DEV 模擬資料：整體趨勢
 
 ### DEV 模擬資料：行動建議
 先處理最重要且能立即驗證的事項，保留調整空間。本段不構成真實命理建議。`;
+
+const annualFlowFixture = `### 年度核心小結
+
+- **心境穩定（76／100）**：今年需要刻意安排休息與整理情緒的時間，避免在壓力累積時倉促決定。
+
+- **發展動能（88／100）**：適合把行動力投入既有方向的優化與深耕，逐步累積可驗證的成果。
+
+- **機會資源（72／100）**：人際連結可能帶來新的資訊與協助，主動表達需求會更容易掌握機會。
+
+- **掌控能力（81／100）**：多數計畫仍在可調整範圍內，重要決定前保留檢查點能降低判斷落差。
+
+- **成長強度（85／100）**：今年的課題具有明顯推進力，願意面對不熟悉的部分便能形成長期成長。
+
+### 心態轉變
+今年適合重新整理優先順序，以較穩定的節奏回應變化。
+
+### 成長方向
+把注意力放在能長期累積的能力，會比追逐短期成果更有幫助。
+
+### 困難與挑戰
+同時處理過多目標時容易分散心力，需要主動取捨。
+
+### 適合舞台
+適合在責任清楚、能自主安排進度的環境中發揮。
+
+### 重要關係
+與願意坦白溝通、尊重界線的人互動，較容易形成支持。
+
+### 感情運
+先確認彼此期待，再決定關係推進速度。
+
+### 事業運
+工作上有推進空間，重要事項仍應預留檢查與調整時間。
+
+### 財運
+維持收支紀律，避免因短期情緒做出過度承諾。
+
+### 面臨重大決策
+把決策拆成可驗證的小步驟，有助於保留調整空間。
+
+### 注意事項與建議
+運勢呈現的是趨勢，實際結果仍可透過選擇、準備與調整改變。`;
 
 const matchFixture = `## DEV 模擬資料：關係速覽
 - 溝通默契（78/100）
@@ -161,6 +205,7 @@ function splitFixture(source: string, size = 18) {
 export function completeContents(kind: AnalysisKind): Record<string, string> {
   if (kind === "report") return { ...reportFixtures };
   if (kind === "flow") return { main: flowFixture };
+  if (kind === "annual_flow") return { main: annualFlowFixture };
   if (kind === "match") return { main: matchFixture };
   return { main: qaFixture };
 }

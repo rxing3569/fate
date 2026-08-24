@@ -30,11 +30,12 @@ export function useNextStepNavigation() {
     }
 
     const destination = action.destination;
-    const direct =
-      destination === "report" && action.reportCategory
+	const direct = destination === "annual_flow"
+	  ? "/annual-flow"
+	  : destination === "report" && action.reportCategory
         ? `/report?category=${action.reportCategory}`
         : `/${destination}`;
-    const setup = `/ai-analysis?mode=${destination}`;
+	const setup = `/ai-analysis?mode=${destination}`;
 
     if (!auth.isAuthenticated) {
       window.dispatchEvent(

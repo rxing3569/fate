@@ -46,6 +46,7 @@ const mobileNavigationHiddenRoutes = new Set([
   "/report",
   "/report-detail",
   "/flow",
+  "/annual-flow",
   "/match",
   "/qa",
 ]);
@@ -84,7 +85,8 @@ const copyProtected = computed(() => {
     path === "/quiz" ||
     path === "/report" ||
     path === "/report-detail" ||
-    path === "/flow" ||
+		path === "/flow" ||
+		path === "/annual-flow" ||
     path === "/match"
   );
 });

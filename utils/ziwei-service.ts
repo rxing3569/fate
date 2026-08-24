@@ -2,7 +2,7 @@ import { apiFetch, connectAnalyzeWebSocket } from './api'
 import { markStageCompleted, normalizeCompletedStages } from './learning'
 
 export interface AnalysisRequest {
-  type: 'report' | 'flow' | 'match' | 'qa'
+  type: 'report' | 'flow' | 'annual_flow' | 'match' | 'qa'
   payload: Record<string, unknown>
   onMessage: (message: string) => void
   onDone?: () => void
@@ -63,6 +63,10 @@ export async function streamAnalysis(request: AnalysisRequest) {
       finish()
       return
     }
+    if (/^(?:❌\s*)?資料格式錯誤[：:]/.test(text.trim())) {
+      fail('invalid_analysis_payload')
+      return
+    }
     try {
       const data = JSON.parse(text)
       if (data === '/end') { finish(); return }
@@ -80,7 +84,12 @@ export async function streamAnalysis(request: AnalysisRequest) {
         fail(String(data.message || '目前解析服務使用人數較多，請稍候幾分鐘後再試。'))
         return
       }
-      if (data.error || data.type === 'error') { fail(String(data.detail || data.error || data.message || '分析發生錯誤')); return }
+      if (data.error || data.type === 'error') {
+        const code = String(data.message || data.error || '')
+        const knownCode = ['membership_limit_exceeded', 'insufficient_points', 'requires_membership', 'analysis_in_progress', 'invalid_analysis_payload'].includes(code)
+        fail(knownCode ? code : String(data.detail || code || '分析發生錯誤'))
+        return
+      }
       if (data.content) request.onMessage(String(data.content))
       if (data.done || data.type === 'done' || data.type === 'complete') finish()
     } catch {
@@ -179,13 +188,13 @@ export const ziweiApi = {
   finalizeAnalysisTimeout(jobId: string) {
     return apiFetch(`/ziwei/analysis/jobs/${encodeURIComponent(jobId)}/finalize-timeout`, { method: 'POST' })
   },
-  getIncompleteAnalyses(kind: 'flow' | 'match', options: { notifyError?: boolean } = {}) {
+  getIncompleteAnalyses(kind: 'flow' | 'annual_flow' | 'match', options: { notifyError?: boolean } = {}) {
     return apiFetch(`/ziwei/analysis/incomplete?kind=${kind}`, options)
   },
-  prepareIncompleteRetry(kind: 'flow' | 'match', uuid: string) {
+  prepareIncompleteRetry(kind: 'flow' | 'annual_flow' | 'match', uuid: string) {
     return apiFetch(`/ziwei/analysis/incomplete/${kind}/${encodeURIComponent(uuid)}/prepare-retry`, { method: 'POST' })
   },
-  abandonIncompleteAnalysis(kind: 'flow' | 'match', uuid: string) {
+  abandonIncompleteAnalysis(kind: 'flow' | 'annual_flow' | 'match', uuid: string) {
     return apiFetch(`/ziwei/analysis/incomplete/${kind}/${encodeURIComponent(uuid)}`, { method: 'DELETE' })
   },
   getMatchRecords() {
@@ -199,6 +208,9 @@ export const ziweiApi = {
   },
   getFlowRecord(dateKey: number, options: { notifyError?: boolean } = {}) {
     return apiFetch(`/ziwei/flow/record/${dateKey}`, options)
+  },
+  getAnnualFlowRecord(year: number, options: { notifyError?: boolean } = {}) {
+    return apiFetch(`/ziwei/annual-flow/record/${year}`, options)
   },
   submitIssueReport(payload: { issue_type: '系統建議' | 'BUG' | '會員權益', description: string }) {
     return apiFetch('/issue-reports', {

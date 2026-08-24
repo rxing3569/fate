@@ -46,7 +46,7 @@ function validIntent(value: unknown): value is NextStepIntent {
     (intent.type === "report" || intent.type === "article") &&
     typeof intent.id === "string" &&
     typeof intent.actionId === "string" &&
-    ["chart", "report", "match", "flow", "qa"].includes(
+    ["chart", "report", "match", "flow", "annual_flow", "qa"].includes(
       String(intent.destination),
     ) &&
     Number.isFinite(Number(intent.expiresAt))

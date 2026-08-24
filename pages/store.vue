@@ -276,10 +276,10 @@ const money = (amount: number) => `NT$${amount}`;
           </div>
           <div class="divider" />
           <ul>
-            <li>點數可以用於「命盤解析」、「時運解析」</li>
+			<li>點數可以用於「命盤解析」、「今日運勢」、「本月運勢」；Premium 會員額度用完後也可用於「流年運勢」</li>
           </ul>
           <p class="plan-note">
-            <Info :size="16" />如要使用「合盤解析」、「AI 問答」等功能請升級
+            <Info :size="16" />如要使用「合盤解析」、「線上問答」等功能請升級
             Premium。
           </p>
         </button>

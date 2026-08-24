@@ -11,7 +11,7 @@ usePageSeo({
   keywords: ["免費算命", "免費紫微", "紫微排盤", "免費排盤", "AI排盤"],
   canonicalPath: "/ai-analysis/",
 });
-const featureModes = new Set(["chart", "report", "flow", "match", "qa"]);
+const featureModes = new Set(["chart", "report", "flow_today", "flow_month", "annual_flow", "match", "qa"]);
 const routeMode = computed(() => {
   const value = Array.isArray(route.query.mode)
     ? route.query.mode[0]
@@ -21,6 +21,9 @@ const routeMode = computed(() => {
 const active = ref<string | null>(routeMode.value);
 const savingBirth = ref(false);
 const birthError = ref("");
+const checkingTodayFlow = ref(false);
+const showTodayFlowConfirm = ref(false);
+const flowLaunchIntentKey = "ziwei:flow-launch-intent";
 const pendingBirthInfo = ref<
   Parameters<typeof chartStore.saveBirthInfo>[0] | null
 >(null);
@@ -70,6 +73,20 @@ const pointsLabel = computed(() => {
 
 const features = [
   {
+    id: "flow_today",
+    title: "今日運勢",
+    icon: "insights_rounded" as const,
+    to: "/flow?period=today",
+    primary: true,
+  },
+  {
+    id: "flow_month",
+    title: "本月運勢",
+    icon: "calendar_month" as const,
+    to: "/flow?period=month",
+    primary: true,
+  },
+  {
     id: "report",
     title: "命盤解析",
     subtitle: "深入瞭解「先天命格」、「宮位詳解」、「十年大運」",
@@ -77,12 +94,13 @@ const features = [
     to: "/report",
   },
   {
-    id: "flow",
-    title: "時運解析",
-    subtitle: "深度分析，每年、每月、每日的運勢。",
-    icon: "insights_rounded" as const,
-    to: "/flow",
+    id: "annual_flow",
+    title: "流年運勢",
+    subtitle: "會員專屬年度解析，掌握四季節奏與方向。",
+    icon: "auto_awesome_rounded" as const,
+    to: "/annual-flow",
     primary: true,
+    badge: "NEW",
   },
   {
     id: "match",
@@ -94,14 +112,50 @@ const features = [
   },
   {
     id: "qa",
-    title: "AI 問答",
+    title: "線上問答",
     subtitle: "AI 命理師來解惑所有問題。",
     icon: "chat" as const,
     to: "/qa",
   },
 ];
 
-function openFeature(feature: (typeof features)[number]) {
+function normalizeFlowRecord(value: unknown) {
+  if (!value || typeof value !== "object") return null;
+  const wrapped = value as {
+    data?: { content?: string; is_complete?: boolean };
+  };
+  return wrapped.data || (value as { content?: string; is_complete?: boolean });
+}
+
+async function launchTodayFlow(intent: "load" | "start") {
+  showTodayFlowConfirm.value = false;
+  sessionStorage.setItem(flowLaunchIntentKey, intent);
+  await navigateTo("/flow?period=today");
+}
+
+async function checkTodayFlow() {
+  if (checkingTodayFlow.value) return;
+  if (!(await auth.verifyOnlineAccess())) return;
+  checkingTodayFlow.value = true;
+  try {
+    const current = taipeiToday();
+    const dateKey = current.year * 10000 + current.month * 100 + current.day;
+    const record = normalizeFlowRecord(
+      await ziweiApi
+        .getFlowRecord(dateKey, { notifyError: false })
+        .catch(() => null),
+    );
+    if (record?.is_complete && record.content?.trim()) {
+      await launchTodayFlow("load");
+      return;
+    }
+    showTodayFlowConfirm.value = true;
+  } finally {
+    checkingTodayFlow.value = false;
+  }
+}
+
+async function openFeature(feature: (typeof features)[number]) {
   if (!auth.isAuthenticated) {
     window.dispatchEvent(new CustomEvent("auth-login-required"));
     return;
@@ -110,7 +164,11 @@ function openFeature(feature: (typeof features)[number]) {
     enterMode(feature.id);
     return;
   }
-  navigateTo(feature.to);
+  if (feature.id === "flow_today") {
+    await checkTodayFlow();
+    return;
+  }
+  await navigateTo(feature.to);
 }
 
 function openChart() {
@@ -144,10 +202,15 @@ function birthDestination() {
 }
 
 async function finishBirthFlow() {
+  const completedMode = active.value;
   const destination = birthDestination();
   active.value = null;
   if (!destination) return;
   await navigateTo("/ai-analysis", { replace: true });
+  if (completedMode === "flow_today") {
+    await checkTodayFlow();
+    return;
+  }
   await navigateTo(destination);
 }
 
@@ -251,9 +314,6 @@ async function confirmBirthChange() {
         <span class="chart-arrow"
           ><AppMaterialIcon name="arrow_outward_rounded" :size="18"
         /></span>
-        <small class="chart-description"
-          >先查看完整命盤，再進入各項 AI 解析。</small
-        >
         <span class="birth-strip">
           <span
             ><small>出生</small><b>{{ birthDate }}</b></span
@@ -269,25 +329,28 @@ async function confirmBirthChange() {
           v-for="feature in features"
           :key="feature.id"
           class="feature-card glass"
-          :class="{ primary: feature.primary }"
+          :class="{ primary: feature.primary, compact: !feature.subtitle }"
           type="button"
+          :disabled="checkingTodayFlow && feature.id === 'flow_today'"
           @click="openFeature(feature)"
         >
-          <span class="feature-icon">
-            <img
-              v-if="feature.icon === 'chat'"
-              src="/chat.svg"
-              alt=""
-              width="20"
-              height="20"
-            />
-            <AppMaterialIcon v-else :name="feature.icon" :size="22" />
+          <span class="feature-heading">
+            <span class="feature-icon">
+              <img
+                v-if="feature.icon === 'chat'"
+                src="/chat.svg"
+                alt=""
+                width="20"
+                height="20"
+              />
+              <AppMaterialIcon v-else :name="feature.icon" :size="22" />
+            </span>
+            <strong>{{ feature.title }}<em v-if="feature.badge" class="feature-badge">{{ feature.badge }}</em></strong>
           </span>
           <span class="feature-arrow"
             ><AppMaterialIcon name="arrow_outward_rounded" :size="14"
           /></span>
-          <strong>{{ feature.title }}</strong
-          ><small>{{ feature.subtitle }}</small>
+          <small v-if="feature.subtitle">{{ feature.subtitle }}</small>
         </button>
       </div>
     </div>
@@ -297,6 +360,37 @@ async function confirmBirthChange() {
       @cancel="pendingBirthInfo = null"
       @confirm="confirmBirthChange"
     />
+    <AppBottomSheet
+      :open="showTodayFlowConfirm"
+      @close="showTodayFlowConfirm = false"
+    >
+      <template #header><h2>確認執行今日運勢</h2></template>
+      <p>今天尚無運勢紀錄，是否開始排算？</p>
+      <div class="today-flow-cost">
+        <Coins :size="18" />
+        <span>{{ auth.premium ? "本月會員額度剩餘" : "目前點數" }}</span>
+        <b>{{
+          auth.premium ? `${auth.membershipQuotaRemaining} 次` : `${auth.points} P`
+        }}</b>
+      </div>
+      <div class="today-flow-actions">
+        <button
+          class="app-button outline"
+          type="button"
+          @click="showTodayFlowConfirm = false"
+        >
+          取消
+        </button>
+        <button
+          class="app-button"
+          type="button"
+          :disabled="!auth.premium && auth.points < 100"
+          @click="launchTodayFlow('start')"
+        >
+          確認排算
+        </button>
+      </div>
+    </AppBottomSheet>
   </AppPageLayout>
 </template>
 
@@ -326,7 +420,7 @@ async function confirmBirthChange() {
   box-sizing: border-box;
   width: 100%;
   margin-inline: auto;
-  padding: 6px 20px 100px;
+  padding: 6px 20px 20px;
 }
 .points-card {
   position: relative;
@@ -364,8 +458,8 @@ async function confirmBirthChange() {
   flex-direction: column;
   align-items: stretch;
   width: 100%;
-  margin: 16px 0 20px;
-  padding: 22px;
+  margin: 14px 0 18px;
+  padding: 18px;
   isolation: isolate;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.86);
@@ -413,14 +507,14 @@ async function confirmBirthChange() {
   gap: 12px;
 }
 .chart-heading > strong {
-  font-size: 24px;
+  font-size: 21px;
   font-weight: 900;
 }
 .chart-emblem {
   display: grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
+  width: 42px;
+  height: 42px;
   border: 1px solid rgba(36, 87, 90, 0.14);
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.68);
@@ -430,25 +524,19 @@ async function confirmBirthChange() {
 }
 .chart-arrow {
   position: absolute;
-  top: 22px;
-  right: 22px;
+  top: 18px;
+  right: 18px;
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border: 1px solid rgba(36, 87, 90, 0.14);
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.72);
   box-shadow: inset 0 1px 0 #fff;
 }
-.chart-description {
-  margin: 16px 0;
-  color: var(--mountain);
-  font-size: 13.5px;
-  font-weight: 700;
-  line-height: 1.45;
-}
 .birth-strip {
+  margin-top: 12px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
@@ -458,8 +546,8 @@ async function confirmBirthChange() {
   flex-direction: column;
   justify-content: center;
   min-width: 0;
-  height: 58px;
-  padding: 10px 12px;
+  height: 52px;
+  padding: 8px 11px;
   border: 1px solid rgba(36, 87, 90, 0.12);
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.62);
@@ -494,8 +582,8 @@ async function confirmBirthChange() {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 166px;
-  padding: 16px;
+  min-height: 116px;
+  padding: 13px;
   isolation: isolate;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.82);
@@ -514,6 +602,11 @@ async function confirmBirthChange() {
   -webkit-backdrop-filter: blur(22px) saturate(145%);
   backdrop-filter: blur(22px) saturate(145%);
 }
+.feature-card.compact {
+  min-height: 72px;
+  justify-content: center;
+  padding-block: 12px;
+}
 .feature-card.primary {
   border-color: rgba(107, 166, 160, 0.4);
   background: linear-gradient(
@@ -526,14 +619,22 @@ async function confirmBirthChange() {
     inset 0 1px 0 #fff,
     0 14px 30px rgba(36, 87, 90, 0.16);
 }
+.feature-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-right: 24px;
+}
 .feature-icon {
+  flex: 0 0 auto;
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
-  margin-bottom: auto;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 0;
   border: 1px solid rgba(36, 87, 90, 0.14);
-  border-radius: 15px;
+  border-radius: 13px;
   background: rgba(255, 255, 255, 0.7);
   box-shadow:
     inset 0 1px 0 #fff,
@@ -544,15 +645,30 @@ async function confirmBirthChange() {
     brightness(91%) contrast(91%);
 }
 .feature-card strong {
-  margin-top: 14px;
-  padding-right: 18px;
-  font-size: 19px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  font-size: 17px;
   font-weight: 900;
+}
+.feature-badge {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: var(--cinnabar);
+  color: #fff;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: .08em;
+  line-height: 1;
 }
 .feature-card small {
   display: -webkit-box;
   overflow: hidden;
-  margin-top: 6px;
+  margin-top: 10px;
   color: rgba(36, 87, 90, 0.76);
   font-size: 12.5px;
   font-weight: 700;
@@ -565,8 +681,8 @@ async function confirmBirthChange() {
 }
 .feature-arrow {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 14px;
+  right: 14px;
   display: grid;
   place-items: center;
   width: 28px;
@@ -609,5 +725,27 @@ async function confirmBirthChange() {
   font-size: 13px;
   font-weight: 700;
   text-align: center;
+}
+.today-flow-cost {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(107, 166, 160, 0.12);
+}
+.today-flow-cost b {
+  margin-left: auto;
+}
+.today-flow-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 16px;
+}
+@media (max-width: 759px) {
+  .ai-screen {
+    min-height: calc(100dvh - 80px - env(safe-area-inset-bottom));
+  }
 }
 </style>

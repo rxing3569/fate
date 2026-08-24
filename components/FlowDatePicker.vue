@@ -17,6 +17,9 @@ const props = defineProps<{
   month: number;
   day: number;
   birthYear: number;
+  minYearOverride?: number;
+  compact?: boolean;
+  hideLabel?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -28,7 +31,7 @@ const emit = defineEmits<{
 const now = new Date();
 const maxYear = now.getFullYear() + 1;
 const minYear = computed(() =>
-  Math.min(maxYear, props.birthYear || now.getFullYear() - 80),
+	Math.min(maxYear, props.minYearOverride || props.birthYear || now.getFullYear() - 80),
 );
 const months = Array.from({ length: 12 }, (_, index) => index + 1);
 const selectedMonthDays = computed(() =>
@@ -190,9 +193,9 @@ function chooseDay(value: number) {
 </script>
 
 <template>
-  <section class="flow-date-picker glass">
+  <section class="flow-date-picker glass" :class="{ compact }">
     <button class="date-trigger" type="button" @click="openPicker">
-      <small>{{ pickerLabel }}</small>
+      <small v-if="!hideLabel">{{ pickerLabel }}</small>
       <span class="date-trigger-value">
         <strong>{{ pickerValue }}</strong>
         <CalendarDays v-if="flowType === '流日'" :size="21" />
@@ -212,7 +215,7 @@ function chooseDay(value: number) {
         >
           <header>
             <div>
-              <small>時運解析</small>
+              <small>運勢解析</small>
               <h2>{{ dialogTitle }}</h2>
             </div>
             <button type="button" aria-label="關閉" @click="dialog = null">
@@ -469,6 +472,7 @@ function chooseDay(value: number) {
 .date-trigger-value svg {
   flex: 0 0 auto;
 }
+.flow-date-picker.compact{padding:6px;border-radius:18px}.flow-date-picker.compact .date-trigger{min-height:46px;padding:6px 10px;border-radius:14px}.flow-date-picker.compact .date-trigger-value strong{font-size:19px}.flow-date-picker.compact .date-trigger-value{gap:6px}
 
 .picker-backdrop {
   position: fixed;

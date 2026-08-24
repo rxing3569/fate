@@ -31,7 +31,7 @@ const error = ref("");
 const fallbackProduct: WebProduct = {
   id: "web.premium.monthly",
   name: "升級 Premium",
-  description: "解鎖合盤解析與 AI 問答",
+  description: "解鎖流年運勢、合盤解析與線上問答",
   kind: "subscription",
   price: 270,
   original_price: 450,

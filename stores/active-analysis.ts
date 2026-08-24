@@ -7,7 +7,7 @@ import {
 } from "~/utils/api";
 import { ANALYSIS_TIMEOUT_MS } from "~/composables/useIncompleteAnalysisRecovery";
 
-export type AnalysisKind = "report" | "flow" | "match" | "qa";
+export type AnalysisKind = "report" | "flow" | "annual_flow" | "match" | "qa";
 export type AnalysisStatus =
   | "idle"
   | "running"
@@ -58,14 +58,16 @@ function snackbar(
 
 const labels: Record<AnalysisKind, string> = {
   report: "命盤解析",
-  flow: "時運解析",
+  flow: "今日／本月運勢",
+  annual_flow: "流年運勢",
   match: "合盤解析",
-  qa: "AI 問答",
+  qa: "線上問答",
 };
 
 const destinations: Record<AnalysisKind, string> = {
   report: "/report",
   flow: "/flow",
+  annual_flow: "/annual-flow",
   match: "/match",
   qa: "/qa",
 };
@@ -84,7 +86,7 @@ function notifyCompleted(kind: AnalysisKind) {
     return;
   snackbar(`${labels[kind]}結果已保存，點擊下方按鈕即可前往查看。`, "info", {
     title: `${labels[kind]}已完成`,
-    actionLabel: kind === "qa" ? "前往 AI 問答" : "查看解析結果",
+    actionLabel: kind === "qa" ? "前往線上問答" : "查看解析結果",
     actionTo: destinations[kind],
     duration: 6000,
   });
@@ -137,7 +139,7 @@ function normalizeMetadata(value: unknown): Record<string, unknown> {
 }
 
 function analysisKind(value: string | undefined, fallback?: AnalysisKind) {
-  return value && ["report", "flow", "match", "qa"].includes(value)
+  return value && ["report", "flow", "annual_flow", "match", "qa"].includes(value)
     ? (value as AnalysisKind)
     : fallback;
 }
@@ -382,6 +384,10 @@ export const useActiveAnalysisStore = defineStore("active-analysis", {
       } catch (reason) {
         const failureMessage =
           reason instanceof Error ? reason.message : "分析連線失敗";
+        const displayMessage =
+          failureMessage === "invalid_analysis_payload"
+            ? "送出的分析條件有誤，請返回重新選擇後再試。"
+            : failureMessage;
         if (failureMessage === "analysis_connection_lost") {
           if (this.active?.jobId === job.jobId) {
             this.active.connected = false;
@@ -444,7 +450,7 @@ export const useActiveAnalysisStore = defineStore("active-analysis", {
         if (this.active?.jobId === job.jobId) {
           this.active.connected = false;
           this.active.status = "failed";
-          this.active.error = failureMessage;
+          this.active.error = displayMessage;
           activeController = undefined;
           this.persist();
           snackbar(this.active.error, "error", {

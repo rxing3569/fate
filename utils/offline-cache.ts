@@ -94,6 +94,7 @@ export function isOfflineSnapshotPath(path: string) {
     || pathname === '/ziwei/match/records'
     || /^\/ziwei\/match\/records\/[^/]+$/.test(pathname)
     || /^\/ziwei\/flow\/record\/[^/]+$/.test(pathname)
+    || /^\/ziwei\/annual-flow\/record\/[^/]+$/.test(pathname)
 }
 
 export function offlineRequestKey(path: string) {

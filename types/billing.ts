@@ -41,9 +41,11 @@ export type PremiumCheckoutDraft =
       feature:
         | "report_pdf"
         | "flow_pdf"
+        | "annual_flow"
+        | "annual_flow_pdf"
         | "match_pdf"
         | "match_history";
-      returnTo: "/report" | "/flow" | "/match";
+      returnTo: "/report" | "/flow" | "/annual-flow" | "/match";
     };
 
 export type PremiumCheckoutIntent = PremiumCheckoutDraft & {
