@@ -179,7 +179,7 @@ async function purchase() {
       </div>
       <ul class="premium-benefits">
         <li v-for="benefit in premiumBenefits" :key="benefit">
-          <BadgeCheck :size="18" />{{ benefit }}
+          <BadgeCheck :size="18" /><PurchaseFeatureCopy :source="benefit" />
         </li>
       </ul>
 

@@ -352,11 +352,21 @@ async function requestAnalysis(force = false) {
   recalculate.value = force;
   usePointsFallback.value = false;
   if (!force) {
-    const record = normalizeRecord(
-      await ziweiApi
-        .getAnnualFlowRecord(year.value, { notifyError: false })
-        .catch(() => null),
-    );
+    let record: AnnualRecord | null = null;
+    try {
+      record = normalizeRecord(
+        await ziweiApi.getAnnualFlowRecord(year.value, {
+          notifyError: false,
+        }),
+      );
+    } catch (reason) {
+      if (!(reason instanceof ApiError && reason.status === 404)) {
+        preparing.value = false;
+        error.value = "目前無法確認是否已有流年報告，請稍後再試。";
+        showAppError(error.value);
+        return;
+      }
+    }
     if (record?.is_complete && record.content?.trim()) {
       cachedRecord.value = record;
       showCacheChoice.value = true;

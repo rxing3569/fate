@@ -276,11 +276,17 @@ const money = (amount: number) => `NT$${amount}`;
           </div>
           <div class="divider" />
           <ul>
-			<li>點數可以用於「命盤解析」、「今日運勢」、「本月運勢」；Premium 會員額度用完後也可用於「流年運勢」</li>
+            <li>
+              <PurchaseFeatureCopy
+                source="點數可以用於「命盤解析」、「今日運勢」、「本月運勢」"
+              />
+            </li>
+            <li>Premium 會員額度用完後時可以替代使用</li>
           </ul>
           <p class="plan-note">
-            <Info :size="16" />如要使用「合盤解析」、「線上問答」等功能請升級
-            Premium。
+            <Info :size="16" /><PurchaseFeatureCopy
+              source="如要使用「合盤解析」、「線上問答」等功能請升級 Premium。"
+            />
           </p>
         </button>
 
@@ -318,7 +324,7 @@ const money = (amount: number) => `NT$${amount}`;
           <div class="divider" />
           <ul>
             <li v-for="benefit in premiumBenefits" :key="benefit">
-              {{ benefit }}
+              <PurchaseFeatureCopy :source="benefit" />
             </li>
           </ul>
           <p v-if="premiumProduct.promotion" class="early-bird-copy">
