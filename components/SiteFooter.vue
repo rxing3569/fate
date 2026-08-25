@@ -24,6 +24,7 @@ const linkGroups = [
     links: [
       { label: "隱私權政策", to: "/privacy-pwa" },
       { label: "問題回報", to: "/issue-report" },
+      { label: "官方 Threads", to: "https://www.threads.com/@fate.jyc" },
     ],
   },
 ];
@@ -45,7 +46,11 @@ const linkGroups = [
           <span class="footer-group-title">{{ group.title }}</span>
           <ul>
             <li v-for="link in group.links" :key="link.to">
-              <NuxtLink :to="link.to">{{ link.label }}</NuxtLink>
+              <NuxtLink
+                :to="link.to"
+                :target="link.to.startsWith('https://') ? '_blank' : undefined"
+                :rel="link.to.startsWith('https://') ? 'noopener noreferrer' : undefined"
+              >{{ link.label }}</NuxtLink>
             </li>
           </ul>
         </section>

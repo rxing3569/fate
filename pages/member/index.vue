@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import {
+  AtSign,
   Bug,
   ChevronRight,
+  ExternalLink,
   History,
   LogOut,
   ShieldCheck,
@@ -25,13 +27,43 @@ async function logout() {
   }
 }
 const menu = [
-  { icon: UserRoundCog, label: "命盤資料", to: "/profile/edit" },
-  { icon: History, label: "點數異動紀錄", to: "/point-history" },
-  { icon: ShoppingBag, label: "購買紀錄", to: "/purchase-history" },
-  { icon: Bug, label: "問題回報", to: "/issue-report" },
-  { icon: ShieldCheck, label: "隱私權政策", to: "/privacy-pwa" },
+  {
+    icon: UserRoundCog,
+    label: "命盤資料",
+    to: "/profile/edit",
+    external: false,
+  },
+  {
+    icon: History,
+    label: "點數異動紀錄",
+    to: "/point-history",
+    external: false,
+  },
+  {
+    icon: ShoppingBag,
+    label: "購買紀錄",
+    to: "/purchase-history",
+    external: false,
+  },
+  { icon: Bug, label: "問題回報", to: "/issue-report", external: false },
+  {
+    icon: ShieldCheck,
+    label: "隱私權政策",
+    to: "/privacy-pwa",
+    external: false,
+  },
+  {
+    icon: AtSign,
+    label: "官方 Threads",
+    to: "https://www.threads.com/@fate.jyc",
+    external: true,
+  },
 ];
 function select(item: (typeof menu)[number]) {
+  if (item.external) {
+    window.open(item.to, "_blank", "noopener,noreferrer");
+    return;
+  }
   if (item.to) return navigateTo(item.to);
 }
 </script>
@@ -55,7 +87,10 @@ function select(item: (typeof menu)[number]) {
           <component :is="item.icon" :size="20" /><strong>{{
             item.label
           }}</strong
-          ><ChevronRight :size="18" />
+          ><ExternalLink v-if="item.external" :size="17" /><ChevronRight
+            v-else
+            :size="18"
+          />
         </button>
       </section>
       <button
@@ -74,28 +109,33 @@ function select(item: (typeof menu)[number]) {
         :locked="loggingOut"
         @close="showLogoutSheet = false"
       >
-          <template #header><span class="clear-progress-icon logout-confirm-icon"><LogOut :size="25" /></span><h2 id="logout-confirm-title">確定要登出？</h2></template>
-          <div class="clear-progress-sheet">
-            <p>登出後需要重新登入，才能繼續使用會員功能與查看個人資料。</p>
-            <div class="clear-progress-actions">
-              <button
-                class="app-button outline"
-                type="button"
-                :disabled="loggingOut"
-                @click="showLogoutSheet = false"
-              >
-                取消
-              </button>
-              <button
-                class="app-button danger-button"
-                type="button"
-                :disabled="loggingOut"
-                @click="logout"
-              >
-                {{ loggingOut ? "登出中…" : "確定登出" }}
-              </button>
-            </div>
+        <template #header
+          ><span class="clear-progress-icon logout-confirm-icon"
+            ><LogOut :size="25"
+          /></span>
+          <h2 id="logout-confirm-title">確定要登出？</h2></template
+        >
+        <div class="clear-progress-sheet">
+          <p>登出後需要重新登入，才能繼續使用會員功能與查看個人資料。</p>
+          <div class="clear-progress-actions">
+            <button
+              class="app-button outline"
+              type="button"
+              :disabled="loggingOut"
+              @click="showLogoutSheet = false"
+            >
+              取消
+            </button>
+            <button
+              class="app-button danger-button"
+              type="button"
+              :disabled="loggingOut"
+              @click="logout"
+            >
+              {{ loggingOut ? "登出中…" : "確定登出" }}
+            </button>
           </div>
+        </div>
       </AppBottomSheet>
     </template>
   </AppPageLayout>

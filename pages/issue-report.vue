@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, ChevronDown, Send } from "@lucide/vue";
+import { AtSign, Check, ChevronDown, ExternalLink, Send } from "@lucide/vue";
 definePageMeta({ middleware: "auth" });
 type IssueCategory = "BUG" | "會員權益" | "系統建議";
 
@@ -56,6 +56,14 @@ async function submit() {
 function handleContentInput() {
   if (contentError.value && content.value.trim()) contentError.value = "";
 }
+
+function openOfficialThreads() {
+  window.open(
+    "https://www.threads.com/@fate.jyc",
+    "_blank",
+    "noopener,noreferrer",
+  );
+}
 </script>
 
 <template>
@@ -105,7 +113,7 @@ function handleContentInput() {
             v-model="content"
             class="issue-input"
             :class="{ invalid: contentError }"
-            rows="7"
+            rows="4"
             placeholder="請輸入問題內容…"
             :aria-invalid="Boolean(contentError)"
             aria-describedby="content-error"
@@ -119,6 +127,20 @@ function handleContentInput() {
           <Send :size="18" />{{ submitting ? "送出中…" : "送出回報" }}
         </button>
       </form>
+      <section class="threads-card glass" aria-labelledby="threads-card-title">
+        <span class="threads-icon"><AtSign :size="22" /></span>
+        <div class="threads-copy">
+          <strong id="threads-card-title">官方 Threads</strong>
+          <p>問題也可以私訊到官方 Threads，將會儘快會為您協助處理。</p>
+        </div>
+        <button
+          class="app-button threads-button"
+          type="button"
+          @click="openOfficialThreads"
+        >
+          前往官方 Threads<ExternalLink :size="16" />
+        </button>
+      </section>
     </main>
   </AppPageLayout>
 </template>
@@ -181,10 +203,54 @@ function handleContentInput() {
   line-height: 18px;
 }
 textarea.issue-input {
-  min-height: 180px;
+  min-height: 120px;
   padding: 14px;
   line-height: 1.65;
   resize: vertical;
+}
+.threads-card {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin-top: 16px;
+  padding: 18px;
+  border-radius: 24px;
+}
+.threads-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(107, 166, 160, 0.14);
+  color: var(--mountain);
+}
+.threads-copy strong {
+  color: var(--mountain);
+  font-size: 14px;
+}
+.threads-copy p {
+  margin: 4px 0 0;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.threads-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+@media (max-width: 620px) {
+  .threads-card {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+  .threads-button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
 }
 .category-picker {
   position: relative;
