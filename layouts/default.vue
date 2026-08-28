@@ -2,8 +2,6 @@
 import {
   BookOpen,
   Home,
-  Menu,
-  MessageCircleQuestion,
   Newspaper,
   UserRound,
 } from "@lucide/vue";
@@ -45,10 +43,10 @@ interface NavigationTab {
 const tabs: NavigationTab[] = [
   { to: "/", label: "首頁", mobileLabel: "首頁", icon: Home },
   {
-    to: "/consult",
-    label: "問事",
-    mobileLabel: "問事",
-    icon: MessageCircleQuestion,
+    to: "/learn/",
+    label: "紫微教學",
+    mobileLabel: "教學",
+    icon: BookOpen,
   },
   {
     to: "/ai-analysis",
@@ -57,13 +55,7 @@ const tabs: NavigationTab[] = [
     materialIcon: "grid_view_rounded" as const,
     featured: true,
   },
-  {
-    to: "/learn/",
-    label: "紫微教學",
-    mobileLabel: "教學",
-    icon: BookOpen,
-  },
-  { to: "/articles", label: "文章專欄", mobileLabel: "專欄", icon: Newspaper },
+  { to: "/articles", label: "文章專欄", mobileLabel: "文章", icon: Newspaper },
   {
     to: "/member",
     label: "會員中心",
@@ -73,19 +65,7 @@ const tabs: NavigationTab[] = [
   },
 ];
 
-const mobileTabs: NavigationTab[] = [
-  tabs[0]!,
-  tabs[1]!,
-  tabs[2]!,
-  {
-    to: "/library",
-    label: "文庫",
-    mobileLabel: "文庫",
-    icon: Menu,
-    library: true,
-  },
-  tabs[5]!,
-];
+const mobileTabs: NavigationTab[] = [...tabs];
 
 const mobileNavigationHiddenRoutes = new Set([
   "/chart",
