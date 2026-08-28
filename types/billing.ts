@@ -43,9 +43,10 @@ export type PremiumCheckoutDraft =
         | "flow_pdf"
         | "annual_flow"
         | "annual_flow_pdf"
+        | "qa_pdf"
         | "match_pdf"
         | "match_history";
-      returnTo: "/report" | "/flow" | "/annual-flow" | "/match";
+      returnTo: "/report" | "/flow" | "/annual-flow" | "/match" | "/qa";
     };
 
 export type PremiumCheckoutIntent = PremiumCheckoutDraft & {

@@ -155,7 +155,7 @@ export default defineNuxtConfig({
         process.env.NUXT_PUBLIC_WS_ANALYZE_URL ||
         "ws://localhost:3000/ws/analyze",
       appName: process.env.NUXT_PUBLIC_APP_NAME || "紫微斗數",
-      appVersion: process.env.NUXT_PUBLIC_APP_VERSION || "2.0.2",
+      appVersion: process.env.NUXT_PUBLIC_APP_VERSION || "2.1.0",
       googleWebClientId: process.env.NUXT_PUBLIC_GOOGLE_WEB_CLIENT_ID || "",
     },
   },

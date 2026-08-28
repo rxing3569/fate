@@ -33,6 +33,7 @@ const resumeDestination = computed(() => {
 	  flow_pdf: '返回近期運勢',
 	  annual_flow: '開始流年運勢',
 	  annual_flow_pdf: '返回流年運勢',
+      qa_pdf: '返回線上問答',
       match_pdf: '返回合盤解析',
       match_history: '查看合盤歷史紀錄',
     }

@@ -37,9 +37,9 @@ function isPremiumCheckoutIntent(
     return typeof intent.question === "string" && Boolean(intent.question.trim());
   if (intent.source === "premium_feature")
     return (
-      ["report_pdf", "flow_pdf", "annual_flow", "annual_flow_pdf", "match_pdf", "match_history"].includes(
+      ["report_pdf", "flow_pdf", "annual_flow", "annual_flow_pdf", "qa_pdf", "match_pdf", "match_history"].includes(
         String(intent.feature),
-      ) && ["/report", "/flow", "/annual-flow", "/match"].includes(String(intent.returnTo))
+      ) && ["/report", "/flow", "/annual-flow", "/qa", "/match"].includes(String(intent.returnTo))
     );
   return (
     intent.source === "match" &&

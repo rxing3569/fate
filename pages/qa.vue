@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   Coins,
+  Download,
   MessageCircle,
   RefreshCw,
   Send,
@@ -24,6 +25,14 @@ definePageMeta({ middleware: "auth" });
 interface QaMessage {
   role: "user" | "assistant";
   content: string;
+}
+interface QaChatRecord {
+  messages?: QaMessage[];
+  client_job_id?: string;
+  status?: "running" | "completed" | "failed";
+  is_complete?: boolean;
+  error?: string;
+  updated_at?: string;
 }
 interface ReportRecord {
   category?: string;
@@ -57,6 +66,22 @@ const chatId = ref<string>(createChatId());
 const chatArea = ref<HTMLElement | null>(null);
 const pageReady = ref(false);
 const composingInput = ref(false);
+const qaServerStatus = ref<"idle" | "running" | "completed" | "failed">("idle");
+const qaFailureCode = ref("");
+const retryingAnswer = ref(false);
+const qaPdfSource = ref<HTMLElement | null>(null);
+const qaPdfSnapshot = ref<{
+  generatedAt: string;
+  turns: Array<{ question: string; answer: string }>;
+} | null>(null);
+const { downloading: downloadingQaPDF, download: downloadAnalysisPdf } =
+  useAnalysisPdfDownload();
+const pdfPremiumGate = usePremiumFeatureGate();
+const {
+  showPremiumCheckout: showPdfPremiumCheckout,
+  premiumCheckoutDraft: pdfPremiumCheckoutDraft,
+  resumeFeature: pdfResumeFeature,
+} = pdfPremiumGate;
 
 function isDevMockAnalysis() {
   return (
@@ -97,11 +122,36 @@ const canSend = computed(
     remaining.value > 0 &&
     Boolean(chartStore.chart),
 );
+const canDownloadQaPDF = computed(
+  () =>
+    !sending.value &&
+    messages.value.some(
+      (message) => message.role === "assistant" && message.content.trim(),
+    ),
+);
+const qaActionItems = computed(() => [
+  {
+    id: "download-pdf",
+    label: "下載 PDF",
+    loadingLabel: "PDF 產生中",
+    icon: Download,
+    loading: downloadingQaPDF.value,
+    disabled: !canDownloadQaPDF.value,
+    premium: true,
+  },
+]);
 const qaDisconnected = computed(
   () =>
     activeAnalysis.active?.kind === "qa" &&
     activeAnalysis.active.status === "running" &&
     !activeAnalysis.active.connected,
+);
+const qaNeedsReload = computed(
+  () =>
+    qaDisconnected.value ||
+    (qaServerStatus.value === "running" &&
+      (activeAnalysis.active?.kind !== "qa" ||
+        !activeAnalysis.active.connected)),
 );
 const cacheKey = computed(() => {
   const chart = chartStore.chart;
@@ -130,7 +180,13 @@ onMounted(async () => {
     handleDevAnalysisApplied();
     return;
   }
-  await recoverQaHistory();
+  if (messages.value.length) {
+    try {
+      await recoverQaHistory();
+    } catch {
+      /* Keep the local conversation; manual reload remains available. */
+    }
+  }
   try {
     const data = (await ziweiApi.getRecordDetail()) as unknown;
     const body = data as {
@@ -146,6 +202,7 @@ onMounted(async () => {
     reports.value = [];
   }
   restorePremiumCheckout();
+  pdfPremiumGate.restoreFeature(["qa_pdf"]);
   const nextStep = trackNextStepArrival("qa");
   if (nextStep?.question) input.value = nextStep.question;
 });
@@ -157,12 +214,9 @@ onBeforeUnmount(() => {
     );
 });
 watch(() => activeAnalysis.active, syncActiveQa, { deep: true });
-watch(
-  () => activeAnalysis.active?.status,
-  () => {
-    void recoverQaHistory();
-  },
-);
+watch(error, (message) => {
+  if (message && messages.value.length) scrollBottom();
+});
 
 function syncActiveQa() {
   const job = activeAnalysis.active;
@@ -173,17 +227,17 @@ function syncActiveQa() {
   )
     return;
   const answer = job.contents.main || "";
-  const question = typeof job.metadata.question === "string"
-    ? job.metadata.question
-    : "";
+  const question =
+    typeof job.metadata.question === "string" ? job.metadata.question : "";
   const last = messages.value.at(-1);
   const previous = messages.value.at(-2);
-  const isCurrentAnswer = last?.role === "assistant"
-    && previous?.role === "user"
-    && (!question || previous.content === question);
-  const isCurrentQuestion = last?.role === "user"
-    && (!question || last.content === question);
-  if (isCurrentAnswer) last.content = answer;
+  const isCurrentAnswer =
+    last?.role === "assistant" &&
+    previous?.role === "user" &&
+    (!question || previous.content === question);
+  const isCurrentQuestion =
+    last?.role === "user" && (!question || last.content === question);
+  if (isCurrentAnswer && answer) last.content = answer;
   else if (isCurrentQuestion && (answer || job.status === "running"))
     messages.value.push({ role: "assistant", content: answer });
   sending.value = job.status === "running";
@@ -215,31 +269,65 @@ function handleDevAnalysisApplied() {
 }
 
 async function recoverQaHistory() {
-  const job = activeAnalysis.active;
   if (isDevMockAnalysis()) return;
-  if (!job || job.kind !== "qa" || job.status !== "completed") return;
-  const savedChatId = String(job.metadata.chatId || chatId.value);
-  try {
-    const response = (await ziweiApi.getChatHistory(savedChatId, {
-      notifyError: false,
-    })) as {
-      data?: { messages?: QaMessage[]; status?: string; error?: string };
-    };
-    const restored = response.data?.messages?.filter(
-      (item) =>
-        (item.role === "user" || item.role === "assistant") &&
-        item.content?.trim(),
-    );
-    if (restored?.length) {
-      messages.value = restored;
-      chatId.value = savedChatId;
-      sending.value = false;
-      persistConversation();
-      scrollBottom();
-    }
-  } catch {
-    /* Keep the local streamed conversation. */
+  const savedChatId = String(
+    activeAnalysis.active?.kind === "qa"
+      ? activeAnalysis.active.metadata.chatId || chatId.value
+      : chatId.value,
+  );
+  const response = (await ziweiApi.getChatHistory(savedChatId, {
+    notifyError: false,
+  })) as { data?: QaChatRecord };
+  const record = response.data;
+  if (!record) throw new Error("找不到問答紀錄");
+  const restored = record.messages?.filter(
+    (item) =>
+      (item.role === "user" || item.role === "assistant") &&
+      item.content?.trim(),
+  );
+  qaServerStatus.value = record.is_complete
+    ? "completed"
+    : record.status || "running";
+  syncQaJobStatus(record);
+  if (qaServerStatus.value === "completed") {
+    if (restored?.length) messages.value = restored;
+    sending.value = false;
+    qaFailureCode.value = "";
+    error.value = "";
+  } else if (qaServerStatus.value === "failed") {
+    if (!messages.value.length && restored?.length) messages.value = restored;
+    sending.value = false;
+    qaFailureCode.value = record.error || "";
+    error.value = qaFailureCode.value.includes("deepseek_qa_incomplete_finish")
+      ? "回答因篇幅限制而中斷，您可以免費重新產生本題回答。"
+      : "回答未能完整產生，請重新產生本題回答。";
+  } else {
+    if (!messages.value.length && restored?.length) messages.value = restored;
+    const last = messages.value.at(-1);
+    if (last?.role === "user")
+      messages.value.push({ role: "assistant", content: "" });
+    sending.value = true;
+    error.value = "";
   }
+  chatId.value = savedChatId;
+  persistConversation();
+  scrollBottom();
+}
+
+function syncQaJobStatus(record: QaChatRecord) {
+  const job = activeAnalysis.active;
+  if (job?.kind !== "qa") return;
+  const jobChatId = String(job.metadata.chatId || "");
+  if (jobChatId && jobChatId !== chatId.value) return;
+  if (record.client_job_id && job.jobId !== record.client_job_id) return;
+  job.status = record.is_complete
+    ? "completed"
+    : record.status === "failed"
+      ? "failed"
+      : "running";
+  job.connected = false;
+  job.error = job.status === "failed" ? "回答未能完整產生，請重新提問。" : "";
+  activeAnalysis.persist();
 }
 
 async function refreshQaJob() {
@@ -247,19 +335,9 @@ async function refreshQaJob() {
   refreshingJob.value = true;
   error.value = "";
   try {
-    const status = await activeAnalysis.refreshStatus();
-    if (status === "running") {
-      return;
-    }
-    if (status === "completed") {
-      await recoverQaHistory();
-      return;
-    }
-    error.value =
-      activeAnalysis.active?.error || "目前無法讀取完整回覆，請稍後再試。";
+    await recoverQaHistory();
   } catch (reason) {
-    error.value =
-      reason instanceof Error ? reason.message : "目前無法確認任務狀態";
+    error.value = "目前無法確認任務狀態，請稍後再重新讀取。";
   } finally {
     refreshingJob.value = false;
   }
@@ -354,6 +432,8 @@ function clearConversation() {
   messages.value = [];
   input.value = "";
   error.value = "";
+  qaServerStatus.value = "idle";
+  qaFailureCode.value = "";
   usePointsFallback.value = false;
   chatId.value = createChatId();
   suggestions.value = [...allSuggestions]
@@ -378,6 +458,53 @@ function restorePremiumCheckout() {
   pendingQuestion.value = intent.question;
   showQuotaConfirm.value = true;
   clearPremiumCheckoutIntent();
+}
+
+async function downloadQaPDF() {
+  if (downloadingQaPDF.value || !canDownloadQaPDF.value) return;
+  await downloadAnalysisPdf({
+    source: qaPdfSource,
+    filename: () =>
+      `江映澄紫微-線上問答-${new Date().toISOString().slice(0, 10)}.pdf`,
+    prepare: () => {
+      const turns: Array<{ question: string; answer: string }> = [];
+      let pendingQuestion = "";
+      for (const message of messages.value) {
+        const content = message.content.trim();
+        if (!content) continue;
+        if (message.role === "user") pendingQuestion = content;
+        else if (pendingQuestion) {
+          turns.push({
+            question: pendingQuestion,
+            answer: displayAssistant(content),
+          });
+          pendingQuestion = "";
+        }
+      }
+      qaPdfSnapshot.value = {
+        generatedAt: new Date().toLocaleString("zh-TW"),
+        turns,
+      };
+    },
+    cleanup: () => {
+      qaPdfSnapshot.value = null;
+    },
+    onPremiumRequired: () =>
+      pdfPremiumGate.requestFeature("qa_pdf", "/qa"),
+  });
+}
+
+async function resumeQaPDF() {
+  pdfPremiumGate.closeResume();
+  if (!canDownloadQaPDF.value) {
+    showAppWarning("原問答內容已不存在，請完成問答後再下載 PDF");
+    return;
+  }
+  await downloadQaPDF();
+}
+
+function handleQaAction(id: string) {
+  if (id === "download-pdf") void downloadQaPDF();
 }
 
 async function requestSend() {
@@ -486,6 +613,8 @@ async function sendQuestion(question: string) {
     messages.value.push(userMessage, { role: "assistant", content: "" });
     input.value = "";
     sending.value = true;
+    qaServerStatus.value = "running";
+    qaFailureCode.value = "";
     error.value = "";
     persistConversation();
     scrollBottom();
@@ -514,6 +643,7 @@ async function sendQuestion(question: string) {
     const last = messages.value.at(-1);
     if (last?.role === "assistant") last.content = answer;
     sending.value = false;
+    qaServerStatus.value = "completed";
     persistConversation();
     scrollBottom();
     if (consumesQuota) await auth.loadBilling();
@@ -522,6 +652,7 @@ async function sendQuestion(question: string) {
       reason instanceof Error ? reason.message : "網路連線不穩，請稍後再試。";
     if (message === "analysis_connection_lost") {
       sending.value = true;
+      qaServerStatus.value = "running";
       error.value = "";
       persistConversation();
       return;
@@ -548,6 +679,83 @@ async function sendQuestion(question: string) {
     persistConversation();
   } finally {
     startingSend.value = false;
+  }
+}
+
+async function retryFailedAnswer() {
+  if (
+    retryingAnswer.value ||
+    sending.value ||
+    qaServerStatus.value !== "failed"
+  )
+    return;
+  const lastQuestion = [...messages.value]
+    .reverse()
+    .find((message) => message.role === "user")?.content.trim();
+  if (!lastQuestion || !chartStore.chart) return;
+
+  retryingAnswer.value = true;
+  error.value = "";
+  try {
+    if (!(await auth.verifyOnlineAccess(true))) return;
+    const started = await activeAnalysis.begin("qa", cacheKey.value, {
+      chatId: chatId.value,
+      question: lastQuestion,
+      retry: true,
+    });
+    if (!started) return;
+    const last = messages.value.at(-1);
+    if (last?.role === "assistant") last.content = "";
+    else messages.value.push({ role: "assistant", content: "" });
+    sending.value = true;
+    qaServerStatus.value = "running";
+    qaFailureCode.value = "";
+    persistConversation();
+    scrollBottom();
+
+    const natal = buildNatalPayload();
+    const answer = await activeAnalysis.runStep({
+      ...natal,
+      analysis_type: "qa",
+      analysisType: "qa",
+      question: lastQuestion,
+      chat_id: chatId.value,
+      retry_qa_answer: true,
+      use_points_fallback: usePointsFallback.value,
+      chart: chartStore.chart,
+      natal_chart: natal,
+      reports: reports.value
+        .filter((item) => item.content?.trim())
+        .map((item) => ({
+          category: item.category,
+          title: item.title,
+          content: item.content,
+          is_complete: item.is_complete,
+          created_at: item.created_at,
+        })),
+    });
+    const answerMessage = messages.value.at(-1);
+    if (answerMessage?.role === "assistant") answerMessage.content = answer;
+    sending.value = false;
+    qaServerStatus.value = "completed";
+    persistConversation();
+    scrollBottom();
+  } catch (reason) {
+    const message =
+      reason instanceof Error ? reason.message : "重新產生失敗，請稍後再試。";
+    if (message === "analysis_connection_lost") {
+      sending.value = true;
+      qaServerStatus.value = "running";
+      persistConversation();
+      return;
+    }
+    if (!messages.value.at(-1)?.content) messages.value.pop();
+    sending.value = false;
+    qaServerStatus.value = "failed";
+    error.value = message;
+    persistConversation();
+  } finally {
+    retryingAnswer.value = false;
   }
 }
 
@@ -585,6 +793,71 @@ function handleKeydown(event: KeyboardEvent) {
     back-to="/ai-analysis"
     back-label="返回排盤解盤"
   >
+    <template #actions>
+      <AppActionMenu
+        v-if="canDownloadQaPDF"
+        label="線上問答操作"
+        :items="qaActionItems"
+        @select="handleQaAction"
+      />
+      <span v-else />
+    </template>
+
+    <Teleport to="body">
+      <template v-if="downloadingQaPDF">
+        <div
+          v-if="qaPdfSnapshot"
+          ref="qaPdfSource"
+          class="analysis-pdf-source qa-pdf-source"
+          aria-hidden="true"
+        >
+          <main data-pdf-page>
+            <header
+              class="analysis-pdf-heading analysis-pdf-cover glass"
+              data-pdf-block
+            >
+              <img src="/remove-background-logo.png" alt="" />
+              <p>江映澄紫微</p>
+              <h1>線上問答紀錄</h1>
+              <span>下載日期：{{ qaPdfSnapshot.generatedAt }}</span>
+              <p class="analysis-pdf-disclaimer">
+                本內容供自我探索與參考，不應取代醫療、法律或財務專業意見。
+              </p>
+            </header>
+          </main>
+          <main
+            v-for="(turn, index) in qaPdfSnapshot.turns"
+            :key="index"
+            data-pdf-page
+          >
+            <article class="qa-pdf-turn" data-pdf-block>
+              <section class="qa-pdf-message user">
+                <h2>提問</h2>
+                <p class="qa-pdf-question">{{ turn.question }}</p>
+              </section>
+              <section class="qa-pdf-message assistant">
+                <h2>回答</h2>
+                <MarkdownContent :source="turn.answer" />
+              </section>
+            </article>
+          </main>
+        </div>
+        <div
+          class="analysis-pdf-overlay"
+          data-html2canvas-ignore="true"
+          role="status"
+          aria-live="polite"
+        >
+          <AppLoading
+            scope="page"
+            layout="fill"
+            :delay="0"
+            message="正在整理問答 PDF，請稍候…"
+          />
+        </div>
+      </template>
+    </Teleport>
+
     <main v-if="!pageReady" key="loading" class="qa-loading" aria-busy="true" />
 
     <main v-else-if="!chartStore.chart" key="chart-empty" class="qa-empty">
@@ -654,9 +927,15 @@ function handleKeydown(event: KeyboardEvent) {
             </div>
           </div>
         </template>
-        <aside v-if="qaDisconnected" class="qa-reload-notice" role="status">
-          <p>如果出現回覆不完整，或者中斷情況，請重新讀取</p>
+        <aside v-if="sending" class="qa-reload-notice" role="status">
+          <p v-if="qaNeedsReload">
+            連線已中斷，系統於背景繼續處理。請留在此畫面，稍後手動重新讀取。
+          </p>
+          <p v-else>
+            正在產生回答，請勿離開此畫面；若連線中斷，系統仍會在背景繼續處理。
+          </p>
           <button
+            v-if="qaNeedsReload"
             class="app-button outline"
             type="button"
             :disabled="refreshingJob"
@@ -668,6 +947,27 @@ function handleKeydown(event: KeyboardEvent) {
               aria-hidden="true"
             />
             {{ refreshingJob ? "正在讀取…" : "重新讀取" }}
+          </button>
+        </aside>
+        <aside
+          v-if="error && messages.length"
+          class="qa-error-recovery"
+          role="alert"
+        >
+          <p class="qa-error">{{ error }}</p>
+          <button
+            v-if="qaServerStatus === 'failed'"
+            class="app-button outline qa-retry-answer"
+            type="button"
+            :disabled="retryingAnswer || sending"
+            @click="retryFailedAnswer"
+          >
+            <RefreshCw
+              :size="17"
+              :class="{ spinning: retryingAnswer }"
+              aria-hidden="true"
+            />
+            {{ retryingAnswer ? "正在重新產生…" : "重新產生回答" }}
           </button>
         </aside>
       </section>
@@ -706,7 +1006,6 @@ function handleKeydown(event: KeyboardEvent) {
             <Send :size="20" />
           </button>
         </div>
-        <p v-if="error" class="qa-error">{{ error }}</p>
       </footer>
     </main>
 
@@ -795,10 +1094,69 @@ function handleKeydown(event: KeyboardEvent) {
       :draft="premiumCheckoutDraft"
       @close="showPremiumCheckout = false"
     />
+    <PremiumCheckoutSheet
+      :open="showPdfPremiumCheckout"
+      :draft="pdfPremiumCheckoutDraft"
+      @close="pdfPremiumGate.closeCheckout"
+    />
+    <PremiumFeatureResumeSheet
+      :feature="pdfResumeFeature"
+      :loading="downloadingQaPDF"
+      @close="pdfPremiumGate.closeResume"
+      @confirm="resumeQaPDF"
+    />
   </AppPageLayout>
 </template>
 
 <style scoped>
+.qa-pdf-turn {
+  display: grid;
+  gap: 18px;
+  padding: 20px 12px;
+  background: transparent;
+}
+.qa-pdf-message {
+  padding: 22px 24px;
+  overflow-wrap: anywhere;
+}
+.qa-pdf-message h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+.qa-pdf-message.user {
+  justify-self: end;
+  width: min(78%, 610px);
+  border-radius: 22px 22px 6px 22px;
+  background: var(--mountain);
+  color: var(--paper);
+}
+.qa-pdf-message.assistant {
+  justify-self: start;
+  width: min(92%, 700px);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 22px 22px 22px 6px;
+  background: rgba(255, 255, 255, 0.78);
+}
+.qa-pdf-message.user h2,
+.qa-pdf-message.user .qa-pdf-question {
+  color: var(--paper);
+}
+.qa-pdf-message.assistant h2 {
+  color: var(--mountain);
+}
+.qa-pdf-question {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+.qa-pdf-message :deep(.markdown-content) {
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.7;
+}
 .qa-screen {
   display: flex;
   flex-direction: column;
@@ -998,7 +1356,6 @@ function handleKeydown(event: KeyboardEvent) {
   width: min(100%, 440px);
   margin: 18px auto 0;
   padding: 14px 12px 4px;
-  border-top: 1px solid rgba(36, 87, 90, 0.14);
   text-align: center;
 }
 .qa-reload-notice p {
@@ -1016,6 +1373,30 @@ function handleKeydown(event: KeyboardEvent) {
   font-size: 13px;
 }
 .qa-reload-notice .spinning {
+  animation: qa-refresh-spin 0.8s linear infinite;
+}
+.qa-error-recovery {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: min(100%, 440px);
+  margin: 18px auto 0;
+  padding: 14px 12px 4px;
+  text-align: center;
+}
+.qa-error-recovery .qa-error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.qa-error-recovery .app-button {
+  min-height: 42px;
+  padding: 8px 18px;
+  gap: 7px;
+  border-radius: 15px;
+  font-size: 13px;
+}
+.qa-error-recovery .spinning {
   animation: qa-refresh-spin 0.8s linear infinite;
 }
 @keyframes qa-refresh-spin {
