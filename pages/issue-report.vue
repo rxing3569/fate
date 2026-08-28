@@ -114,6 +114,7 @@ function openOfficialThreads() {
             class="issue-input"
             :class="{ invalid: contentError }"
             rows="4"
+            maxlength="500"
             placeholder="請輸入問題內容…"
             :aria-invalid="Boolean(contentError)"
             aria-describedby="content-error"
