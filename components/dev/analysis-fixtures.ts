@@ -31,6 +31,7 @@ export const targetLabels: Record<AnalysisKind, string> = {
   flow: "今日／本月運勢",
   annual_flow: "流年運勢",
   qa: "線上問答",
+  consult: "問事解惑",
 };
 
 export const targetRoutes: Record<AnalysisKind, string> = {
@@ -39,6 +40,7 @@ export const targetRoutes: Record<AnalysisKind, string> = {
   flow: "/flow",
   annual_flow: "/annual-flow",
   qa: "/qa",
+  consult: "/consult/result",
 };
 
 export const scenarioGroups: Array<{
@@ -193,6 +195,31 @@ const qaFixture = `這是 **DEV 模擬回覆**，內容會以短片段逐步送�
 
 這不是根據目前命盤產生的正式回答。`;
 
+const consultFixture = `/main
+### 事情的核心
+主星呈現這次問題最主要的推動力量，這段內容用來驗證第一個獨立對話框。
+/main_end
+
+/auxiliary
+### 如何運作
+輔星補充核心能量的運作方式，這段內容用來驗證第二個獨立對話框。
+/auxiliary_end
+
+/misc
+### 細節線索
+兩顆雜曜會合併在同一段解讀，用來驗證它們只產生一個對話框。
+/misc_end
+
+/cycle
+### 目前處於階段
+長生十二神說明事情所處的週期，這段內容用來驗證第四個獨立對話框。
+/cycle_end
+
+/summary
+### 核心小結
+整合前面四段，形成最後一個獨立對話框。本內容僅供開發畫面測試。
+/summary_end`;
+
 function splitFixture(source: string, size = 18) {
   const characters = Array.from(source);
   const chunks: string[] = [];
@@ -207,6 +234,7 @@ export function completeContents(kind: AnalysisKind): Record<string, string> {
   if (kind === "flow") return { main: flowFixture };
   if (kind === "annual_flow") return { main: annualFlowFixture };
   if (kind === "match") return { main: matchFixture };
+  if (kind === "consult") return { main: consultFixture };
   return { main: qaFixture };
 }
 

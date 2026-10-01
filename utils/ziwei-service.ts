@@ -2,11 +2,12 @@ import { apiFetch, connectAnalyzeWebSocket } from './api'
 import { markStageCompleted, normalizeCompletedStages } from './learning'
 
 export interface AnalysisRequest {
-  type: 'report' | 'flow' | 'annual_flow' | 'match' | 'qa'
+  type: 'report' | 'flow' | 'annual_flow' | 'match' | 'qa' | 'consult'
   payload: Record<string, unknown>
   onMessage: (message: string) => void
   onDone?: () => void
   onError?: (message: string) => void
+  onEvent?: (event: Record<string, unknown>) => void
   signal?: AbortSignal
 }
 
@@ -80,13 +81,18 @@ export async function streamAnalysis(request: AnalysisRequest) {
         for (const stageId of normalizeCompletedStages(data.completed_stage_ids)) markStageCompleted(stageId)
         return
       }
+      if (data.type === 'consult_card') {
+        request.onEvent?.(data as Record<string, unknown>)
+        if (import.meta.client) window.dispatchEvent(new CustomEvent('consult-analysis-event', { detail: data }))
+        return
+      }
       if (data.type === 'analysis_service_busy') {
         fail(String(data.message || '目前解析服務使用人數較多，請稍候幾分鐘後再試。'))
         return
       }
       if (data.error || data.type === 'error') {
         const code = String(data.message || data.error || '')
-        const knownCode = ['membership_limit_exceeded', 'insufficient_points', 'requires_membership', 'analysis_in_progress', 'invalid_analysis_payload'].includes(code)
+        const knownCode = ['membership_limit_exceeded', 'insufficient_points', 'requires_membership', 'analysis_in_progress', 'invalid_analysis_payload', 'consult_empty_response', 'consult_analysis_failed', 'consult_retry_not_available'].includes(code)
         fail(knownCode ? code : String(data.detail || code || '分析發生錯誤'))
         return
       }
@@ -224,6 +230,12 @@ export const ziweiApi = {
     if (params.startDate) query.set('start_date', params.startDate)
     if (params.endDate) query.set('end_date', params.endDate)
     return apiFetch(`/billing/${kind === 'points' ? 'points' : 'quota'}/history?${query}`)
+  },
+  getConsultRecord(options: { notifyError?: boolean } = {}) {
+    return apiFetch('/ziwei/consult/record', options)
+  },
+  deleteConsultRecord(options: { notifyError?: boolean } = {}) {
+    return apiFetch('/ziwei/consult/record', { method: 'DELETE', ...options })
   },
   getWebProducts() {
     return apiFetch('/billing/web/products')

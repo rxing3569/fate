@@ -357,7 +357,7 @@ usePageSeo({
 }
 .policy-heading h2 {
   margin: 3px 0;
-  font-family: "Noto Serif TC", serif;
+  font-family: var(--font-family-base);
   font-size: 25px;
 }
 .policy-heading p {
@@ -418,7 +418,7 @@ usePageSeo({
   text-underline-offset: 3px;
 }
 .policy-body.en {
-  font-family: Inter, system-ui, sans-serif;
+  font-family: var(--font-family-base);
 }
 @media (max-width: 520px) {
   .privacy-content {

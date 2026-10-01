@@ -207,7 +207,7 @@ function scrollToAbout() {
 .services > h2,
 .about-card > h3,
 .final-action h2 {
-  font-family: "Noto Serif TC", serif;
+  font-family: var(--font-family-base);
 }
 .belief,
 .services,

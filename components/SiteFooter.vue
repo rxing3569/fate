@@ -111,7 +111,7 @@ const linkGroups = [
   gap: 7px;
 }
 .footer-brand-title > a {
-  font-family: "Noto Serif TC", serif;
+  font-family: var(--font-family-base);
   font-size: 20px;
   font-weight: 900;
   letter-spacing: 0.08em;

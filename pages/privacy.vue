@@ -423,7 +423,7 @@ usePageSeo({
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  font-family: "Inter", "Noto Serif TC", serif;
+  font-family: var(--font-family-base);
 }
 
 .privacy-card {
@@ -478,7 +478,7 @@ usePageSeo({
   font-size: 2.2rem;
   color: #2c2c2c;
   margin: 1.5rem 0 0.8rem; /* 上方預留 1.5rem 以防遮擋切換按鈕 */
-  font-family: "Noto Serif TC", serif;
+  font-family: var(--font-family-base);
   font-weight: 700;
   text-align: center;
 }

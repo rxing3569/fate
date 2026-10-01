@@ -35,11 +35,19 @@ function isPremiumCheckoutIntent(
     return false;
   if (intent.source === "qa")
     return typeof intent.question === "string" && Boolean(intent.question.trim());
+  if (intent.source === "consult") {
+    if (typeof intent.chatId !== "string" || !intent.chatId || !intent.action || typeof intent.action !== "object") return false;
+    const action = intent.action as Record<string, unknown>;
+    if (action.type === "follow_up") return typeof action.question === "string" && Boolean(action.question.trim());
+    if (action.type !== "extra_draw" || !action.prompt || typeof action.prompt !== "object") return false;
+    const prompt = action.prompt as Record<string, unknown>;
+    return ["id", "text", "drawGroup", "promptId"].every((key) => typeof prompt[key] === "string" && Boolean(String(prompt[key]).trim()));
+  }
   if (intent.source === "premium_feature")
     return (
-      ["report_pdf", "flow_pdf", "annual_flow", "annual_flow_pdf", "qa_pdf", "match_pdf", "match_history"].includes(
+      ["report_pdf", "flow_pdf", "annual_flow", "annual_flow_pdf", "qa_pdf", "consult_pdf", "match_pdf", "match_history"].includes(
         String(intent.feature),
-      ) && ["/report", "/flow", "/annual-flow", "/qa", "/match"].includes(String(intent.returnTo))
+      ) && ["/report", "/flow", "/annual-flow", "/qa", "/consult/result", "/match"].includes(String(intent.returnTo))
     );
   return (
     intent.source === "match" &&

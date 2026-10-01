@@ -28,6 +28,11 @@ export interface WebCheckoutResult {
 
 export type PremiumCheckoutDraft =
   | {
+      source: "consult";
+      chatId: string;
+      action: { type: "follow_up"; question: string } | { type: "extra_draw"; prompt: { id: string; text: string; drawGroup: string; promptId: string } };
+    }
+  | {
       source: "qa";
       question: string;
     }
@@ -44,9 +49,10 @@ export type PremiumCheckoutDraft =
         | "annual_flow"
         | "annual_flow_pdf"
         | "qa_pdf"
+        | "consult_pdf"
         | "match_pdf"
         | "match_history";
-      returnTo: "/report" | "/flow" | "/annual-flow" | "/match" | "/qa";
+      returnTo: "/report" | "/flow" | "/annual-flow" | "/match" | "/qa" | "/consult/result";
     };
 
 export type PremiumCheckoutIntent = PremiumCheckoutDraft & {

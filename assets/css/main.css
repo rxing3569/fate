@@ -17,7 +17,7 @@
   padding: 26px 20px;
   background: var(--mist, #f7faf6);
   color: var(--mountain, #24575a);
-  font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-family: var(--font-family-base);
   font-size: 15px;
   line-height: 1.75;
   pointer-events: none;
@@ -162,6 +162,8 @@
 }
 
 :root {
+  --font-family-base: -apple-system, BlinkMacSystemFont, "Noto Sans TC",
+    "PingFang TC", "Microsoft JhengHei", sans-serif;
   --paper: #f7f3ea;
   --paper-deep: #ede6d8;
   --mountain: #24575a;
@@ -224,9 +226,7 @@
   --motion-slow: 320ms;
   --ease-standard: ease;
   --ease-emphasized: cubic-bezier(0.22, 0.8, 0.25, 1);
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Noto Sans TC", "PingFang TC",
-    "Microsoft JhengHei", sans-serif;
+  font-family: var(--font-family-base);
   color: var(--mountain);
   background: var(--paper);
 }

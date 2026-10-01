@@ -1007,7 +1007,7 @@ async function goBack() {
   gap: 8px;
   margin: 2px 0;
   color: var(--mountain);
-  font-family: "Noto Serif TC", serif;
+  font-family: var(--font-family-base);
   font-size: 18px;
 }
 .annual-focus-fields > header small {

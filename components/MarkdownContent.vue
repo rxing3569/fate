@@ -7,8 +7,15 @@ const props = withDefaults(
     source: string;
     reportFormatting?: boolean;
     bracketedTitles?: boolean;
+    headingClass?: string;
+    insightCards?: boolean;
   }>(),
-  { reportFormatting: true, bracketedTitles: false },
+  {
+    reportFormatting: true,
+    bracketedTitles: false,
+    headingClass: "",
+    insightCards: false,
+  },
 );
 
 function escapeHtml(value: string) {
@@ -171,15 +178,39 @@ function normalizeReportMarkdown(source: string) {
       return `ZIWEI_BOLD_OPEN${content.trim()}ZIWEI_BOLD_CLOSE`;
     });
 }
+
+function renderInsightLists(source: string) {
+  return source.replace(/<ul>([\s\S]*?)<\/ul>/gi, (list, items: string) => {
+    const itemPattern = /<li>([\s\S]*?)<\/li>/gi;
+    const matches = [...items.matchAll(itemPattern)];
+    const remainder = items.replace(itemPattern, "").trim();
+    if (!matches.length || remainder) return list;
+    const cards = matches
+      .map((match) => {
+        const content = (match[1] || "")
+          .replace(/^<p>|<\/p>$/g, "")
+          .trim();
+        return `<article class="markdown-insight-card"><p>${content}</p></article>`;
+      })
+      .join("");
+    return `<div class="markdown-insight-list">${cards}</div>`;
+  });
+}
 const html = computed(() => {
   const bracketedSource = props.bracketedTitles
     ? normalizeBracketedTitles(props.source || "")
     : props.source || "";
-  const source = props.reportFormatting
-    ? normalizeReportMarkdown(bracketedSource)
+  const displaySource = props.insightCards
+    ? bracketedSource.replace(
+        /^\s*\*\*\s*核心結論\s*[：:]\s*\*\*\s*/m,
+        "",
+      )
     : bracketedSource;
+  const source = props.reportFormatting
+    ? normalizeReportMarkdown(displaySource)
+    : displaySource;
   const richSource = renderRichMarkdownBlocks(source);
-  const rendered = (marked.parse(richSource, {
+  let rendered = (marked.parse(richSource, {
     async: false,
     breaks: true,
     gfm: true,
@@ -188,8 +219,22 @@ const html = computed(() => {
     .replaceAll("ZIWEI_BOLD_CLOSE", "</strong>")
     .replaceAll("<table>", '<div class="markdown-table-wrap"><table>')
     .replaceAll("</table>", "</table></div>");
-  if (import.meta.server) return rendered;
-  return DOMPurify.sanitize(rendered, { USE_PROFILES: { html: true } });
+  if (props.insightCards) {
+    rendered = renderInsightLists(
+      rendered.replace(
+        /<h4>([\s\S]*?)<\/h4>\s*<p>([\s\S]*?)<\/p>/gi,
+        '<article class="markdown-insight-card"><strong class="markdown-insight-title">$1</strong><p>$2</p></article>',
+      ),
+    );
+  }
+  const formatted = props.headingClass
+    ? rendered.replace(
+        /<h[1-6]>([\s\S]*?)<\/h[1-6]>/gi,
+        `<strong class="${props.headingClass}">$1</strong>`,
+      )
+    : rendered;
+  if (import.meta.server) return formatted;
+  return DOMPurify.sanitize(formatted, { USE_PROFILES: { html: true } });
 });
 </script>
 
@@ -393,5 +438,34 @@ const html = computed(() => {
 }
 .markdown-content :deep(.markdown-flowchart-fallback) {
   white-space: pre-wrap;
+}
+.markdown-content :deep(.markdown-insight-card) {
+  margin: var(--space-3) 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-raised);
+}
+.markdown-content :deep(.markdown-insight-list) {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+}
+.markdown-content :deep(.markdown-insight-list .markdown-insight-card) {
+  margin: 0;
+}
+.markdown-content :deep(.markdown-insight-title) {
+  display: block;
+  margin-bottom: var(--space-2);
+  color: var(--color-danger);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.45;
+}
+.markdown-content :deep(.markdown-insight-card p) {
+  margin: 0;
+  color: var(--color-text-primary);
+  line-height: 1.78;
 }
 </style>

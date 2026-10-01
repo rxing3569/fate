@@ -12,6 +12,7 @@ Treat `assets/css/main.css` as the runtime source of truth. Preserve legacy alia
 
 ## Typography
 
+- `--font-family-base`: the only consumer-facing text stack. It resolves to the system UI font, Noto Sans TC, PingFang TC, or Microsoft JhengHei. Never introduce BiauKai, DFKai-SB, KaiTi, cursive, serif, or another display/serif stack.
 - `--font-size-caption`: 12px; nonessential metadata only.
 - `--font-size-body-sm`: 14px; minimum body and control copy.
 - `--font-size-body`: 16px; default reading size.

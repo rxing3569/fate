@@ -4,7 +4,6 @@ import {
   Download,
   MessageCircle,
   RefreshCw,
-  Send,
   Sparkles,
   WifiOff,
 } from "@lucide/vue";
@@ -19,6 +18,10 @@ import {
   clearPremiumCheckoutIntent,
   readPremiumCheckoutIntent,
 } from "~/utils/premium-checkout";
+import {
+  pickQuestionSuggestions,
+  qaQuestionSuggestions,
+} from "~/utils/question-suggestions";
 
 definePageMeta({ middleware: "auth" });
 
@@ -65,7 +68,6 @@ const usePointsFallback = ref(false);
 const chatId = ref<string>(createChatId());
 const chatArea = ref<HTMLElement | null>(null);
 const pageReady = ref(false);
-const composingInput = ref(false);
 const qaServerStatus = ref<"idle" | "running" | "completed" | "failed">("idle");
 const qaFailureCode = ref("");
 const retryingAnswer = ref(false);
@@ -90,24 +92,6 @@ function isDevMockAnalysis() {
   );
 }
 
-const allSuggestions = [
-  "適合自行創業，還是當個穩定的上班族？",
-  "近期有轉職、換工作或跳槽的好時機嗎？",
-  "我適合從事哪方面的行業更能發揮天賦？",
-  "工作上容易遇到貴人相助，還是要防範小人？",
-  "如果想進修或考公職，最近的考運如何？",
-  "我的正財運比較旺，還是偏財運比較好？",
-  "未來幾年內，有沒有重大的破財危機需要留意？",
-  "我適合進行股票、房地產等投資理財嗎？",
-  "能不能存得住錢？我的命格是否有財庫？",
-  "與他人合夥經商創業，勝算高不高？",
-  "我的正緣大概什麼時候會出現？",
-  "明年有機會脫單，遇到心儀的另一半嗎？",
-  "命中容易遇到爛桃花嗎？該如何化解？",
-  "我與家人、子女之間的緣分與關係如何？",
-  "面臨人生重大抉擇時，我該如何做決定？",
-  "命格中是否有需要特別補足的五行或盲點？",
-];
 const suggestions = ref<string[]>([]);
 const askedCount = computed(
   () => messages.value.filter((message) => message.role === "user").length,
@@ -153,6 +137,11 @@ const qaNeedsReload = computed(
       (activeAnalysis.active?.kind !== "qa" ||
         !activeAnalysis.active.connected)),
 );
+const qaNavigationLocked = computed(
+  () =>
+    !isDevMockAnalysis() &&
+    (sending.value || startingSend.value || retryingAnswer.value),
+);
 const cacheKey = computed(() => {
   const chart = chartStore.chart;
   return chart
@@ -161,14 +150,13 @@ const cacheKey = computed(() => {
 });
 
 onMounted(async () => {
+  window.addEventListener("beforeunload", handleQaBeforeUnload);
   // Keep SSR and the first client render identical. Auth middleware restores
   // membership only on the client, so rendering an auth-dependent <main>
   // during hydration can permanently retain the server branch's classes.
   pageReady.value = true;
   chartStore.hydrate(auth.profile);
-  suggestions.value = [...allSuggestions]
-    .sort(() => Math.random() - 0.5)
-    .slice(0, 3);
+  suggestions.value = pickQuestionSuggestions(qaQuestionSuggestions);
   restoreConversation();
   syncActiveQa();
   if (import.meta.dev)
@@ -207,6 +195,7 @@ onMounted(async () => {
   if (nextStep?.question) input.value = nextStep.question;
 });
 onBeforeUnmount(() => {
+  window.removeEventListener("beforeunload", handleQaBeforeUnload);
   if (import.meta.dev)
     window.removeEventListener(
       "fate-dev-analysis-applied",
@@ -217,6 +206,12 @@ watch(() => activeAnalysis.active, syncActiveQa, { deep: true });
 watch(error, (message) => {
   if (message && messages.value.length) scrollBottom();
 });
+
+function handleQaBeforeUnload(event: BeforeUnloadEvent) {
+  if (!qaNavigationLocked.value) return;
+  event.preventDefault();
+  event.returnValue = "";
+}
 
 function syncActiveQa() {
   const job = activeAnalysis.active;
@@ -436,15 +431,8 @@ function clearConversation() {
   qaFailureCode.value = "";
   usePointsFallback.value = false;
   chatId.value = createChatId();
-  suggestions.value = [...allSuggestions]
-    .sort(() => Math.random() - 0.5)
-    .slice(0, 3);
+  suggestions.value = pickQuestionSuggestions(qaQuestionSuggestions);
   if (cacheKey.value) localStorage.removeItem(cacheKey.value);
-}
-
-function chooseSuggestion(question: string) {
-  input.value = question;
-  requestSend();
 }
 
 function restorePremiumCheckout() {
@@ -631,7 +619,7 @@ async function sendQuestion(question: string) {
       chart: chartStore.chart,
       natal_chart: natal,
       reports: reports.value
-        .filter((item) => item.content?.trim())
+        .filter((item) => item.category !== "consult" && item.content?.trim())
         .map((item) => ({
           category: item.category,
           title: item.title,
@@ -766,22 +754,6 @@ function displayAssistant(content: string) {
   return content;
 }
 
-function handleCompositionStart() {
-  composingInput.value = true;
-}
-
-function handleCompositionEnd() {
-  composingInput.value = false;
-}
-
-function handleKeydown(event: KeyboardEvent) {
-  if (event.key === "Enter" && !event.shiftKey) {
-    if (composingInput.value || event.isComposing || event.keyCode === 229)
-      return;
-    event.preventDefault();
-    requestSend();
-  }
-}
 </script>
 
 <template>
@@ -876,35 +848,16 @@ function handleKeydown(event: KeyboardEvent) {
               >(同一次對話裡面有五次追問的機會喔～)</small
             >
           </p>
-          <div class="welcome-composer composer-field">
-            <textarea
-              v-model="input"
-              rows="1"
-              placeholder="輸入問題..."
-              maxlength="500"
-              @compositionstart="handleCompositionStart"
-              @compositionend="handleCompositionEnd"
-              @keydown="handleKeydown"
-            /><button
-              type="button"
-              aria-label="送出問題"
-              :disabled="!canSend"
-              @click="requestSend"
-            >
-              <Send :size="20" />
-            </button>
-          </div>
+          <AppQuestionComposer
+            v-model="input"
+            class="welcome-composer"
+            placeholder="輸入問題..."
+            :suggestions="suggestions"
+            :disabled="requestingSend || startingSend"
+            :submit-disabled="!canSend"
+            @submit="requestSend"
+          />
           <p v-if="error" class="qa-error welcome-error">{{ error }}</p>
-          <div class="suggestions">
-            <button
-              v-for="suggestion in suggestions"
-              :key="suggestion"
-              type="button"
-              @click="chooseSuggestion(suggestion)"
-            >
-              {{ suggestion }}
-            </button>
-          </div>
         </div>
         <template v-for="(message, index) in messages" :key="index">
           <div v-if="message.role === 'user'" class="bubble-row user">
@@ -982,30 +935,16 @@ function handleKeydown(event: KeyboardEvent) {
             <RefreshCw :size="18" />重新提問
           </button>
         </div>
-        <div
-          class="composer-field"
-          :class="{ disabled: sending || remaining <= 0 }"
-        >
-          <textarea
-            v-model="input"
-            rows="1"
-            :disabled="sending || remaining <= 0"
-            :placeholder="
-              remaining <= 0 ? '已達提問上限，請重新提問' : '輸入問題...'
-            "
-            maxlength="500"
-            @compositionstart="handleCompositionStart"
-            @compositionend="handleCompositionEnd"
-            @keydown="handleKeydown"
-          /><button
-            type="button"
-            aria-label="送出問題"
-            :disabled="!canSend"
-            @click="requestSend"
-          >
-            <Send :size="20" />
-          </button>
-        </div>
+        <AppQuestionComposer
+          v-model="input"
+          :disabled="sending || requestingSend || startingSend || remaining <= 0"
+          :submit-disabled="!canSend"
+          :placeholder="
+            remaining <= 0 ? '已達提問上限，請重新提問' : '輸入問題...'
+          "
+          :suggestions="suggestions"
+          @submit="requestSend"
+        />
       </footer>
     </main>
 
@@ -1301,23 +1240,6 @@ function handleKeydown(event: KeyboardEvent) {
   width: min(100%, 520px);
   margin: -9px 0 13px;
 }
-.suggestions {
-  display: grid;
-  width: min(100%, 520px);
-  gap: 10px;
-}
-.suggestions button {
-  width: 100%;
-  padding: 14px 16px;
-  border: 1px solid rgba(36, 87, 90, 0.34);
-  border-radius: 17px;
-  background: rgba(255, 255, 255, 0.48);
-  color: var(--mountain);
-  font-size: 13.5px;
-  font-weight: 700;
-  line-height: 1.45;
-  text-align: left;
-}
 .bubble-row {
   display: flex;
   margin-bottom: 10px;
@@ -1460,52 +1382,6 @@ function handleKeydown(event: KeyboardEvent) {
 }
 .composer-actions button:disabled {
   opacity: 0.35;
-}
-.composer-field {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 42px;
-  align-items: center;
-  min-height: 52px;
-  border: 1.4px solid rgba(36, 87, 90, 0.42);
-  border-radius: 18px;
-  background: white;
-  box-shadow: 0 8px 18px rgba(36, 87, 90, 0.07);
-}
-.composer-field.disabled {
-  opacity: 0.55;
-  box-shadow: none;
-}
-.composer-field textarea {
-  max-height: 104px;
-  padding: 15px 8px 13px 17px;
-  border: 0;
-  outline: 0;
-  resize: none;
-  background: transparent;
-  color: var(--mountain);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
-}
-@supports (-webkit-touch-callout: none) {
-  @media (hover: none) and (pointer: coarse) {
-    .composer-field textarea {
-      font-size: 16px;
-    }
-  }
-}
-.composer-field > button {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--mountain);
-}
-.composer-field > button:disabled {
-  opacity: 0.25;
 }
 .qa-error {
   margin: 7px 0 0;

@@ -151,7 +151,7 @@ const articleNextSteps = computed<NextStepAction[]>(() => {
 }
 .article-heading h1 {
   margin: 9px 0;
-  font-family: "Noto Serif TC", serif;
+  font-family: var(--font-family-base);
   font-size: 28px;
   line-height: 1.42;
 }
@@ -181,7 +181,7 @@ const articleNextSteps = computed<NextStepAction[]>(() => {
 }
 .article-surface :deep(h2) {
   margin-top: 34px;
-  font-family: "Noto Serif TC", serif;
+  font-family: var(--font-family-base);
 }
 .article-surface :deep(h3) {
   padding-bottom: 0;

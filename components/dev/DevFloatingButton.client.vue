@@ -55,6 +55,11 @@ const selectedScenarioLabel = computed(
       .find((option) => option.value === simulator.scenario.value)?.label || "",
 );
 
+function redrawConsultCards() {
+  if (!import.meta.dev) return;
+  window.dispatchEvent(new CustomEvent("dev-consult-redraw"));
+}
+
 function togglePanel() {
   open.value = !open.value;
   if (open.value) nextTick(() => panel.value?.focus());
@@ -131,6 +136,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleKeydown));
         <button class="dev-apply" type="button" @click="simulator.apply">
           套用「{{ selectedScenarioLabel }}」
         </button>
+
+        <fieldset class="dev-feature-fieldset">
+          <legend>問事抽卡</legend>
+          <button class="dev-apply" type="button" @click="redrawConsultCards">
+            重新抽卡（不扣點數）
+          </button>
+          <small class="dev-feature-note">只重新抽取卡片，不需要問題，也不會啟動解牌。</small>
+        </fieldset>
 
         <fieldset>
           <legend>Snackbar</legend>
@@ -249,7 +262,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleKeydown));
 .dev-floating-button {
   position: fixed;
   right: max(16px, env(safe-area-inset-right));
-  bottom: calc(88px + env(safe-area-inset-bottom));
+  bottom: calc(136px + env(safe-area-inset-bottom));
   z-index: 1301;
   display: inline-flex;
   align-items: center;
@@ -280,9 +293,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleKeydown));
   color: #edf2f6;
   background: #20252b;
   box-shadow: 0 20px 60px rgb(0 0 0 / 35%);
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
+  font-family: var(--font-family-base);
 }
 
 .dev-panel-header {
@@ -418,6 +429,18 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleKeydown));
   border-color: #38bdf8;
   color: #06202c;
   background: #38bdf8;
+}
+
+.dev-feature-fieldset .dev-apply {
+  width: 100%;
+}
+
+.dev-feature-note {
+  display: block;
+  margin-top: 7px;
+  color: #8995a2;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .dev-panel-error {

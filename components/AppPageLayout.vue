@@ -30,8 +30,11 @@ const props = withDefaults(
     headerLayout: "standard",
   },
 );
+const { blockIfLocked: blockAnalysisNavigation } =
+  useAnalysisNavigationLock();
 
 async function goBack() {
+  if (blockAnalysisNavigation()) return;
   if (props.backTo) {
     await navigateTo(props.backTo, { replace: props.backReplace });
     return;

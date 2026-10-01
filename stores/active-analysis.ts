@@ -7,7 +7,7 @@ import {
 } from "~/utils/api";
 import { ANALYSIS_TIMEOUT_MS } from "~/composables/useIncompleteAnalysisRecovery";
 
-export type AnalysisKind = "report" | "flow" | "annual_flow" | "match" | "qa";
+export type AnalysisKind = "report" | "flow" | "annual_flow" | "match" | "qa" | "consult";
 export type AnalysisStatus =
   | "idle"
   | "running"
@@ -40,6 +40,8 @@ interface AnalysisJobResponse {
 
 const CACHE_KEY = "ziwei:active-analysis";
 let activeController: AbortController | undefined;
+let hydrationInFlight: Promise<void> | null = null;
+let reconciliationInFlight: Promise<boolean> | null = null;
 
 type SnackbarOptions = {
   title?: string;
@@ -62,6 +64,7 @@ const labels: Record<AnalysisKind, string> = {
   annual_flow: "流年運勢",
   match: "合盤解析",
   qa: "線上問答",
+  consult: "問事解惑",
 };
 
 const destinations: Record<AnalysisKind, string> = {
@@ -70,6 +73,7 @@ const destinations: Record<AnalysisKind, string> = {
   annual_flow: "/annual-flow",
   match: "/match",
   qa: "/qa",
+  consult: "/consult/result",
 };
 
 function normalizePath(path: string) {
@@ -108,6 +112,9 @@ function notifyConflict(
 }
 
 function failureText(error: string) {
+  if (error === "consult_empty_response" || error === "consult_analysis_failed")
+    return "本次問事回覆未完成，可免費重新計算。";
+  if (error === "consult_retry_not_available") return error;
   if (error === "analysis_interrupted" || error === "analysis_timeout")
     return "系統服務中斷，本次分析已停止，請重新執行。";
   if (error === "analysis_recovery_metadata_missing")
@@ -139,7 +146,7 @@ function normalizeMetadata(value: unknown): Record<string, unknown> {
 }
 
 function analysisKind(value: string | undefined, fallback?: AnalysisKind) {
-  return value && ["report", "flow", "annual_flow", "match", "qa"].includes(value)
+  return value && ["report", "flow", "annual_flow", "match", "qa", "consult"].includes(value)
     ? (value as AnalysisKind)
     : fallback;
 }
@@ -157,13 +164,35 @@ export const useActiveAnalysisStore = defineStore("active-analysis", {
     persist() {
       if (!import.meta.client) return;
       if (this.active) {
-        localStorage.setItem(
-          CACHE_KEY,
-          JSON.stringify({ ...this.active, contents: {} }),
-        );
+        try {
+          // Keep already streamed text so a reload or mobile browser suspension
+          // does not turn a partially completed analysis into an empty screen.
+          localStorage.setItem(CACHE_KEY, JSON.stringify(this.active));
+        } catch {
+          // localStorage is synchronous and quota-limited. Persist the recovery
+          // metadata as a fallback without interrupting the live stream itself.
+          try {
+            localStorage.setItem(
+              CACHE_KEY,
+              JSON.stringify({ ...this.active, contents: {} }),
+            );
+          } catch {
+            // A disabled/full storage area must never fail the analysis request.
+          }
+        }
       } else localStorage.removeItem(CACHE_KEY);
     },
     async hydrate() {
+      if (hydrationInFlight) return hydrationInFlight;
+      const request = this.hydrateNow();
+      hydrationInFlight = request;
+      void request.then(
+        () => { if (hydrationInFlight === request) hydrationInFlight = null; },
+        () => { if (hydrationInFlight === request) hydrationInFlight = null; },
+      );
+      return request;
+    },
+    async hydrateNow() {
       if (!import.meta.client) return;
       if (this.hydrated) return;
       const hasValidSession = Boolean(await getValidAccessToken());
@@ -177,6 +206,12 @@ export const useActiveAnalysisStore = defineStore("active-analysis", {
         const raw = localStorage.getItem(CACHE_KEY);
         if (raw) {
           this.active = JSON.parse(raw) as ActiveAnalysisState;
+          if (
+            !this.active.contents ||
+            typeof this.active.contents !== "object" ||
+            Array.isArray(this.active.contents)
+          )
+            this.active.contents = {};
           if (this.active.status === "running") this.active.connected = false;
         }
       } catch {
@@ -186,6 +221,16 @@ export const useActiveAnalysisStore = defineStore("active-analysis", {
       this.persist();
     },
     async reconcileActive() {
+      if (reconciliationInFlight) return reconciliationInFlight;
+      const request = this.fetchActiveStatus();
+      reconciliationInFlight = request;
+      void request.then(
+        () => { if (reconciliationInFlight === request) reconciliationInFlight = null; },
+        () => { if (reconciliationInFlight === request) reconciliationInFlight = null; },
+      );
+      return request;
+    },
+    async fetchActiveStatus() {
       if (!import.meta.client) return false;
       if (!(await getValidAccessToken())) return false;
       if (
@@ -280,7 +325,7 @@ export const useActiveAnalysisStore = defineStore("active-analysis", {
         job.connected = false;
         this.persist();
         if (status === "completed") notifyCompleted(job.kind);
-        else
+        else if (job.error && serverError !== "consult_retry_not_available")
           snackbar(job.error, "error", {
             title: `${labels[job.kind]}執行失敗`,
           });
@@ -308,8 +353,9 @@ export const useActiveAnalysisStore = defineStore("active-analysis", {
       }
     },
     async ensureAvailable(kind: AnalysisKind) {
+      const needsReconcile = this.hydrated && !hydrationInFlight;
       await this.hydrate();
-      await this.reconcileActive();
+      if (needsReconcile) await this.reconcileActive();
       if (this.active?.status === "running") {
         notifyConflict(this.active.kind, kind);
         return false;
@@ -391,6 +437,7 @@ export const useActiveAnalysisStore = defineStore("active-analysis", {
         if (failureMessage === "analysis_connection_lost") {
           if (this.active?.jobId === job.jobId) {
             this.active.connected = false;
+            this.active.metadata.navigationLocked = false;
             this.active.error = "";
             activeController = undefined;
             this.persist();
@@ -453,9 +500,10 @@ export const useActiveAnalysisStore = defineStore("active-analysis", {
           this.active.error = displayMessage;
           activeController = undefined;
           this.persist();
-          snackbar(this.active.error, "error", {
-            title: `${labels[job.kind]}執行失敗`,
-          });
+          if (failureMessage !== "consult_retry_not_available")
+            snackbar(this.active.error, "error", {
+              title: `${labels[job.kind]}執行失敗`,
+            });
         }
         throw reason;
       }
@@ -612,6 +660,8 @@ export const useActiveAnalysisStore = defineStore("active-analysis", {
     reset() {
       activeController?.abort();
       activeController = undefined;
+      hydrationInFlight = null;
+      reconciliationInFlight = null;
       this.active = null;
       this.hydrated = false;
       if (import.meta.client) localStorage.removeItem(CACHE_KEY);

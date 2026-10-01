@@ -34,11 +34,13 @@ const resumeDestination = computed(() => {
 	  annual_flow: '開始流年運勢',
 	  annual_flow_pdf: '返回流年運勢',
       qa_pdf: '返回線上問答',
+      consult_pdf: '返回問事解惑',
       match_pdf: '返回合盤解析',
       match_history: '查看合盤歷史紀錄',
     }
     return { label: labels[intent.feature], to: intent.returnTo }
   }
+  if (intent.source === 'consult') return { label: '返回問事追問', to: '/consult/result' }
   return intent.source === 'qa'
     ? { label: '繼續線上問答', to: '/qa' }
     : { label: '繼續合盤解析', to: '/match' }
@@ -48,6 +50,8 @@ const successGuide = computed(() => isPointsOrder.value
   ? '點數已入帳，現在可以前往命盤解盤，或查看近期運勢。'
   : resumeIntent.value?.source === 'premium_feature'
     ? 'Premium 已開通，返回原頁即可繼續剛才的操作。'
+  : resumeIntent.value?.source === 'consult'
+    ? 'Premium 已開通，返回問事頁確認剛才的追問。'
   : 'Premium 已開通，現在可以開始合盤解析，或使用線上問答。')
 const successActions = computed(() => isPointsOrder.value
   ? [
@@ -69,6 +73,8 @@ const resumeAction = computed(() => resumeIntent.value
   ? {
       label: resumeIntent.value.source === 'premium_feature'
         ? resumeDestination.value!.label
+        : resumeIntent.value.source === 'consult'
+          ? '返回問事追問'
         : resumeIntent.value.source === 'qa'
           ? '返回未完成的問題'
           : '返回未完成的合盤資料',

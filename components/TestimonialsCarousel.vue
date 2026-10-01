@@ -101,7 +101,7 @@ onBeforeUnmount(() => {
 }
 .testimonial-heading h2 {
   margin: 8px 0;
-  font-family: "Noto Serif TC", serif;
+  font-family: var(--font-family-base);
   font-size: 24px;
 }
 .testimonial-heading > span {
@@ -134,7 +134,7 @@ blockquote {
   max-width: 500px;
   margin: 15px auto 22px;
   color: var(--mountain);
-  font-family: "Noto Serif TC", serif;
+  font-family: var(--font-family-base);
   font-size: 16px;
   line-height: 1.85;
 }

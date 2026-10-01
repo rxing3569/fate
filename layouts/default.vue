@@ -2,6 +2,7 @@
 import {
   BookOpen,
   Home,
+  MessageCircleQuestionMark,
   Newspaper,
   UserRound,
 } from "@lucide/vue";
@@ -19,6 +20,8 @@ const DevFloatingButton = import.meta.dev
 const route = useRoute();
 const auth = useAuthStore();
 const activeAnalysis = useActiveAnalysisStore();
+const { blockIfLocked: blockAnalysisNavigation } =
+  useAnalysisNavigationLock();
 const showLoginSheet = ref(false);
 const loginRedirect = ref("/");
 const learningSyncing = ref(false);
@@ -38,15 +41,17 @@ interface NavigationTab {
   featured?: boolean;
   gated?: boolean;
   library?: boolean;
+  badge?: string;
 }
 
 const tabs: NavigationTab[] = [
   { to: "/", label: "首頁", mobileLabel: "首頁", icon: Home },
   {
-    to: "/learn/",
-    label: "紫微教學",
-    mobileLabel: "教學",
-    icon: BookOpen,
+    to: "/consult",
+    label: "問事解惑",
+    mobileLabel: "問事",
+    icon: MessageCircleQuestionMark,
+    badge: "NEW",
   },
   {
     to: "/ai-analysis",
@@ -75,6 +80,7 @@ const mobileNavigationHiddenRoutes = new Set([
   "/annual-flow",
   "/match",
   "/qa",
+  "/consult/result",
 ]);
 const normalizedPath = computed(() =>
   route.path === "/" ? "/" : route.path.replace(/\/+$/, ""),
@@ -111,8 +117,8 @@ const copyProtected = computed(() => {
     path === "/quiz" ||
     path === "/report" ||
     path === "/report-detail" ||
-		path === "/flow" ||
-		path === "/annual-flow" ||
+    path === "/flow" ||
+    path === "/annual-flow" ||
     path === "/match"
   );
 });
@@ -143,9 +149,7 @@ onBeforeUnmount(() => {
   document.removeEventListener("click", closeLibraryMenuOnOutsideClick);
   document.removeEventListener("keydown", closeLibraryMenuOnEscape);
   contentResizeObserver?.disconnect();
-  document.documentElement.style.removeProperty(
-    "--fate-app-content-center-x",
-  );
+  document.documentElement.style.removeProperty("--fate-app-content-center-x");
 });
 
 watch(
@@ -224,6 +228,7 @@ function openLoginSheet(event?: Event) {
 }
 
 function openTab(tab: NavigationTab) {
+  if (blockAnalysisNavigation()) return;
   if (tab.gated && !auth.canViewMemberContent) {
     loginRedirect.value = tab.to;
     showLoginSheet.value = true;
@@ -233,6 +238,7 @@ function openTab(tab: NavigationTab) {
 }
 
 function openMobileTab(tab: NavigationTab) {
+  if (blockAnalysisNavigation()) return;
   if ("library" in tab && tab.library) {
     libraryMenuOpen.value = !libraryMenuOpen.value;
     return;
@@ -250,6 +256,7 @@ function closeLibraryMenuOnEscape(event: KeyboardEvent) {
 }
 
 function openLibraryPage(path: string) {
+  if (blockAnalysisNavigation()) return;
   libraryMenuOpen.value = false;
   navigateTo(path);
 }
@@ -268,6 +275,7 @@ function isLibraryActive() {
 function isTabActive(path: string) {
   const currentPath = normalizedPath.value;
   if (path === "/") return currentPath === "/";
+  if (path === "/consult") return currentPath.startsWith("/consult");
   if (path === "/learn/")
     return (
       currentPath === "/learn" ||
@@ -377,7 +385,7 @@ function isTabActive(path: string) {
           class="primary-nav-item"
           :class="{
             active:
-              ('library' in tab && tab.library)
+              'library' in tab && tab.library
                 ? isLibraryActive()
                 : isTabActive(tab.to),
             featured: tab.featured,
@@ -409,6 +417,12 @@ function isTabActive(path: string) {
               aria-label="Premium 會員"
               >P</b
             >
+            <b
+              v-if="tab.badge"
+              class="nav-new-badge"
+              :aria-label="`${tab.label}新功能`"
+              >{{ tab.badge }}</b
+            >
           </span>
           <span class="nav-label nav-label-full">{{ tab.label }}</span>
           <span class="nav-label nav-label-mobile">{{ tab.mobileLabel }}</span>
@@ -420,10 +434,18 @@ function isTabActive(path: string) {
             role="menu"
             aria-label="文庫"
           >
-            <button type="button" role="menuitem" @click="openLibraryPage('/learn/')">
+            <button
+              type="button"
+              role="menuitem"
+              @click="openLibraryPage('/learn/')"
+            >
               <BookOpen :size="19" /><span>紫微教學</span>
             </button>
-            <button type="button" role="menuitem" @click="openLibraryPage('/articles')">
+            <button
+              type="button"
+              role="menuitem"
+              @click="openLibraryPage('/articles')"
+            >
               <Newspaper :size="19" /><span>文章專欄</span>
             </button>
           </div>
@@ -457,6 +479,12 @@ function isTabActive(path: string) {
               class="premium-nav-badge"
               aria-label="Premium 會員"
               >P</b
+            >
+            <b
+              v-if="tab.badge"
+              class="nav-new-badge"
+              :aria-label="`${tab.label}新功能`"
+              >{{ tab.badge }}</b
             >
           </span>
           <span class="nav-label nav-label-full">{{ tab.label }}</span>
@@ -517,6 +545,28 @@ function isTabActive(path: string) {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+}
+.nav-new-badge {
+  position: absolute;
+  z-index: 2;
+  top: -5px;
+  right: -13px;
+  padding: 2px 5px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 999px;
+  background: var(--cinnabar);
+  box-shadow: 0 3px 8px rgba(110, 54, 45, 0.24);
+  color: #fff;
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+@media (max-width: 759px) {
+  .nav-new-badge {
+    top: -3px;
+    right: -10px;
+  }
 }
 .nav-items-expanded {
   display: none;

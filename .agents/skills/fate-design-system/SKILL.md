@@ -34,6 +34,7 @@ Keep Fate front-end changes visually consistent, reusable, accessible, and compa
 ## Hard rules
 
 - Keep the current light theme. Do not add dark-mode values.
+- Use `--font-family-base` for all consumer-facing text. Do not use BiauKai, DFKai-SB, KaiTi, cursive, serif, or other calligraphic/typeface stacks; Fate uses one sans-serif stack throughout the website.
 - Use Lucide for new icons. Leave legacy Material Icons alone unless the touched UI is being migrated.
 - Meet WCAG 2.2 AA: keyboard access, visible focus, programmatic labels, associated errors, sufficient contrast, reduced motion, and at least 44px touch targets.
 - Keep body and interactive text at least 14px. Use 12px only for nonessential captions or timestamps.

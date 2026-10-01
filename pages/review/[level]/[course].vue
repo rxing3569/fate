@@ -203,7 +203,7 @@ usePageSeo({
 }
 .course-heading h2 {
   margin: 5px 0;
-  font-family: "Noto Serif TC", serif;
+  font-family: var(--font-family-base);
   font-size: 23px;
 }
 .course-heading p {

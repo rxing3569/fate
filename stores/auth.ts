@@ -6,6 +6,9 @@ import { clearAllOfflineData, clearOfflineUser, getOfflineActiveUserUuid, loadOf
 import { loadCompletedStages, mergeCompletedStages, normalizeCompletedStages, replaceCompletedStages } from '~/utils/learning'
 
 const AUTH_CACHE_KEY = 'ziwei:auth-state'
+type BillingResponse = { points?: number, premium?: boolean, is_premium?: boolean, membership_quota_remaining?: number }
+let billingInFlight: Promise<BillingResponse> | null = null
+let authHydrationInFlight: Promise<boolean> | null = null
 
 export interface UserProfile {
   uuid?: string
@@ -58,6 +61,16 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     async hydrate() {
       if (!import.meta.client || this.sessionReady) return this.canViewMemberContent
+      if (authHydrationInFlight) return authHydrationInFlight
+      const request = this.hydrateNow()
+      authHydrationInFlight = request
+      void request.then(
+        () => { if (authHydrationInFlight === request) authHydrationInFlight = null },
+        () => { if (authHydrationInFlight === request) authHydrationInFlight = null },
+      )
+      return request
+    },
+    async hydrateNow() {
       try {
         this.accessToken = await getValidAccessToken()
         if (this.accessToken) {
@@ -190,7 +203,14 @@ export const useAuthStore = defineStore('auth', {
     async loadBilling(options: { fallbackToCache?: boolean } = {}) {
       const { fallbackToCache = true } = options
       try {
-        const data = await apiFetch<{ points?: number, premium?: boolean, is_premium?: boolean, membership_quota_remaining?: number }>('/billing/points/me')
+        if (!billingInFlight) {
+          const request = apiFetch<BillingResponse>('/billing/points/me')
+          billingInFlight = request
+          void request.finally(() => {
+            if (billingInFlight === request) billingInFlight = null
+          }).catch(() => { /* The awaiting caller handles the request failure. */ })
+        }
+        const data = await billingInFlight
         this.points = Number(data.points || 0)
         this.premium = Boolean(data.premium ?? data.is_premium)
         this.membershipQuotaRemaining = Number(data.membership_quota_remaining || 0)
