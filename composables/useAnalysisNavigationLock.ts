@@ -21,7 +21,7 @@ export function analysisNavigationLockLabel(
     active.status === "running" &&
     (active.connected || active.metadata.navigationLocked === true)
   )
-    return "問事解惑";
+    return "占卜問事";
   return "";
 }
 

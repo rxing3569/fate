@@ -17,7 +17,7 @@ import {
   readPremiumCheckoutIntent,
 } from "~/utils/premium-checkout";
 definePageMeta({ middleware: "auth" });
-useHead({ title: "問事解惑｜江映澄紫微" });
+useHead({ title: "占卜問事｜江映澄紫微" });
 const initialConsultTitle = "事情的核心";
 const consultSegmentTitles: Record<ConsultSegment["key"], string> = {
   main: initialConsultTitle,
@@ -377,11 +377,11 @@ async function downloadConsultPdf() {
   await downloadAnalysisPdf({
     source: consultPdfSource,
     filename: () =>
-      `江映澄紫微-問事解惑-${new Date().toISOString().slice(0, 10)}.pdf`,
+      `江映澄紫微-占卜問事-${new Date().toISOString().slice(0, 10)}.pdf`,
     prepare: () => {
       consultPdfSnapshot.value = {
         generatedAt: new Date().toLocaleString("zh-TW"),
-        initialQuestion: chat.value?.initial_question || "問事解惑",
+        initialQuestion: chat.value?.initial_question || "占卜問事",
         cards: [...orderedCards.value],
         turns: buildConsultPdfTurns(),
       };
@@ -445,8 +445,7 @@ function syncActiveStream() {
       optimisticMessage.prompt_id === pendingMessage.prompt_id;
     if (pendingAlreadyVisible && optimisticMessage)
       optimisticMessage.client_job_id = job.jobId;
-    else
-      messages.value.push({ ...pendingMessage, client_job_id: job.jobId });
+    else messages.value.push({ ...pendingMessage, client_job_id: job.jobId });
   }
   const content = job.contents.main || "";
   syncFollowupQuestions(content);
@@ -890,7 +889,7 @@ watch(
 
 <template>
   <AppPageLayout
-    title="問事解惑"
+    title="占卜問事"
     content-mode="flush"
     screen-class="consult-chat-page"
   >
@@ -908,7 +907,7 @@ watch(
     <template #actions>
       <AppActionMenu
         v-if="canDownloadConsultPdf"
-        label="問事解惑操作"
+        label="占卜問事操作"
         :items="consultActionItems"
         @select="handleConsultAction"
       />
@@ -930,7 +929,7 @@ watch(
             >
               <img src="/remove-background-logo.png" alt="" />
               <p>江映澄紫微</p>
-              <h1>問事解惑紀錄</h1>
+              <h1>占卜問事紀錄</h1>
               <span>下載日期：{{ consultPdfSnapshot.generatedAt }}</span>
               <p class="analysis-pdf-disclaimer">
                 本內容供自我探索與參考，不應取代醫療、法律或財務專業意見。
@@ -993,7 +992,7 @@ watch(
             scope="page"
             layout="fill"
             :delay="0"
-            message="正在整理問事解惑 PDF，請稍候…"
+            message="正在整理占卜問事 PDF，請稍候…"
           />
         </div>
       </template>

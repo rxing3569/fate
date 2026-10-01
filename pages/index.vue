@@ -1,11 +1,20 @@
 <script setup lang="ts">
 import { ArrowDown, ArrowRight, BookOpen, Newspaper } from "@lucide/vue";
+import { articles } from "~/utils/articles";
 const { openChartEntry, openReportEntry } = useChartEntryNavigation();
+const featuredArticles = articles.slice(0, 3);
 usePageSeo({
-  title: "AI紫微斗數命盤解析｜免費排盤、免費算命、線上解盤與紫微教學",
+  title: "AI紫微斗數命盤解析｜人生探微、探索天賦、職涯探索與認識自我",
   description:
-    "江映澄紫微是結合命理師經驗與科技的 AI紫微、紫微教學平台，提供免費算命、免費排盤與線上解盤服務；從紫微命盤、十二宮、十四主星到流年時運、感情合盤與命理問答，以清楚易懂的解析陪你認識性格天賦、掌握人生課題，理解感情、工作與人生節奏，找到適合自己的未來方向。",
-  keywords: ["紫微斗數", "紫微命盤", "AI紫微", "AI算命", "線上紫微"],
+    "江映澄紫微結合命理師經驗與 AI 紫微斗數命盤解析，提供免費排盤、免費算命、免費教學、線上解盤與紫微教學，透過命盤、十二宮、十四主星、流年運勢，從人生探微、探索天賦、職涯探索到認識自我，協助你理解性格優勢、人生課題與未來方向。",
+  keywords: [
+    "紫微斗數",
+    "紫微命盤",
+    "人生探微",
+    "探索天賦",
+    "職涯探索",
+    "認識自我",
+  ],
   canonicalPath: "/",
 });
 function scrollToAbout() {
@@ -42,8 +51,8 @@ function scrollToAbout() {
               </button>
             </div>
             <div class="stats" aria-label="服務成果">
-              <div><b>350+</b><span>會員數</span></div>
-              <div><b>1200+</b><span>已生成報告</span></div>
+              <div><b>700+</b><span>會員數</span></div>
+              <div><b>3000+</b><span>已生成報告</span></div>
               <div><b>6 年</b><span>資歷老師把關</span></div>
             </div>
           </div>
@@ -57,6 +66,89 @@ function scrollToAbout() {
         <button class="about-float" type="button" @click="scrollToAbout">
           <span>深入認識</span><ArrowDown :size="18" />
         </button>
+      </section>
+      <section class="services" aria-labelledby="services-title">
+        <small>SYSTEM SERVICES</small>
+        <h2 id="services-title">系統服務</h2>
+        <div class="ink-line" />
+        <div class="entry-grid">
+          <NuxtLink to="/report" class="entry-card glass">
+            <div class="entry-heading">
+              <AppMaterialIcon name="auto_stories_rounded" :size="24" />
+              <h3>命盤解析</h3>
+            </div>
+            <p>
+              運用 AI
+              紫微斗數解析先天命格（本命格局）、十二宮位詳解與十年大運，從個性天賦、事業財運到人生課題，全面讀懂自己的命盤。
+            </p>
+            <span class="entry-action">開始解析 <ArrowRight :size="14" /></span>
+          </NuxtLink>
+          <NuxtLink to="/annual-flow" class="entry-card glass">
+            <div class="entry-heading">
+              <AppMaterialIcon name="insights_rounded" :size="24" />
+              <h3>流年運勢</h3>
+            </div>
+            <p>
+              聚焦指定年份的工作、感情、財運與生活變化，掌握年度主題、重要時機及適合採取的行動方向。
+            </p>
+            <span class="entry-action">查看運勢 <ArrowRight :size="14" /></span>
+          </NuxtLink>
+          <NuxtLink to="/match" class="entry-card glass">
+            <div class="entry-heading">
+              <AppMaterialIcon name="diversity_1_rounded" :size="24" />
+              <h3>合盤解析</h3>
+            </div>
+            <p>
+              結合雙方紫微命盤與 AI
+              關係分析，理解感情互動、溝通模式及彼此需求，找出更適合兩人的相處方式。
+            </p>
+            <span class="entry-action">開始合盤 <ArrowRight :size="14" /></span>
+          </NuxtLink>
+          <NuxtLink to="/qa" class="entry-card glass">
+            <div class="entry-heading">
+              <i class="entry-chat-icon" aria-hidden="true" />
+              <h3>線上問答</h3>
+            </div>
+            <p>
+              根據個人紫微命盤向 AI
+              即時提問，針對感情、事業、財運與人生選擇，獲得貼近自身命盤脈絡的解答。
+            </p>
+            <span class="entry-action">立即提問 <ArrowRight :size="14" /></span>
+          </NuxtLink>
+          <NuxtLink
+            to="/ai-analysis?mode=flow_today"
+            class="entry-card glass"
+          >
+            <div class="entry-heading">
+              <AppMaterialIcon name="calendar_month" :size="24" />
+              <h3>今日運勢</h3>
+            </div>
+            <p>
+              查看今日與本月的工作、感情、財運及生活節奏，掌握當下適合把握的機會與需要留意的方向。
+            </p>
+            <span class="entry-action">查看運勢 <ArrowRight :size="14" /></span>
+          </NuxtLink>
+          <NuxtLink to="/consult" class="entry-card glass">
+            <div class="entry-heading">
+              <AppMaterialIcon name="auto_awesome_rounded" :size="24" />
+              <h3>占卜問事</h3>
+            </div>
+            <p>
+              針對眼前的感情、工作、合作或人生抉擇抽取星曜，從事情核心、行動方向與時機獲得具體提示。
+            </p>
+            <span class="entry-action">開始問事 <ArrowRight :size="14" /></span>
+          </NuxtLink>
+          <NuxtLink to="/learn/" class="entry-card glass">
+            <div class="entry-heading">
+              <BookOpen :size="24" />
+              <h3>學習紫微</h3>
+            </div>
+            <p>
+              從十四主星、十二宮位到基礎解盤，搭配學習地圖、題庫與測驗，循序建立實用的紫微斗數知識。
+            </p>
+            <span class="entry-action">開始學習 <ArrowRight :size="14" /></span>
+          </NuxtLink>
+        </div>
       </section>
       <section id="about" class="belief">
         <small>ABOUT US</small>
@@ -97,76 +189,32 @@ function scrollToAbout() {
           </p>
         </article>
       </section>
-      <section class="services" aria-labelledby="services-title">
-        <small>SYSTEM SERVICES</small>
-        <h2 id="services-title">系統服務</h2>
+      <section class="featured-articles" aria-labelledby="featured-articles-title">
+        <small>ASTROLOGY COLUMN</small>
+        <h2 id="featured-articles-title">命理專欄</h2>
         <div class="ink-line" />
-        <div class="entry-grid">
-          <NuxtLink to="/report" class="entry-card glass">
-            <div class="entry-heading">
-              <AppMaterialIcon name="auto_stories_rounded" :size="24" />
-              <h3>AI 命盤解析</h3>
-            </div>
-            <p>
-              運用 AI
-              紫微斗數解析先天命格（本命格局）、十二宮位詳解與十年大運，從個性天賦、事業財運到人生課題，全面讀懂自己的命盤。
-            </p>
-            <span class="entry-action">開始解析 <ArrowRight :size="14" /></span>
-          </NuxtLink>
-		  <NuxtLink to="/ai-analysis" class="entry-card glass">
-            <div class="entry-heading">
-              <AppMaterialIcon name="insights_rounded" :size="24" />
-			  <h3>AI 運勢解析</h3>
-            </div>
-            <p>
-              透過 AI
-			  分析今日、本月與整年運勢，掌握工作、感情及財運變化，提早看見重要時機與需要留意的方向。
-            </p>
-			<span class="entry-action">查看運勢 <ArrowRight :size="14" /></span>
-          </NuxtLink>
-          <NuxtLink to="/match" class="entry-card glass">
-            <div class="entry-heading">
-              <AppMaterialIcon name="diversity_1_rounded" :size="24" />
-              <h3>AI 合盤解析</h3>
-            </div>
-            <p>
-              結合雙方紫微命盤與 AI
-              關係分析，理解感情互動、溝通模式及彼此需求，找出更適合兩人的相處方式。
-            </p>
-            <span class="entry-action">開始合盤 <ArrowRight :size="14" /></span>
-          </NuxtLink>
-          <NuxtLink to="/qa" class="entry-card glass">
-            <div class="entry-heading">
-              <i class="entry-chat-icon" aria-hidden="true" />
-              <h3>線上問答</h3>
-            </div>
-            <p>
-              根據個人紫微命盤向 AI
-              即時提問，針對感情、事業、財運與人生選擇，獲得貼近自身命盤脈絡的解答。
-            </p>
-            <span class="entry-action">立即提問 <ArrowRight :size="14" /></span>
-          </NuxtLink>
-          <NuxtLink to="/learn/" class="entry-card glass">
-            <div class="entry-heading">
-              <BookOpen :size="24" />
-              <h3>學習紫微</h3>
-            </div>
-            <p>
-              從十四主星、十二宮位到基礎解盤，搭配學習地圖、題庫與測驗，循序建立實用的紫微斗數知識。
-            </p>
-            <span class="entry-action">開始學習 <ArrowRight :size="14" /></span>
-          </NuxtLink>
-          <NuxtLink to="/articles" class="entry-card glass">
-            <div class="entry-heading">
-              <Newspaper :size="24" />
-              <h3>命理專欄</h3>
-            </div>
-            <p>
-              閱讀紫微斗數、流年運勢、感情合盤與自我成長文章，以深入淺出的方式理解傳統命理的現代應用。
-            </p>
-            <span class="entry-action">前往閱讀 <ArrowRight :size="14" /></span>
+        <div class="featured-article-grid">
+          <NuxtLink
+            v-for="article in featuredArticles"
+            :key="article.slug"
+            :to="`/articles/${article.slug}`"
+            class="featured-article-card glass"
+          >
+            <span class="featured-article-icon">
+              <Newspaper :size="22" aria-hidden="true" />
+            </span>
+            <small>{{ article.category }}・{{ article.readingTime }}</small>
+            <h3>{{ article.title }}</h3>
+            <p>{{ article.excerpt }}</p>
+            <footer>
+              <time :datetime="article.date">{{ article.date }}</time>
+              <b>閱讀文章 <ArrowRight :size="14" /></b>
+            </footer>
           </NuxtLink>
         </div>
+        <NuxtLink class="featured-articles-more" to="/articles">
+          查看更多文章 <ArrowRight :size="15" />
+        </NuxtLink>
       </section>
       <TestimonialsCarousel />
       <section class="final-action">
@@ -205,12 +253,14 @@ function scrollToAbout() {
 .hero-aside blockquote,
 .belief > h2,
 .services > h2,
+.featured-articles > h2,
 .about-card > h3,
 .final-action h2 {
   font-family: var(--font-family-base);
 }
 .belief,
 .services,
+.featured-articles,
 .final-action {
   text-align: center;
 }
@@ -334,13 +384,15 @@ function scrollToAbout() {
   scroll-margin-top: 58px;
 }
 .belief > small,
-.services > small {
+.services > small,
+.featured-articles > small {
   color: var(--tea);
   font-weight: 900;
   letter-spacing: 0.16em;
 }
 .belief > h2,
-.services > h2 {
+.services > h2,
+.featured-articles > h2 {
   margin: 8px 0;
   font-size: 27px;
 }
@@ -457,6 +509,76 @@ function scrollToAbout() {
   font-size: 12px;
   font-weight: 900;
 }
+.featured-articles {
+  padding: 64px 18px 18px;
+}
+.featured-article-grid {
+  display: grid;
+  gap: 14px;
+  margin-top: 25px;
+}
+.featured-article-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 20px;
+  border-radius: 24px;
+  text-align: left;
+}
+.featured-article-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 13px;
+  border-radius: 14px;
+  background: rgba(107, 166, 160, 0.14);
+  color: var(--jade);
+}
+.featured-article-card > small {
+  color: var(--cinnabar);
+  font-size: 11px;
+  font-weight: 800;
+}
+.featured-article-card h3 {
+  margin: 8px 0;
+  color: var(--mountain);
+  font-size: 17px;
+  line-height: 1.5;
+}
+.featured-article-card p {
+  display: -webkit-box;
+  flex: 1;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.65;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+.featured-article-card footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  color: rgba(36, 87, 90, 0.5);
+  font-size: 11px;
+}
+.featured-article-card footer b,
+.featured-articles-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--mountain);
+  font-weight: 900;
+}
+.featured-articles-more {
+  justify-content: center;
+  margin-top: 20px;
+  font-size: 14px;
+}
 .final-action {
   padding: 40px 18px 24px;
 }
@@ -507,6 +629,7 @@ function scrollToAbout() {
 @media (min-width: 600px) {
   .belief,
   .services,
+  .featured-articles,
   .final-action {
     padding-right: 28px;
     padding-left: 28px;
@@ -534,6 +657,12 @@ function scrollToAbout() {
 @media (min-width: 760px) {
   .entry-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+  .featured-article-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .featured-article-card:hover {
+    transform: translateY(-2px);
   }
   .entry-action {
     align-self: flex-end;

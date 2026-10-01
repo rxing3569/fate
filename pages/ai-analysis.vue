@@ -45,8 +45,10 @@ const redirectAfterBirth = computed(() => {
     : "";
 });
 
-onMounted(() => {
+onMounted(async () => {
   chartStore.hydrate(auth.profile);
+  if (routeMode.value === "flow_today" && chartStore.chart)
+    await checkTodayFlow();
 });
 watch(routeMode, (value) => {
   active.value = value;

@@ -1,6 +1,6 @@
 <template>
   <AppPageLayout
-    title="問事解惑"
+    title="占卜問事"
     content-mode="flush"
     screen-class="consult-index-page"
   >
@@ -22,12 +22,17 @@ const checkingRecord = ref(true);
 
 onMounted(async () => {
   await activeAnalysis.hydrate();
-  if (activeAnalysis.active?.kind === "consult" && activeAnalysis.active.status === "running") {
+  if (
+    activeAnalysis.active?.kind === "consult" &&
+    activeAnalysis.active.status === "running"
+  ) {
     await navigateTo("/consult/result", { replace: true });
     return;
   }
   try {
-    const response = await ziweiApi.getConsultRecord({ notifyError: false }) as { data?: unknown };
+    const response = (await ziweiApi.getConsultRecord({
+      notifyError: false,
+    })) as { data?: unknown };
     if (response.data) {
       await navigateTo("/consult/result", { replace: true });
       return;

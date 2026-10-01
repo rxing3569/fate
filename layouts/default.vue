@@ -20,8 +20,7 @@ const DevFloatingButton = import.meta.dev
 const route = useRoute();
 const auth = useAuthStore();
 const activeAnalysis = useActiveAnalysisStore();
-const { blockIfLocked: blockAnalysisNavigation } =
-  useAnalysisNavigationLock();
+const { blockIfLocked: blockAnalysisNavigation } = useAnalysisNavigationLock();
 const showLoginSheet = ref(false);
 const loginRedirect = ref("/");
 const learningSyncing = ref(false);
@@ -48,7 +47,7 @@ const tabs: NavigationTab[] = [
   { to: "/", label: "首頁", mobileLabel: "首頁", icon: Home },
   {
     to: "/consult",
-    label: "問事解惑",
+    label: "占卜問事",
     mobileLabel: "問事",
     icon: MessageCircleQuestionMark,
     badge: "NEW",
@@ -62,6 +61,12 @@ const tabs: NavigationTab[] = [
   },
   { to: "/articles", label: "文章專欄", mobileLabel: "文章", icon: Newspaper },
   {
+    to: "/learn/",
+    label: "紫微教學",
+    mobileLabel: "教學",
+    icon: BookOpen,
+  },
+  {
     to: "/member",
     label: "會員中心",
     mobileLabel: "會員",
@@ -70,7 +75,17 @@ const tabs: NavigationTab[] = [
   },
 ];
 
-const mobileTabs: NavigationTab[] = [...tabs];
+const mobileTabs: NavigationTab[] = [
+  ...tabs.slice(0, 3),
+  {
+    to: "/learning-resources",
+    label: "學習資源",
+    mobileLabel: "學習",
+    icon: BookOpen,
+    library: true,
+  },
+  tabs.at(-1)!,
+];
 
 const mobileNavigationHiddenRoutes = new Set([
   "/chart",
@@ -432,21 +447,21 @@ function isTabActive(path: string) {
             v-if="libraryMenuOpen"
             class="library-menu-panel"
             role="menu"
-            aria-label="文庫"
+            aria-label="學習資源"
           >
-            <button
-              type="button"
-              role="menuitem"
-              @click="openLibraryPage('/learn/')"
-            >
-              <BookOpen :size="19" /><span>紫微教學</span>
-            </button>
             <button
               type="button"
               role="menuitem"
               @click="openLibraryPage('/articles')"
             >
               <Newspaper :size="19" /><span>文章專欄</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              @click="openLibraryPage('/learn/')"
+            >
+              <BookOpen :size="19" /><span>紫微教學</span>
             </button>
           </div>
         </Transition>

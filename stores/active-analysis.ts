@@ -7,7 +7,13 @@ import {
 } from "~/utils/api";
 import { ANALYSIS_TIMEOUT_MS } from "~/composables/useIncompleteAnalysisRecovery";
 
-export type AnalysisKind = "report" | "flow" | "annual_flow" | "match" | "qa" | "consult";
+export type AnalysisKind =
+  | "report"
+  | "flow"
+  | "annual_flow"
+  | "match"
+  | "qa"
+  | "consult";
 export type AnalysisStatus =
   | "idle"
   | "running"
@@ -64,7 +70,7 @@ const labels: Record<AnalysisKind, string> = {
   annual_flow: "流年運勢",
   match: "合盤解析",
   qa: "線上問答",
-  consult: "問事解惑",
+  consult: "占卜問事",
 };
 
 const destinations: Record<AnalysisKind, string> = {
@@ -146,7 +152,8 @@ function normalizeMetadata(value: unknown): Record<string, unknown> {
 }
 
 function analysisKind(value: string | undefined, fallback?: AnalysisKind) {
-  return value && ["report", "flow", "annual_flow", "match", "qa", "consult"].includes(value)
+  return value &&
+    ["report", "flow", "annual_flow", "match", "qa", "consult"].includes(value)
     ? (value as AnalysisKind)
     : fallback;
 }
@@ -187,8 +194,12 @@ export const useActiveAnalysisStore = defineStore("active-analysis", {
       const request = this.hydrateNow();
       hydrationInFlight = request;
       void request.then(
-        () => { if (hydrationInFlight === request) hydrationInFlight = null; },
-        () => { if (hydrationInFlight === request) hydrationInFlight = null; },
+        () => {
+          if (hydrationInFlight === request) hydrationInFlight = null;
+        },
+        () => {
+          if (hydrationInFlight === request) hydrationInFlight = null;
+        },
       );
       return request;
     },
@@ -225,8 +236,12 @@ export const useActiveAnalysisStore = defineStore("active-analysis", {
       const request = this.fetchActiveStatus();
       reconciliationInFlight = request;
       void request.then(
-        () => { if (reconciliationInFlight === request) reconciliationInFlight = null; },
-        () => { if (reconciliationInFlight === request) reconciliationInFlight = null; },
+        () => {
+          if (reconciliationInFlight === request) reconciliationInFlight = null;
+        },
+        () => {
+          if (reconciliationInFlight === request) reconciliationInFlight = null;
+        },
       );
       return request;
     },

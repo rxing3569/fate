@@ -31,7 +31,7 @@ export const targetLabels: Record<AnalysisKind, string> = {
   flow: "今日／本月運勢",
   annual_flow: "流年運勢",
   qa: "線上問答",
-  consult: "問事解惑",
+  consult: "占卜問事",
 };
 
 export const targetRoutes: Record<AnalysisKind, string> = {
