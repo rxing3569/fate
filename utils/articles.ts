@@ -62,7 +62,10 @@ function parseArticle(path: string, raw: string): Article {
 
 export const articles = Object.entries(files)
   .map(([path, raw]) => parseArticle(path, raw))
-  .sort((a, b) => b.date.localeCompare(a.date));
+  .sort(
+    (a, b) =>
+      b.date.localeCompare(a.date) || a.fileName.localeCompare(b.fileName),
+  );
 export function getArticle(slug: string) {
   return articles.find((article) => article.slug === slug);
 }
