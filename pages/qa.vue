@@ -18,10 +18,6 @@ import {
   clearPremiumCheckoutIntent,
   readPremiumCheckoutIntent,
 } from "~/utils/premium-checkout";
-import {
-  pickQuestionSuggestions,
-  qaQuestionSuggestions,
-} from "~/utils/question-suggestions";
 
 definePageMeta({ middleware: "auth" });
 
@@ -45,7 +41,8 @@ interface ReportRecord {
   created_at?: string;
 }
 
-const MAX_QUESTIONS = 5;
+const QUESTIONS_PER_CHARGE = 5;
+const MAX_QUESTIONS = 15;
 const auth = useAuthStore();
 const chartStore = useChartStore();
 const activeAnalysis = useActiveAnalysisStore();
@@ -92,11 +89,13 @@ function isDevMockAnalysis() {
   );
 }
 
-const suggestions = ref<string[]>([]);
 const askedCount = computed(
   () => messages.value.filter((message) => message.role === "user").length,
 );
 const remaining = computed(() => Math.max(0, MAX_QUESTIONS - askedCount.value));
+const nextQuestionNeedsCharge = computed(
+  () => askedCount.value % QUESTIONS_PER_CHARGE === 0,
+);
 const canSend = computed(
   () =>
     Boolean(input.value.trim()) &&
@@ -156,7 +155,6 @@ onMounted(async () => {
   // during hydration can permanently retain the server branch's classes.
   pageReady.value = true;
   chartStore.hydrate(auth.profile);
-  suggestions.value = pickQuestionSuggestions(qaQuestionSuggestions);
   restoreConversation();
   syncActiveQa();
   if (import.meta.dev)
@@ -431,7 +429,6 @@ function clearConversation() {
   qaFailureCode.value = "";
   usePointsFallback.value = false;
   chatId.value = createChatId();
-  suggestions.value = pickQuestionSuggestions(qaQuestionSuggestions);
   if (cacheKey.value) localStorage.removeItem(cacheKey.value);
 }
 
@@ -444,6 +441,7 @@ function restorePremiumCheckout() {
   if (!intent || intent.source !== "qa") return;
   input.value = intent.question;
   pendingQuestion.value = intent.question;
+  usePointsFallback.value = false;
   showQuotaConfirm.value = true;
   clearPremiumCheckoutIntent();
 }
@@ -502,9 +500,23 @@ async function requestSend() {
   trackNextStepSubmitted("qa");
   requestingSend.value = true;
   try {
+    if (askedCount.value > 0) {
+      try {
+        await recoverQaHistory();
+      } catch {
+        error.value = "目前無法確認問答進度，請重新讀取後再提問。";
+        return;
+      }
+      if (qaServerStatus.value !== "completed") {
+        error.value = qaServerStatus.value === "failed"
+          ? "請先重新產生上一題的回答。"
+          : "上一題仍在處理，請稍後重新讀取。";
+        return;
+      }
+    }
     if (remaining.value <= 0) {
       error.value =
-        "線上問答功能每份命盤最多可提問 5 次。請重新提問開啟新的問答。";
+        "本次線上問答最多可提問 15 次，請重新提問開啟新的問答。";
       return;
     }
     pendingQuestion.value = question;
@@ -519,7 +531,8 @@ async function requestSend() {
       return;
     }
     if (!(await activeAnalysis.ensureAvailable("qa"))) return;
-    if (askedCount.value === 0 && !usePointsFallback.value) {
+    if (nextQuestionNeedsCharge.value) {
+      usePointsFallback.value = false;
       showQuotaConfirm.value = true;
     } else await sendQuestion(question);
   } finally {
@@ -574,6 +587,7 @@ function buildNatalPayload() {
 
 async function confirmQuota() {
   showQuotaConfirm.value = false;
+  usePointsFallback.value = false;
   await sendQuestion(pendingQuestion.value);
 }
 
@@ -592,7 +606,9 @@ async function sendQuestion(question: string) {
     const history = [...messages.value];
     const userMessage: QaMessage = { role: "user", content: question };
     const consumesQuota =
-      history.filter((item) => item.role === "user").length === 0;
+      history.filter((item) => item.role === "user").length %
+        QUESTIONS_PER_CHARGE ===
+      0;
     const started = await activeAnalysis.begin("qa", cacheKey.value, {
       chatId: chatId.value,
       question,
@@ -657,7 +673,7 @@ async function sendQuestion(question: string) {
       showPointsFallback.value = true;
     } else if (message.includes("turn_limit") || message.includes("limit"))
       error.value =
-        "線上問答功能每份命盤最多可提問 5 次。請重新提問開啟新的問答。";
+        "本次線上問答最多可提問 15 次，請重新提問開啟新的問答。";
     else if (message.includes("requires_membership")) {
       auth.premium = false;
       error.value = "此功能為付費會員專屬，請購買會員後再試。";
@@ -845,14 +861,13 @@ function displayAssistant(content: string) {
           <span class="welcome-icon"><MessageCircle :size="28" /></span>
           <p>
             可透過問答更加理解命盤<br /><small
-              >(同一次對話裡面有五次追問的機會喔～)</small
+              >(同一次對話最多 15 題，每 5 題使用 1 次會員額度)</small
             >
           </p>
           <AppQuestionComposer
             v-model="input"
             class="welcome-composer"
             placeholder="輸入問題..."
-            :suggestions="suggestions"
             :disabled="requestingSend || startingSend"
             :submit-disabled="!canSend"
             @submit="requestSend"
@@ -927,6 +942,7 @@ function displayAssistant(content: string) {
 
       <footer v-if="messages.length" class="qa-composer">
         <div class="composer-actions">
+          <span>已提問 {{ askedCount }} / {{ MAX_QUESTIONS }} 題</span>
           <button
             type="button"
             :disabled="sending || resettingConversation"
@@ -942,7 +958,6 @@ function displayAssistant(content: string) {
           :placeholder="
             remaining <= 0 ? '已達提問上限，請重新提問' : '輸入問題...'
           "
-          :suggestions="suggestions"
           @submit="requestSend"
         />
       </footer>
@@ -982,7 +997,11 @@ function displayAssistant(content: string) {
 
     <AppBottomSheet :open="showQuotaConfirm" @close="showQuotaConfirm = false">
       <template #header><h2>確認使用線上問答</h2></template>
-      <p>本次操作將消耗會員額度 1 次，且後續最多可追問五次，不重複扣除額度。</p>
+      <p>
+        第 {{ askedCount + 1 }} 題將使用會員額度 1 次，接下來最多可再問
+        {{ Math.min(QUESTIONS_PER_CHARGE - 1, MAX_QUESTIONS - askedCount - 1) }} 題；
+        本次對話最多 15 題。
+      </p>
       <div class="quota-row">
         <Coins :size="18" />
         <span>本月會員額度剩餘</span>
@@ -1010,7 +1029,11 @@ function displayAssistant(content: string) {
       @close="showPointsFallback = false"
     >
       <template #header><h2>會員月度額度已滿</h2></template>
-      <p>是否改為扣除 100 點數繼續本次線上問答？目前點數：{{ auth.points }}</p>
+      <p>
+        是否改為扣除 100 點數，使用第 {{ askedCount + 1 }} 至
+        {{ Math.min(askedCount + QUESTIONS_PER_CHARGE, MAX_QUESTIONS) }} 題？
+        目前點數：{{ auth.points }}
+      </p>
       <div class="sheet-actions">
         <button
           class="app-button outline"
@@ -1366,8 +1389,13 @@ function displayAssistant(content: string) {
 }
 .composer-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 5px;
+}
+.composer-actions span {
+  color: var(--text-soft);
+  font-size: 12px;
 }
 .composer-actions button {
   display: flex;
