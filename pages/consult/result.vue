@@ -82,8 +82,11 @@ const chat = ref<ConsultChat | null>(null),
   initializingRecord = ref(true),
   localActionInFlight = ref(false),
   sending = ref(false),
-  error = ref("");
+  error = ref(""),
+  recordReadError = ref(false);
 let chatLoadInFlight: Promise<void> | null = null;
+const MAX_AUTOMATIC_REFRESHES = 3;
+const automaticRefreshes = ref(0);
 const showPointsConfirm = ref(false),
   showQuotaConfirm = ref(false),
   showPremiumCheckout = ref(false),
@@ -171,6 +174,7 @@ const extraTurns = computed(() => {
 const canContinue = computed(
   () =>
     extraTurns.value < 10 &&
+    !recordReadError.value &&
     !sending.value &&
     !localActionInFlight.value &&
     activeConsult.value?.status !== "running" &&
@@ -465,6 +469,7 @@ function syncActiveStream() {
   scrollBottom();
 }
 async function fetchChat() {
+  const recoveringFromRecordError = recordReadError.value;
   try {
     const response = (await ziweiApi.getConsultRecord({
       notifyError: false,
@@ -472,6 +477,8 @@ async function fetchChat() {
     if (response.data) {
       chat.value = response.data;
       recordLoaded.value = true;
+      recordReadError.value = false;
+      if (recoveringFromRecordError) error.value = "";
       const hasLiveStream =
         activeConsult.value?.status === "running" &&
         messages.value.some((message) => message.role === "assistant");
@@ -492,7 +499,10 @@ async function fetchChat() {
     ) {
       chat.value = null;
       recordLoaded.value = true;
+      recordReadError.value = false;
+      if (recoveringFromRecordError) error.value = "";
     } else {
+      recordReadError.value = true;
       error.value = consultErrorText(reason);
     }
   }
@@ -775,11 +785,15 @@ function handleConsultEvent(event: Event) {
 }
 async function refreshResult(silent = false) {
   if (refreshingResult.value) return;
+  if (!silent) {
+    automaticRefreshes.value = 0;
+  }
   refreshingResult.value = true;
   try {
     await activeAnalysis.reconcileActive();
     await activeAnalysis.refreshStatus();
     await loadChat();
+    if (recordReadError.value) return;
     syncActiveStream();
     const job = activeConsult.value;
     if (job?.status === "completed") {
@@ -789,6 +803,7 @@ async function refreshResult(silent = false) {
         if (activeConsultRecordIsCurrent()) break;
         await new Promise((resolve) => window.setTimeout(resolve, delay));
         await loadChat();
+        if (recordReadError.value) break;
       }
       if (!silent && activeConsultRecordIsCurrent())
         showAppSuccess("解析結果已更新");
@@ -805,10 +820,21 @@ async function refreshResult(silent = false) {
       showAppWarning("本次回覆未完成，可使用免費重新計算。");
     }
   } catch (reason) {
+    recordReadError.value = true;
+    error.value = consultErrorText(reason);
     if (!silent) showAppError(consultErrorText(reason));
   } finally {
     refreshingResult.value = false;
   }
+}
+function handleConsultReconnect() {
+  automaticRefreshes.value = 0;
+  if (
+    recordReadError.value ||
+    (activeConsult.value?.status === "running" && !activeConsult.value.connected) ||
+    (activeConsult.value?.status === "completed" && !activeConsultRecordIsCurrent())
+  )
+    void refreshResult(true);
 }
 async function resetConsult() {
   if (sending.value || resetting.value) return;
@@ -831,6 +857,7 @@ async function resetConsult() {
 onMounted(async () => {
   window.addEventListener("consult-analysis-event", handleConsultEvent);
   window.addEventListener("beforeunload", handleConsultBeforeUnload);
+  window.addEventListener("online", handleConsultReconnect);
   try {
     await activeAnalysis.hydrate();
     if (initialInfo.value && !messages.value.length)
@@ -853,12 +880,20 @@ onMounted(async () => {
     pdfPremiumGate.restoreFeature(["consult_pdf"]);
     disconnectedRefreshTimer = window.setInterval(() => {
       if (
-        (activeConsult.value?.status === "running" &&
-          !activeConsult.value.connected) ||
-        (activeConsult.value?.status === "completed" &&
-          !activeConsultRecordIsCurrent())
-      )
-        void refreshResult(true);
+        !navigator.onLine ||
+        refreshingResult.value ||
+        recordReadError.value ||
+        automaticRefreshes.value >= MAX_AUTOMATIC_REFRESHES
+      ) return;
+      const disconnected =
+        activeConsult.value?.status === "running" &&
+        !activeConsult.value.connected;
+      const waitingForRecord =
+        activeConsult.value?.status === "completed" &&
+        !activeConsultRecordIsCurrent();
+      if (!disconnected && !waitingForRecord) return;
+      automaticRefreshes.value++;
+      void refreshResult(true);
     }, 5000);
   } finally {
     initializingRecord.value = false;
@@ -867,8 +902,15 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener("consult-analysis-event", handleConsultEvent);
   window.removeEventListener("beforeunload", handleConsultBeforeUnload);
+  window.removeEventListener("online", handleConsultReconnect);
   if (disconnectedRefreshTimer) window.clearInterval(disconnectedRefreshTimer);
 });
+watch(
+  () => activeConsult.value?.jobId,
+  () => {
+    automaticRefreshes.value = 0;
+  },
+);
 watch(
   [
     () => activeAnalysis.active?.contents.main,
@@ -1121,7 +1163,11 @@ watch(
           </div>
           <AppButton
             v-if="
-              activeConsult?.status === 'running' && !activeConsult.connected
+              recordReadError ||
+              (activeConsult?.status === 'running' && !activeConsult.connected) ||
+              (activeConsult?.status === 'completed' &&
+                !activeConsultRecordIsCurrent() &&
+                automaticRefreshes >= MAX_AUTOMATIC_REFRESHES)
             "
             class="reload"
             variant="secondary"
@@ -1134,7 +1180,19 @@ watch(
           </AppButton></template
         >
         <div v-else class="empty-state">
-          <span class="loading-ring" />
+          <template v-if="recordReadError">
+            <p>目前無法讀取問事紀錄，已暫停自動重試。</p>
+            <AppButton
+              variant="secondary"
+              size="small"
+              :loading="refreshingResult"
+              @click="refreshResult()"
+            >
+              <template #leading><RefreshCw :size="16" /></template>
+              重新讀取紀錄
+            </AppButton>
+          </template>
+          <span v-else class="loading-ring" />
         </div>
       </section>
       <footer v-if="chatId" class="consult-composer">
